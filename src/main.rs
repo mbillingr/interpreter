@@ -43,7 +43,7 @@ fn transform(expr: Expression) -> Result<Expression> {
     match expr {
         List(l) => match l.first() {
             Some(Symbol(s)) if s == "define" => transform_define(l),
-            _ => Ok(List(l))
+            _ => l.into_iter().map(transform).collect::<Result<_>>().map(List)
         }
         _ => Ok(expr)
     }
@@ -98,6 +98,8 @@ fn transform_define(mut list: List) -> Result<Expression> {
     if list.len() < 3 {
         return Err(ErrorKind::ArgumentError.into());
     }
+
+    let mut list: Vec<_> = list.into_iter().map(transform).collect::<Result<_>>()?;
 
     if list[1].is_symbol() {
         Ok(Expression::List(list))
