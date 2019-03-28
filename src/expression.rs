@@ -1,5 +1,7 @@
 use crate::errors::*;
 
+pub type Args = Vec<Expression>;
+
 #[derive(Clone)]
 pub enum Expression {
     /// for now use a Vec... maybe change to linked list in the future?
@@ -18,6 +20,9 @@ pub enum Expression {
 impl Expression {
     pub fn zero() -> Self {
         Expression::Integer(0)
+    }
+    pub fn one() -> Self {
+        Expression::Integer(1)
     }
 
     pub fn call(&self, args: Vec<Expression>) -> Result<Expression> {
@@ -93,17 +98,49 @@ impl std::ops::Add for Expression {
             (Integer(a), Float(b)) => Ok(Float(a as f64 + b)),
             (Float(a), Integer(b)) => Ok(Float(a + b as f64)),
             (Float(a), Float(b)) => Ok(Float(a + b)),
-            (a, b) => Err(ErrorKind::TypeError(format!("Cannot add {} and {}", a, b)).into()),
+            (a, b) => Err(ErrorKind::TypeError(format!("Cannot add {} + {}", a, b)).into()),
         }
     }
 }
 
-impl std::iter::Sum<Expression> for Result<Expression> {
-    fn sum<I: Iterator<Item=Expression>>(iter: I) -> Self {
-        let mut acc = Expression::zero();
-        for b in iter {
-            acc = (acc + b)?;
+impl std::ops::Mul for Expression {
+    type Output = Result<Expression>;
+    fn mul(self, other: Self) -> Self::Output {
+        use Expression::*;
+        match (self, other) {
+            (Integer(a), Integer(b)) => Ok(Integer(a * b)),
+            (Integer(a), Float(b)) => Ok(Float(a as f64 * b)),
+            (Float(a), Integer(b)) => Ok(Float(a * b as f64)),
+            (Float(a), Float(b)) => Ok(Float(a * b)),
+            (a, b) => Err(ErrorKind::TypeError(format!("Cannot multiply {} * {}", a, b)).into()),
         }
-        Ok(acc)
+    }
+}
+
+impl std::ops::Sub for Expression {
+    type Output = Result<Expression>;
+    fn sub(self, other: Self) -> Self::Output {
+        use Expression::*;
+        match (self, other) {
+            (Integer(a), Integer(b)) => Ok(Integer(a - b)),
+            (Integer(a), Float(b)) => Ok(Float(a as f64 - b)),
+            (Float(a), Integer(b)) => Ok(Float(a - b as f64)),
+            (Float(a), Float(b)) => Ok(Float(a - b)),
+            (a, b) => Err(ErrorKind::TypeError(format!("Cannot subtract {} - {}", a, b)).into()),
+        }
+    }
+}
+
+impl std::ops::Div for Expression {
+    type Output = Result<Expression>;
+    fn div(self, other: Self) -> Self::Output {
+        use Expression::*;
+        match (self, other) {
+            (Integer(a), Integer(b)) => Ok(Float(a as f64 / b as f64)),
+            (Integer(a), Float(b)) => Ok(Float(a as f64 / b)),
+            (Float(a), Integer(b)) => Ok(Float(a / b as f64)),
+            (Float(a), Float(b)) => Ok(Float(a / b)),
+            (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
+        }
     }
 }
