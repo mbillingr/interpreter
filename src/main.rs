@@ -50,6 +50,7 @@ fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
         Native(_) => Ok(expr),
         List(l) => match l.first() {
             None => Ok(Nil),
+            Some(Symbol(s)) if s == "begin" => begin(l, env),
             Some(Symbol(s)) if s == "cond" => cond(l, env),
             Some(Symbol(s)) if s == "define" => define(l, env),
             Some(Symbol(s)) if s == "if" => if_form(l, env),
@@ -70,6 +71,14 @@ fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
             }
         },
     }
+}
+
+fn begin(list: List, env: &EnvRef) -> Result<Expression> {
+    let mut result = Expression::Undefined;
+    for expr in list.into_iter().skip(1) {
+        result = eval(expr, env)?;
+    }
+    Ok(result)
 }
 
 fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
