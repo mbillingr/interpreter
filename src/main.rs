@@ -9,7 +9,7 @@ mod lexer;
 use environment::{default_env, EnvRef, Environment};
 use error_chain::ChainedError;
 use errors::*;
-use expression::{Expression, Procedure, List};
+use expression::{Expression, List, Procedure};
 use lexer::{Lexer, Token};
 use std::io::{self, Write};
 
@@ -72,7 +72,7 @@ fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
 
 fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
     if list.len() != 3 {
-        return Err(ErrorKind::ArgumentError.into())
+        return Err(ErrorKind::ArgumentError.into());
     }
 
     let body = list.pop().unwrap();
@@ -85,9 +85,14 @@ fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
         }
         Expression::List(sig) => {
             let proc = Procedure::build(sig, body)?;
-            env.borrow_mut().insert(proc.name.clone().unwrap(), Expression::Procedure(proc));
-        },
-        _ => return Err(ErrorKind::TypeError(format!("Cannot use {} as signature.", signature)).into())
+            env.borrow_mut()
+                .insert(proc.name.clone().unwrap(), Expression::Procedure(proc));
+        }
+        _ => {
+            return Err(
+                ErrorKind::TypeError(format!("Cannot use {} as signature.", signature)).into(),
+            );
+        }
     }
 
     Ok(Expression::Undefined)
@@ -106,9 +111,9 @@ fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &EnvRef) -> Result<()> {
 
 fn main() {
     let mut src = Lexer::new(io::BufReader::new(io::stdin()));
-    let mut global = default_env();
+    let global = default_env();
     loop {
-        match repl(&mut src, &mut global) {
+        match repl(&mut src, &global) {
             Ok(_) => {}
             Err(Error(ErrorKind::UnexpectedEof, _)) => {
                 println!("EOF");

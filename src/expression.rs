@@ -1,4 +1,3 @@
-use crate::environment::EnvRef;
 use crate::errors::*;
 
 pub type List = Vec<Expression>;
@@ -29,13 +28,6 @@ impl Expression {
     }
     pub fn one() -> Self {
         Expression::Integer(1)
-    }
-
-    pub fn try_as_str(&self) -> Result<&str> {
-        match self {
-            Expression::String(s) => Ok(s),
-            _ => Err(ErrorKind::TypeError(format!("{} is not a String.", self)).into()),
-        }
     }
 
     pub fn try_as_symbol(&self) -> Result<&Symbol> {
@@ -111,7 +103,7 @@ impl From<String> for Expression {
             return Expression::Float(f);
         }
 
-        return Expression::Symbol(s);
+        Expression::Symbol(s)
     }
 }
 
@@ -180,8 +172,8 @@ pub struct Procedure {
 
 impl Procedure {
     pub fn build(mut signature: List, body: Expression) -> Result<Self> {
-        if signature.len() < 1 {
-            return Err(ErrorKind::ArgumentError.into())
+        if signature.is_empty() {
+            return Err(ErrorKind::ArgumentError.into());
         }
 
         let name = signature.remove(0).try_into_symbol()?;
@@ -194,7 +186,7 @@ impl Procedure {
     }
 
     pub fn name_ex(&self) -> Expression {
-        Expression::Symbol(self.name.clone().unwrap_or(format!("{:p}", self)))
+        Expression::Symbol(self.name.clone().unwrap_or_else(|| format!("{:p}", self)))
     }
 
     pub fn body_ex(&self) -> Expression {

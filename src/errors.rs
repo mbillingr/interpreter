@@ -1,7 +1,7 @@
-pub use errors::*;
+pub use errors_impl::*;
 
 #[allow(deprecated)]
-mod errors {
+mod errors_impl {
     error_chain! {
         links {
         }

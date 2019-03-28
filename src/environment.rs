@@ -1,12 +1,11 @@
 use crate::errors::*;
-use crate::expression::{Args, Expression, List, Procedure, Symbol};
+use crate::expression::{Args, Expression, Procedure, Symbol};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::rc::Rc;
 
 pub type EnvRef = Rc<RefCell<Environment>>;
-pub type EnvTmpRef<'a> = &'a RefCell<Environment>;
 
 pub fn default_env() -> EnvRef {
     use Expression as X;
@@ -36,13 +35,16 @@ pub fn default_env() -> EnvRef {
         X::Native(|args| native_unifold(args, X::one(), X::div)),
     );
 
-    let mut env = Rc::new(RefCell::new(Environment { map, parent: None }));
+    let env = Rc::new(RefCell::new(Environment { map, parent: None }));
 
     env.borrow_mut().map.insert(
         "newline".to_string(),
         X::Procedure(Procedure {
             name: Some("newline".into()),
-            body: Box::new(X::List(vec![X::Symbol("display".into()), X::String("\n".into())])),
+            body: Box::new(X::List(vec![
+                X::Symbol("display".into()),
+                X::String("\n".into()),
+            ])),
             params: vec![],
         }),
     );
@@ -64,7 +66,10 @@ impl Environment {
     }
 
     pub fn lookup(&self, key: &str) -> Option<Expression> {
-        self.map.get(key).cloned().or_else(|| self.parent.clone().and_then(|p| p.borrow().lookup(key)))
+        self.map
+            .get(key)
+            .cloned()
+            .or_else(|| self.parent.clone().and_then(|p| p.borrow().lookup(key)))
     }
 
     pub fn insert(&mut self, key: String, expr: Expression) {
@@ -73,7 +78,7 @@ impl Environment {
 
     pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
         if names.len() < args.len() {
-            return Err(ErrorKind::ArgumentError.into())
+            return Err(ErrorKind::ArgumentError.into());
         }
 
         for (n, a) in names.iter().zip(args) {
