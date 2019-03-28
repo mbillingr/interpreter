@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::rc::Rc;
+use std::time::{SystemTime};
 
 pub type EnvRef = Rc<RefCell<Environment>>;
 
@@ -71,6 +72,13 @@ pub fn default_env() -> EnvRef {
         ">".to_string(),
         X::Native(|args| native_compare(args,X::gt)),
     );
+
+    // misc
+
+    map.insert("runtime".to_string(), X::Native(|args| {
+        let t = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
+        return Ok(Expression::Integer(t as i64))
+    }));
 
     let env = Rc::new(RefCell::new(Environment { map, parent: None }));
 
