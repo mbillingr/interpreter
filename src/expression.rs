@@ -31,10 +31,24 @@ impl Expression {
         Expression::Integer(1)
     }
 
-    pub fn expect_str(&self) -> Result<&str> {
+    pub fn try_as_str(&self) -> Result<&str> {
         match self {
             Expression::String(s) => Ok(s),
             _ => Err(ErrorKind::TypeError(format!("{} is not a String.", self)).into()),
+        }
+    }
+
+    pub fn try_as_symbol(&self) -> Result<&Symbol> {
+        match self {
+            Expression::Symbol(s) => Ok(s),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a Symbol.", self)).into()),
+        }
+    }
+
+    pub fn try_into_symbol(self) -> Result<Symbol> {
+        match self {
+            Expression::Symbol(s) => Ok(s),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a Symbol.", self)).into()),
         }
     }
 }
@@ -70,7 +84,7 @@ impl std::fmt::Display for Expression {
                 write!(f, "({})", tmp.join(" "))
             }
             Expression::Symbol(s) => write!(f, "{}", s),
-            Expression::String(s) => write!(f, "{:?}", s),
+            Expression::String(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
@@ -160,18 +174,31 @@ impl std::ops::Div for Expression {
 #[derive(Clone)]
 pub struct Procedure {
     pub name: Option<Symbol>,
-    pub body: List,
+    pub body: Box<Expression>,
     pub params: List,
-    pub env: EnvRef,
 }
 
 impl Procedure {
+    pub fn build(mut signature: List, body: Expression) -> Result<Self> {
+        if signature.len() < 1 {
+            return Err(ErrorKind::ArgumentError.into())
+        }
+
+        let name = signature.remove(0).try_into_symbol()?;
+
+        Ok(Procedure {
+            name: Some(name),
+            body: Box::new(body),
+            params: signature,
+        })
+    }
+
     pub fn name_ex(&self) -> Expression {
         Expression::Symbol(self.name.clone().unwrap_or(format!("{:p}", self)))
     }
 
     pub fn body_ex(&self) -> Expression {
-        Expression::List(self.body.clone())
+        (*self.body).clone()
     }
 
     pub fn params_ex(&self) -> Expression {

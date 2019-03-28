@@ -6,10 +6,10 @@ mod errors;
 mod expression;
 mod lexer;
 
-use environment::{default_env, EnvTmpRef, Environment};
+use environment::{default_env, EnvRef, Environment};
 use error_chain::ChainedError;
 use errors::*;
-use expression::Expression;
+use expression::{Expression, Procedure, List};
 use lexer::{Lexer, Token};
 use std::io::{self, Write};
 
@@ -37,14 +37,12 @@ fn parse<R: io::BufRead>(input: &mut Lexer<R>) -> Result<Expression> {
 }
 
 /// simple version without tail calls
-fn eval(expr: Expression, env: EnvTmpRef) -> Result<Expression> {
+fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
     use Expression::*;
-    println!("eval: {}", expr);
     match expr {
         Symbol(s) => env
             .borrow()
             .lookup(&s)
-            .cloned()
             .ok_or_else(|| ErrorKind::Undefined(s).into()),
         Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) => {
             Ok(expr)
@@ -52,19 +50,17 @@ fn eval(expr: Expression, env: EnvTmpRef) -> Result<Expression> {
         Native(_) => Ok(expr),
         List(l) => match l.first() {
             None => Ok(Nil),
-            Some(Symbol(s)) if s == "define" => env.borrow_mut().define(l),
+            Some(Symbol(s)) if s == "define" => define(l, env),
             Some(_) => {
-                println!("{:?}", l);
                 let mut items = l.into_iter();
                 let proc = eval(items.next().unwrap(), env)?;
-                println!("proc: {:?}", proc);
                 let args: Vec<Expression> =
                     items.map(|arg| eval(arg, env)).collect::<Result<_>>()?;
                 match proc {
                     Procedure(p) => {
-                        let local_env = Environment::new(p.env.clone());
-                        local_env.borrow_mut().set_vars(p.params.as_slice(), args);
-                        eval(p.body_ex(), env)
+                        let local_env = Environment::new(env.clone());
+                        local_env.borrow_mut().set_vars(p.params.as_slice(), args)?;
+                        eval(p.body_ex(), &local_env)
                     }
                     Native(func) => func(args),
                     _ => Err(ErrorKind::TypeError("not callable".to_string()).into()),
@@ -74,7 +70,30 @@ fn eval(expr: Expression, env: EnvTmpRef) -> Result<Expression> {
     }
 }
 
-fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: EnvTmpRef) -> Result<()> {
+fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
+    if list.len() != 3 {
+        return Err(ErrorKind::ArgumentError.into())
+    }
+
+    let body = list.pop().unwrap();
+    let signature = list.pop().unwrap();
+
+    match signature {
+        Expression::Symbol(s) => {
+            let value = eval(body, env)?;
+            env.borrow_mut().insert(s, value);
+        }
+        Expression::List(sig) => {
+            let proc = Procedure::build(sig, body)?;
+            env.borrow_mut().insert(proc.name.clone().unwrap(), Expression::Procedure(proc));
+        },
+        _ => return Err(ErrorKind::TypeError(format!("Cannot use {} as signature.", signature)).into())
+    }
+
+    Ok(Expression::Undefined)
+}
+
+fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &EnvRef) -> Result<()> {
     print!(">> ");
     io::stdout().flush().unwrap();
     let expr = parse(input)?;

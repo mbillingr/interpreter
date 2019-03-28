@@ -42,9 +42,8 @@ pub fn default_env() -> EnvRef {
         "newline".to_string(),
         X::Procedure(Procedure {
             name: Some("newline".into()),
-            body: vec![X::Symbol("+".into())],
+            body: Box::new(X::List(vec![X::Symbol("display".into()), X::String("\n".into())])),
             params: vec![],
-            env: env.clone(),
         }),
     );
 
@@ -52,7 +51,7 @@ pub fn default_env() -> EnvRef {
 }
 
 pub struct Environment {
-    map: HashMap<String, Expression>,
+    map: HashMap<Symbol, Expression>,
     parent: Option<EnvRef>,
 }
 
@@ -64,13 +63,12 @@ impl Environment {
         }))
     }
 
-    pub fn lookup(&self, key: &str) -> Option<&Expression> {
-        self.map.get(key)
+    pub fn lookup(&self, key: &str) -> Option<Expression> {
+        self.map.get(key).cloned().or_else(|| self.parent.clone().and_then(|p| p.borrow().lookup(key)))
     }
 
-    pub fn define(&mut self, list: List) -> Result<Expression> {
-        unimplemented!()
-        Ok(Expression::Undefined)
+    pub fn insert(&mut self, key: String, expr: Expression) {
+        self.map.insert(key, expr);
     }
 
     pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
@@ -79,7 +77,7 @@ impl Environment {
         }
 
         for (n, a) in names.iter().zip(args) {
-            self.map.insert(n.expect_str()?.to_string(), a);
+            self.map.insert(n.try_as_symbol()?.clone(), a);
         }
 
         Ok(())
