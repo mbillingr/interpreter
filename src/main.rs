@@ -6,7 +6,7 @@ mod errors;
 mod expression;
 mod lexer;
 
-use environment::Environment;
+use environment::{default_env, EnvTmpRef, Environment};
 use error_chain::ChainedError;
 use errors::*;
 use expression::Expression;
@@ -37,34 +37,44 @@ fn parse<R: io::BufRead>(input: &mut Lexer<R>) -> Result<Expression> {
 }
 
 /// simple version without tail calls
-fn eval(expr: Expression, env: &mut Environment) -> Result<Expression> {
+fn eval(expr: Expression, env: EnvTmpRef) -> Result<Expression> {
+    use Expression::*;
+    println!("eval: {}", expr);
     match expr {
-        Expression::Symbol(s) => env
+        Symbol(s) => env
+            .borrow()
             .lookup(&s)
             .cloned()
             .ok_or_else(|| ErrorKind::Undefined(s).into()),
-        Expression::Undefined
-        | Expression::Nil
-        | Expression::Integer(_)
-        | Expression::Float(_)
-        | Expression::String(_)
-        | Expression::True
-        | Expression::False
-        | Expression::Native(_) => Ok(expr),
-        Expression::List(l) => match l.first() {
-            None => Ok(Expression::Nil),
+        Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) => {
+            Ok(expr)
+        }
+        Native(_) => Ok(expr),
+        List(l) => match l.first() {
+            None => Ok(Nil),
+            Some(Symbol(s)) if s == "define" => env.borrow_mut().define(l),
             Some(_) => {
+                println!("{:?}", l);
                 let mut items = l.into_iter();
                 let proc = eval(items.next().unwrap(), env)?;
+                println!("proc: {:?}", proc);
                 let args: Vec<Expression> =
                     items.map(|arg| eval(arg, env)).collect::<Result<_>>()?;
-                proc.call(args)
+                match proc {
+                    Procedure(p) => {
+                        let local_env = Environment::new(p.env.clone());
+                        local_env.borrow_mut().set_vars(p.params.as_slice(), args);
+                        eval(p.body_ex(), env)
+                    }
+                    Native(func) => func(args),
+                    _ => Err(ErrorKind::TypeError("not callable".to_string()).into()),
+                }
             }
         },
     }
 }
 
-fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &mut Environment) -> Result<()> {
+fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: EnvTmpRef) -> Result<()> {
     print!(">> ");
     io::stdout().flush().unwrap();
     let expr = parse(input)?;
@@ -77,7 +87,7 @@ fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &mut Environment) -> Resul
 
 fn main() {
     let mut src = Lexer::new(io::BufReader::new(io::stdin()));
-    let mut global = Environment::default();
+    let mut global = default_env();
     loop {
         match repl(&mut src, &mut global) {
             Ok(_) => {}

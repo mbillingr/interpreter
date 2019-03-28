@@ -1,20 +1,24 @@
+use crate::environment::EnvRef;
 use crate::errors::*;
 
-pub type Args = Vec<Expression>;
+pub type List = Vec<Expression>;
+pub type Args = List;
+pub type Symbol = String;
 
 #[derive(Clone)]
 pub enum Expression {
     Undefined,
     Nil,
     /// for now use a Vec... maybe change to linked list in the future?
-    List(Vec<Expression>),
-    Symbol(String),
+    List(List),
+    Symbol(Symbol),
     String(String),
     Integer(i64),
     Float(f64),
     True,
     False,
-    Native(fn(Vec<Expression>) -> Result<Expression>),
+    Procedure(Procedure),
+    Native(fn(Args) -> Result<Expression>),
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
     //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),
 }
@@ -27,10 +31,10 @@ impl Expression {
         Expression::Integer(1)
     }
 
-    pub fn call(&self, args: Vec<Expression>) -> Result<Expression> {
+    pub fn expect_str(&self) -> Result<&str> {
         match self {
-            Expression::Native(func) => func(args),
-            _ => Err(ErrorKind::TypeError("not callable".to_string()).into()),
+            Expression::String(s) => Ok(s),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a String.", self)).into()),
         }
     }
 }
@@ -50,6 +54,7 @@ impl std::fmt::Debug for Expression {
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
+            Expression::Procedure(p) => write!(f, "#<procedure {} {}>", p.name_ex(), p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
         }
     }
@@ -70,6 +75,7 @@ impl std::fmt::Display for Expression {
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
+            Expression::Procedure(p) => write!(f, "#<procedure {} {}>", p.name_ex(), p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
         }
     }
@@ -148,5 +154,27 @@ impl std::ops::Div for Expression {
             (Float(a), Float(b)) => Ok(Float(a / b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Procedure {
+    pub name: Option<Symbol>,
+    pub body: List,
+    pub params: List,
+    pub env: EnvRef,
+}
+
+impl Procedure {
+    pub fn name_ex(&self) -> Expression {
+        Expression::Symbol(self.name.clone().unwrap_or(format!("{:p}", self)))
+    }
+
+    pub fn body_ex(&self) -> Expression {
+        Expression::List(self.body.clone())
+    }
+
+    pub fn params_ex(&self) -> Expression {
+        Expression::List(self.params.clone())
     }
 }
