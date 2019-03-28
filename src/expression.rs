@@ -37,6 +37,20 @@ impl Expression {
         }
     }
 
+    pub fn is_symbol(&self) -> bool {
+        match self {
+            Expression::Symbol(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_list(&self) -> bool {
+        match self {
+            Expression::List(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn try_as_symbol(&self) -> Result<&Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),

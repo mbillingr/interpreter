@@ -33,7 +33,20 @@ fn parse<R: io::BufRead>(input: &mut Lexer<R>) -> Result<Expression> {
     }
 
     let token = input.next_token()?;
-    read_ahead(token, input)
+    let expr = read_ahead(token, input)?;
+    transform(expr)
+}
+
+// convert some syntactic forms, expand macros(?), check errors, ... (mostly to-do)
+fn transform(expr: Expression) -> Result<Expression> {
+    use Expression::*;
+    match expr {
+        List(l) => match l.first() {
+            Some(Symbol(s)) if s == "define" => transform_define(l),
+            _ => Ok(List(l))
+        }
+        _ => Ok(expr)
+    }
 }
 
 /// simple version without tail calls
@@ -81,11 +94,29 @@ fn begin(list: List, env: &EnvRef) -> Result<Expression> {
     Ok(result)
 }
 
-fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
-    if list.len() != 3 {
+fn transform_define(mut list: List) -> Result<Expression> {
+    if list.len() < 3 {
         return Err(ErrorKind::ArgumentError.into());
     }
 
+    if list[1].is_symbol() {
+        Ok(Expression::List(list))
+    } else if list[1].is_list() {
+        let mut new_body = vec![];
+        while list.len() > 2 {
+            new_body.push(list.pop().unwrap());
+        }
+        new_body.push(Expression::Symbol("begin".to_string()));
+        new_body.reverse();
+        list.push(Expression::List(new_body));
+        Ok(Expression::List(list))
+    } else {
+        Err(ErrorKind::TypeError(format!("Cannot use {} as signature.", list[1])).into())
+    }
+}
+
+fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
+    assert_eq!(3, list.len());
     let body = list.pop().unwrap();
     let signature = list.pop().unwrap();
 
