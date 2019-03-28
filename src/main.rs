@@ -43,14 +43,16 @@ fn eval(expr: Expression, env: &mut Environment) -> Result<Expression> {
             .lookup(&s)
             .cloned()
             .ok_or_else(|| ErrorKind::Undefined(s).into()),
-        Expression::Integer(_)
+        Expression::Undefined
+        | Expression::Nil
+        | Expression::Integer(_)
         | Expression::Float(_)
         | Expression::String(_)
         | Expression::True
         | Expression::False
         | Expression::Native(_) => Ok(expr),
         Expression::List(l) => match l.first() {
-            None => panic!("empty list"),
+            None => Ok(Expression::Nil),
             Some(_) => {
                 let mut items = l.into_iter();
                 let proc = eval(items.next().unwrap(), env)?;
@@ -66,8 +68,10 @@ fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &mut Environment) -> Resul
     print!(">> ");
     io::stdout().flush().unwrap();
     let expr = parse(input)?;
-    let res = eval(expr, global)?;
-    println!("{}", res);
+    match eval(expr, global)? {
+        Expression::Undefined => println!(),
+        res => println!("{}", res),
+    }
     Ok(())
 }
 

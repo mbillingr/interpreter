@@ -13,6 +13,12 @@ impl Default for Environment {
 
         let mut map = HashMap::new();
 
+        // simple i/o
+
+        map.insert("display".to_string(), X::Native(native_display));
+
+        // numerical operations
+
         map.insert(
             "+".to_string(),
             X::Native(|args| native_fold(args, X::zero(), X::add)),
@@ -46,6 +52,7 @@ impl Environment {
     }
 }
 
+/// apply a bivariate function to all arguments in sequence
 fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     mut acc: Expression,
@@ -57,6 +64,8 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     Ok(acc)
 }
 
+/// apply a bivariate function to all arguments in sequence, but handle a single argument as
+/// special case. For example: (- 5 2) -> 3  but (- 5) -> -5
 fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     mut acc: Expression,
@@ -75,4 +84,9 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
         acc = func(acc, b)?;
     }
     Ok(acc)
+}
+
+fn native_display(args: Args) -> Result<Expression> {
+    print!("{}", args.into_iter().next().ok_or(ErrorKind::ArgumentError)?);
+    Ok(Expression::Undefined)
 }

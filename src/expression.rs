@@ -4,6 +4,8 @@ pub type Args = Vec<Expression>;
 
 #[derive(Clone)]
 pub enum Expression {
+    Undefined,
+    Nil,
     /// for now use a Vec... maybe change to linked list in the future?
     List(Vec<Expression>),
     Symbol(String),
@@ -36,6 +38,8 @@ impl Expression {
 impl std::fmt::Debug for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Expression::Undefined => write!(f, "#<unspecified>"),
+            Expression::Nil => write!(f, "()"),
             Expression::List(l) => {
                 let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
                 write!(f, "({})", tmp.join(" "))
@@ -54,6 +58,8 @@ impl std::fmt::Debug for Expression {
 impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
+            Expression::Undefined => write!(f, "#<unspecified>"),
+            Expression::Nil => write!(f, "()"),
             Expression::List(l) => {
                 let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
                 write!(f, "({})", tmp.join(" "))
