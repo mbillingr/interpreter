@@ -51,6 +51,7 @@ fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
         List(l) => match l.first() {
             None => Ok(Nil),
             Some(Symbol(s)) if s == "define" => define(l, env),
+            Some(Symbol(s)) if s == "cond" => cond(l, env),
             Some(_) => {
                 let mut items = l.into_iter();
                 let proc = eval(items.next().unwrap(), env)?;
@@ -95,6 +96,21 @@ fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
         }
     }
 
+    Ok(Expression::Undefined)
+}
+
+fn cond(list: List, env: &EnvRef) -> Result<Expression> {
+    for pair in list.into_iter().skip(1) {
+        let mut row = pair.try_into_list()?.into_iter();
+        let cond = row.next().ok_or(ErrorKind::ArgumentError)?;
+        let mut result = eval(cond, env)?;
+        if result.is_true() {
+            for action in row {
+                result = eval(action, env)?;
+            }
+            return Ok(result)
+        }
+    }
     Ok(Expression::Undefined)
 }
 

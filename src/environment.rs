@@ -35,6 +35,43 @@ pub fn default_env() -> EnvRef {
         X::Native(|args| native_unifold(args, X::one(), X::div)),
     );
 
+    // logical operations
+    //    todo: would it make sense to implement these as special forms to take advantage of short-circuting?
+
+    map.insert(
+        "and".to_string(),
+        X::Native(|args| native_fold(args, X::True, X::logical_and)),
+    );
+    map.insert(
+        "or".to_string(),
+        X::Native(|args| native_fold(args, X::False, X::logical_or)),
+    );
+    map.insert(
+        "not".to_string(),
+        X::Native(|args| {
+            if args.len() != 1 {
+                Err(ErrorKind::ArgumentError.into())
+            } else {
+                Ok((!args[0].is_true()).into())
+            }
+        }),
+    );
+
+    // comparison
+
+    map.insert(
+        "=".to_string(),
+        X::Native(|args| native_compare(args,X::eq)),
+    );
+    map.insert(
+        "<".to_string(),
+        X::Native(|args| native_compare(args,X::lt)),
+    );
+    map.insert(
+        ">".to_string(),
+        X::Native(|args| native_compare(args,X::gt)),
+    );
+
     let env = Rc::new(RefCell::new(Environment { map, parent: None }));
 
     env.borrow_mut().map.insert(
@@ -89,6 +126,14 @@ impl Environment {
     }
 }
 
+fn native_display(args: Args) -> Result<Expression> {
+    print!(
+        "{}",
+        args.into_iter().next().ok_or(ErrorKind::ArgumentError)?
+    );
+    Ok(Expression::Undefined)
+}
+
 /// apply a bivariate function to all arguments in sequence
 fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
@@ -99,6 +144,28 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
         acc = func(acc, b)?;
     }
     Ok(acc)
+}
+
+/// apply a bivariate function to all arguments in sequence
+fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
+    args: Args,
+    pred: F,
+) -> Result<Expression> {
+    let mut args = args.into_iter();
+
+    let mut a = match args.next() {
+        None => return Ok(Expression::True),
+        Some(x) => x,
+    };
+
+    for b in args {
+        match pred(&a, &b) {
+            true => a = b,
+            false => return Ok(Expression::False),
+        }
+    }
+
+    Ok(Expression::True)
 }
 
 /// apply a bivariate function to all arguments in sequence, but handle a single argument as
@@ -121,12 +188,4 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
         acc = func(acc, b)?;
     }
     Ok(acc)
-}
-
-fn native_display(args: Args) -> Result<Expression> {
-    print!(
-        "{}",
-        args.into_iter().next().ok_or(ErrorKind::ArgumentError)?
-    );
-    Ok(Expression::Undefined)
 }

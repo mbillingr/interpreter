@@ -4,7 +4,7 @@ pub type List = Vec<Expression>;
 pub type Args = List;
 pub type Symbol = String;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Expression {
     Undefined,
     Nil,
@@ -30,6 +30,13 @@ impl Expression {
         Expression::Integer(1)
     }
 
+    pub fn is_true(&self) -> bool {
+        match self {
+            Expression::False => false,
+            _ => true,
+        }
+    }
+
     pub fn try_as_symbol(&self) -> Result<&Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),
@@ -41,6 +48,27 @@ impl Expression {
         match self {
             Expression::Symbol(s) => Ok(s),
             _ => Err(ErrorKind::TypeError(format!("{} is not a Symbol.", self)).into()),
+        }
+    }
+
+    pub fn try_into_list(self) -> Result<List> {
+        match self {
+            Expression::List(l) => Ok(l),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a List.", self)).into()),
+        }
+    }
+
+    pub fn logical_and(self, other: Self) -> Result<Self> {
+        match self.is_true() {
+            true => Ok(other),
+            false => Ok(self),
+        }
+    }
+
+    pub fn logical_or(self, other: Self) -> Result<Self> {
+        match self.is_true() {
+            true => Ok(self),
+            false => Ok(other),
         }
     }
 }
@@ -107,6 +135,15 @@ impl From<String> for Expression {
     }
 }
 
+impl From<bool> for Expression {
+    fn from(b: bool) -> Self {
+        match b {
+            true => Expression::True,
+            false => Expression::False,
+        }
+    }
+}
+
 impl std::ops::Add for Expression {
     type Output = Result<Expression>;
     fn add(self, other: Self) -> Self::Output {
@@ -163,7 +200,21 @@ impl std::ops::Div for Expression {
     }
 }
 
-#[derive(Clone)]
+impl std::cmp::PartialOrd for Expression {
+    fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
+        use Expression::*;
+        match (self, rhs) {
+            (Integer(a), Integer(b)) => a.partial_cmp(b),
+            (Integer(a), Float(b)) => (*a as f64).partial_cmp(b),
+            (Float(a), Integer(b)) => a.partial_cmp(&(*b as f64)),
+            (Float(a), Float(b)) => a.partial_cmp(b),
+            _ => None,
+        }
+
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub struct Procedure {
     pub name: Option<Symbol>,
     pub body: Box<Expression>,
