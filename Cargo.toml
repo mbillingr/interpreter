@@ -1,0 +1,11 @@
+[package]
+name = "interpreter"
+version = "0.1.0"
+authors = ["Martin Billinger <flkazemakase@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+error-chain = "0.12"
+regex = "1"
+rustyline = "3"
+utf-8 = "0.7"
