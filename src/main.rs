@@ -50,8 +50,9 @@ fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
         Native(_) => Ok(expr),
         List(l) => match l.first() {
             None => Ok(Nil),
-            Some(Symbol(s)) if s == "define" => define(l, env),
             Some(Symbol(s)) if s == "cond" => cond(l, env),
+            Some(Symbol(s)) if s == "define" => define(l, env),
+            Some(Symbol(s)) if s == "if" => if_form(l, env),
             Some(_) => {
                 let mut items = l.into_iter();
                 let proc = eval(items.next().unwrap(), env)?;
@@ -112,6 +113,22 @@ fn cond(list: List, env: &EnvRef) -> Result<Expression> {
         }
     }
     Ok(Expression::Undefined)
+}
+
+fn if_form(list: List, env: &EnvRef) -> Result<Expression> {
+    let mut list = list.into_iter().skip(1);
+
+    let cond = list.next().ok_or(ErrorKind::ArgumentError)?;
+    let then = list.next().ok_or(ErrorKind::ArgumentError)?;
+
+    if eval(cond, env)?.is_true() {
+        eval(then, env)
+    } else {
+        match list.next() {
+            None => Ok(Expression::Undefined),
+            Some(otherwise) => eval(otherwise, env)
+        }
+    }
 }
 
 fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &EnvRef) -> Result<()> {
