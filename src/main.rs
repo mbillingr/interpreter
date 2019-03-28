@@ -50,53 +50,62 @@ fn transform(expr: Expression) -> Result<Expression> {
 }
 
 /// simple version without tail calls
-fn eval(expr: Expression, env: &EnvRef) -> Result<Expression> {
+fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
-    match expr {
-        Symbol(s) => env
-            .borrow()
-            .lookup(&s)
-            .ok_or_else(|| ErrorKind::Undefined(s).into()),
-        Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) => {
-            Ok(expr)
-        }
-        Native(_) => Ok(expr),
-        List(l) => match l.first() {
-            None => Ok(Nil),
-            Some(Symbol(s)) if s == "begin" => begin(l, env),
-            Some(Symbol(s)) if s == "cond" => cond(l, env),
-            Some(Symbol(s)) if s == "define" => define(l, env),
-            Some(Symbol(s)) if s == "if" => if_form(l, env),
-            Some(_) => {
-                let mut items = l.into_iter();
-                let proc = eval(items.next().unwrap(), env)?;
-                let args: Vec<Expression> =
-                    items.map(|arg| eval(arg, env)).collect::<Result<_>>()?;
-                match proc {
-                    Procedure(p) => {
-                        let local_env = Environment::new(env.clone());
-                        local_env.borrow_mut().set_vars(p.params.as_slice(), args)?;
-                        eval(p.body_ex(), &local_env)
-                    }
-                    Native(func) => func(args),
-                    _ => Err(ErrorKind::TypeError("not callable".to_string()).into()),
-                }
+    loop {
+        match expr {
+            Symbol(s) => return env
+                .borrow()
+                .lookup(&s)
+                .ok_or_else(|| ErrorKind::Undefined(s).into()),
+            Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) => {
+                return Ok(expr)
             }
-        },
+            Native(_) => return Ok(expr),
+            List(l) => match l.first() {
+                None => return Ok(Nil),
+                Some(Symbol(s)) if s == "begin" => expr = begin(l, env.clone())?,
+                Some(Symbol(s)) if s == "cond" => match cond(l, env.clone())? {
+                    Return::RetVal(ex) => return Ok(ex),
+                    Return::TailCall(ex) => expr = ex,
+                }
+                Some(Symbol(s)) if s == "define" => return define(l, env.clone()),
+                Some(Symbol(s)) if s == "if" => expr = if_form(l, env.clone())?,
+                Some(_) => {
+                    let mut items = l.into_iter();
+                    let proc = eval(items.next().unwrap(), env.clone())?;
+                    let args: Vec<_> =
+                        items.map(|arg| eval(arg, env.clone())).collect::<Result<_>>()?;
+                    match proc {
+                        Procedure(p) => {
+                            let local_env = Environment::new(env.clone());
+                            local_env.borrow_mut().set_vars(p.params.as_slice(), args)?;
+                            expr = p.body_ex();
+                            env = local_env;
+                        }
+                        Native(func) => return func(args),
+                        _ => return Err(ErrorKind::TypeError("not callable".to_string()).into()),
+                    }
+                }
+            },
+        }
     }
 }
 
-fn begin(list: List, env: &EnvRef) -> Result<Expression> {
-    let mut result = Expression::Undefined;
-    for expr in list.into_iter().skip(1) {
-        result = eval(expr, env)?;
+fn begin(mut list: List, env: EnvRef) -> Result<Expression> {
+    if list.len() < 2 {
+        return Err(ErrorKind::ArgumentError.into())
     }
-    Ok(result)
+    let last = list.pop().unwrap();
+    for expr in list.into_iter().skip(1) {
+        eval(expr, env.clone())?;
+    }
+    Ok(last)
 }
 
 fn transform_define(mut list: List) -> Result<Expression> {
     if list.len() < 3 {
-        return Err(ErrorKind::ArgumentError.into());
+        return Err(ErrorKind::ArgumentError.into())
     }
 
     let mut list: Vec<_> = list.into_iter().map(transform).collect::<Result<_>>()?;
@@ -117,14 +126,14 @@ fn transform_define(mut list: List) -> Result<Expression> {
     }
 }
 
-fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
+fn define(mut list: List, env: EnvRef) -> Result<Expression> {
     assert_eq!(3, list.len());
     let body = list.pop().unwrap();
     let signature = list.pop().unwrap();
 
     match signature {
         Expression::Symbol(s) => {
-            let value = eval(body, env)?;
+            let value = eval(body, env.clone())?;
             env.borrow_mut().insert(s, value);
         }
         Expression::List(sig) => {
@@ -142,38 +151,64 @@ fn define(mut list: List, env: &EnvRef) -> Result<Expression> {
     Ok(Expression::Undefined)
 }
 
-fn cond(list: List, env: &EnvRef) -> Result<Expression> {
-    for pair in list.into_iter().skip(1) {
-        let mut row = pair.try_into_list()?.into_iter();
-        let cond = row.next().ok_or(ErrorKind::ArgumentError)?;
-        let mut result = eval(cond, env)?;
-        if result.is_true() {
-            for action in row {
-                result = eval(action, env)?;
-            }
-            return Ok(result)
-        }
-    }
-    Ok(Expression::Undefined)
+enum Return {
+    RetVal(Expression),
+    TailCall(Expression),
 }
 
-fn if_form(list: List, env: &EnvRef) -> Result<Expression> {
+fn cond(list: List, env: EnvRef) -> Result<Return> {
+    for pair in list.into_iter().skip(1) {
+        let mut row = pair.try_into_list()?;
+        let last = if row.len() > 1 {
+            row.pop()
+        } else {
+            None
+        };
+        let mut row = row.into_iter();
+        let cond = row.next().ok_or(ErrorKind::ArgumentError)?;
+        let mut result = eval(cond, env.clone())?;
+        if result.is_true() {
+            if last.is_none() {
+                return Ok(Return::RetVal(result))
+            }
+            for action in row {
+                eval(action, env.clone())?;
+            }
+            return Ok(Return::TailCall(last.unwrap()))
+        }
+    }
+    Ok(Return::RetVal(Expression::Undefined))
+}
+
+fn transform_if(list: List) -> Result<Expression> {
+    if list.len() < 3 || list.len() > 4 {
+        return Err(ErrorKind::ArgumentError.into())
+    }
+
+    let mut list = list.into_iter().map(transform).collect::<Result<Vec<_>>>()?;
+
+    if list.len() == 3 {
+        list.push(Expression::Undefined);
+    }
+
+    Ok(Expression::List(list))
+}
+
+fn if_form(list: List, env: EnvRef) -> Result<Expression> {
     let mut list = list.into_iter().skip(1);
 
-    let cond = list.next().ok_or(ErrorKind::ArgumentError)?;
-    let then = list.next().ok_or(ErrorKind::ArgumentError)?;
+    let cond = list.next().unwrap();
+    let then = list.next().unwrap();
+    let otherwise = list.next().unwrap();
 
-    if eval(cond, env)?.is_true() {
-        eval(then, env)
+    if eval(cond, env.clone())?.is_true() {
+        Ok(then)
     } else {
-        match list.next() {
-            None => Ok(Expression::Undefined),
-            Some(otherwise) => eval(otherwise, env)
-        }
+        Ok(otherwise)
     }
 }
 
-fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: &EnvRef) -> Result<()> {
+fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: EnvRef) -> Result<()> {
     print!(">> ");
     io::stdout().flush().unwrap();
     let expr = parse(input)?;
@@ -188,7 +223,7 @@ fn main() {
     let mut src = Lexer::new(io::BufReader::new(io::stdin()));
     let global = default_env();
     loop {
-        match repl(&mut src, &global) {
+        match repl(&mut src, global.clone()) {
             Ok(_) => {}
             Err(Error(ErrorKind::UnexpectedEof, _)) => {
                 println!("EOF");
