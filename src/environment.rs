@@ -75,7 +75,7 @@ pub fn default_env() -> EnvRef {
 
     // misc
 
-    map.insert("runtime".to_string(), X::Native(|args| {
+    map.insert("runtime".to_string(), X::Native(|_| {
         let t = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
         return Ok(Expression::Integer(t as i64))
     }));
