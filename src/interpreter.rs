@@ -1,17 +1,19 @@
 use crate::environment::{EnvRef, Environment};
-use crate::expression::{Expression, List, Procedure};
 use crate::errors::*;
+use crate::expression::{Expression, List, Procedure};
 
 pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
     loop {
         match expr {
-            Symbol(s) => return env
-                .borrow()
-                .lookup(&s)
-                .ok_or_else(|| ErrorKind::Undefined(s).into()),
+            Symbol(s) => {
+                return env
+                    .borrow()
+                    .lookup(&s)
+                    .ok_or_else(|| ErrorKind::Undefined(s).into());
+            }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) => {
-                return Ok(expr)
+                return Ok(expr);
             }
             Native(_) => return Ok(expr),
             List(l) => match l.first() {
@@ -20,14 +22,15 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                 Some(Symbol(s)) if s == "cond" => match cond(l, env.clone())? {
                     Return::RetVal(ex) => return Ok(ex),
                     Return::TailCall(ex) => expr = ex,
-                }
+                },
                 Some(Symbol(s)) if s == "define" => return define(l, env.clone()),
                 Some(Symbol(s)) if s == "if" => expr = if_form(l, env.clone())?,
                 Some(_) => {
                     let mut items = l.into_iter();
                     let proc = eval(items.next().unwrap(), env.clone())?;
-                    let args: Vec<_> =
-                        items.map(|arg| eval(arg, env.clone())).collect::<Result<_>>()?;
+                    let args: Vec<_> = items
+                        .map(|arg| eval(arg, env.clone()))
+                        .collect::<Result<_>>()?;
                     match proc {
                         Procedure(p) => {
                             let local_env = Environment::new(env.clone());
@@ -46,7 +49,7 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
 
 fn begin(mut list: List, env: EnvRef) -> Result<Expression> {
     if list.len() < 2 {
-        return Err(ErrorKind::ArgumentError.into())
+        return Err(ErrorKind::ArgumentError.into());
     }
     let last = list.pop().unwrap();
     for expr in list.into_iter().skip(1) {
@@ -88,22 +91,18 @@ enum Return {
 fn cond(list: List, env: EnvRef) -> Result<Return> {
     for pair in list.into_iter().skip(1) {
         let mut row = pair.try_into_list()?;
-        let last = if row.len() > 1 {
-            row.pop()
-        } else {
-            None
-        };
+        let last = if row.len() > 1 { row.pop() } else { None };
         let mut row = row.into_iter();
         let cond = row.next().ok_or(ErrorKind::ArgumentError)?;
         let result = eval(cond, env.clone())?;
         if result.is_true() {
             if last.is_none() {
-                return Ok(Return::RetVal(result))
+                return Ok(Return::RetVal(result));
             }
             for action in row {
                 eval(action, env.clone())?;
             }
-            return Ok(Return::TailCall(last.unwrap()))
+            return Ok(Return::TailCall(last.unwrap()));
         }
     }
     Ok(Return::RetVal(Expression::Undefined))

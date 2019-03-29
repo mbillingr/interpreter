@@ -224,7 +224,6 @@ impl std::cmp::PartialOrd for Expression {
             (Float(a), Float(b)) => a.partial_cmp(b),
             _ => None,
         }
-
     }
 }
 

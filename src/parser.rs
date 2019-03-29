@@ -1,6 +1,6 @@
+use crate::errors::*;
 use crate::expression::{Expression, List};
 use crate::lexer::{Lexer, Token};
-use crate::errors::*;
 use std::io;
 
 pub fn parse<R: io::BufRead>(input: &mut Lexer<R>) -> Result<Expression> {
@@ -33,16 +33,19 @@ fn transform(expr: Expression) -> Result<Expression> {
     match expr {
         List(l) => match l.first() {
             Some(Symbol(s)) if s == "define" => transform_define(l),
-            _ => l.into_iter().map(transform).collect::<Result<_>>().map(List)
-        }
-        _ => Ok(expr)
+            _ => l
+                .into_iter()
+                .map(transform)
+                .collect::<Result<_>>()
+                .map(List),
+        },
+        _ => Ok(expr),
     }
 }
 
-
 fn transform_define(list: List) -> Result<Expression> {
     if list.len() < 3 {
-        return Err(ErrorKind::ArgumentError.into())
+        return Err(ErrorKind::ArgumentError.into());
     }
 
     let mut list: Vec<_> = list.into_iter().map(transform).collect::<Result<_>>()?;
@@ -65,10 +68,13 @@ fn transform_define(list: List) -> Result<Expression> {
 
 fn transform_if(list: List) -> Result<Expression> {
     if list.len() < 3 || list.len() > 4 {
-        return Err(ErrorKind::ArgumentError.into())
+        return Err(ErrorKind::ArgumentError.into());
     }
 
-    let mut list = list.into_iter().map(transform).collect::<Result<Vec<_>>>()?;
+    let mut list = list
+        .into_iter()
+        .map(transform)
+        .collect::<Result<Vec<_>>>()?;
 
     if list.len() == 3 {
         list.push(Expression::Undefined);

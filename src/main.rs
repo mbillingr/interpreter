@@ -11,13 +11,11 @@ mod parser;
 use environment::{default_env, EnvRef};
 use error_chain::ChainedError;
 use errors::*;
-use expression::{Expression};
+use expression::Expression;
 use interpreter::eval;
 use lexer::Lexer;
-use std::io::{self, Write};
 use parser::parse;
-
-
+use std::io::{self, Write};
 
 fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: EnvRef) -> Result<()> {
     print!(">> ");
