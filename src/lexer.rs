@@ -1,7 +1,6 @@
 use crate::errors::*;
 use std::collections::VecDeque;
 use std::io;
-use utf8::{BufReadDecoder, BufReadDecoderError};
 
 #[derive(Debug)]
 pub enum Token {
@@ -33,14 +32,14 @@ impl From<Token> for String {
 }
 
 pub struct Lexer<R: io::BufRead> {
-    input: BufReadDecoder<R>,
+    input: R,
     char_buffer: VecDeque<char>,
 }
 
 impl<R: io::BufRead> Lexer<R> {
     pub fn new(input: R) -> Self {
         Lexer {
-            input: BufReadDecoder::new(input),
+            input,
             char_buffer: VecDeque::new(),
         }
     }
@@ -64,14 +63,9 @@ impl<R: io::BufRead> Lexer<R> {
     }
 
     fn read_next(&mut self) -> Result<()> {
-        match self.input.next_strict() {
-            None => {}
-            Some(Ok(s)) => self.char_buffer.extend(s.chars()),
-            Some(Err(BufReadDecoderError::InvalidByteSequence(_))) => {
-                return Err(ErrorKind::Utf8Error.into());
-            }
-            Some(Err(BufReadDecoderError::Io(e))) => return Err(e.into()),
-        }
+        let mut buf = String::new();
+        self.input.read_line(&mut buf)?;
+        self.char_buffer.extend(buf.chars());
         Ok(())
     }
 
