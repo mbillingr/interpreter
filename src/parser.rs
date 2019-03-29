@@ -1,31 +1,61 @@
 use crate::errors::*;
 use crate::expression::{Expression, List};
 use crate::lexer::{Lexer, Token};
-use std::io;
+use crate::io::LineReader;
 
-pub fn parse<R: io::BufRead>(input: &mut Lexer<R>) -> Result<Expression> {
-    fn read_ahead<R: io::BufRead>(token: Token, input: &mut Lexer<R>) -> Result<Expression> {
-        match token {
-            Token::String(s) => Ok(Expression::String(s)),
-            Token::Symbol(s) => Ok(s.into()),
-            Token::ListOpen => {
-                let mut list = Vec::new();
-                loop {
-                    let token = input.next_token()?;
-                    match token {
-                        Token::ListClose => return Ok(Expression::List(list)),
-                        _ => list.push(read_ahead(token, input)?),
-                    }
-                }
-            }
-            Token::ListClose => Err(ErrorKind::UnexpectedToken(token.into()).into()),
+pub struct Parser {
+    list_stack: Vec<List>,
+}
+
+impl Parser {
+    pub fn new() -> Self {
+        Parser {
+            list_stack: vec![]
         }
     }
 
-    let token = input.next_token()?;
-    let expr = read_ahead(token, input)?;
-    transform(expr)
+    pub fn push_token(&mut self, token: Token) -> Result<Option<Expression>> {
+        let result = if self.list_stack.is_empty() {
+            self.begin_expression(token)
+        } else {
+            self.continue_expression(token)
+        };
+
+        result.and_then(|o| o.map(transform).transpose())
+    }
+
+    fn begin_expression(&mut self, token: Token) -> Result<Option<Expression>> {
+        match token {
+            Token::String(s) => Ok(Some(Expression::String(s))),
+            Token::Symbol(s) => Ok(Some(s.into())),
+            Token::ListOpen => {
+                self.list_stack.push(List::new());
+                Ok(None)
+            }
+            Token::ListClose => Err(ErrorKind::UnexpectedToken(token.into()).into()),
+        }
+
+    }
+
+    fn continue_expression(&mut self, token: Token) -> Result<Option<Expression>> {
+        let expr = match token {
+            Token::String(s) => Expression::String(s),
+            Token::Symbol(s) => s.into(),
+            Token::ListOpen => {
+                self.list_stack.push(List::new());
+                return Ok(None)
+            }
+            Token::ListClose => {
+                return Ok(Some(Expression::List(self.list_stack.pop().unwrap())))
+            },
+        };
+
+        self.list_stack.last_mut().unwrap().push(expr);
+        Ok(None)
+    }
 }
+
+
 
 // convert some syntactic forms, expand macros(?), check errors, ... (mostly to-do)
 fn transform(expr: Expression) -> Result<Expression> {

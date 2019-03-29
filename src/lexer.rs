@@ -1,4 +1,5 @@
 use crate::errors::*;
+use crate::io::LineReader;
 use std::collections::VecDeque;
 use std::io;
 
@@ -31,17 +32,27 @@ impl From<Token> for String {
     }
 }
 
-pub struct Lexer<R: io::BufRead> {
-    input: R,
+pub fn tokenize(input: String) -> impl Iterator<Item=Result<Token>> {
+    let mut lexer = Lexer::new(input);
+    (0..)
+        .map(move |_| if lexer.pending() {Some(lexer.next_token())} else {None})
+        .take_while(Option::is_some)
+        .map(Option::unwrap)
+}
+
+pub struct Lexer {
     char_buffer: VecDeque<char>,
 }
 
-impl<R: io::BufRead> Lexer<R> {
-    pub fn new(input: R) -> Self {
+impl Lexer {
+    pub fn new(input: String) -> Self {
         Lexer {
-            input,
-            char_buffer: VecDeque::new(),
+            char_buffer: input.chars().collect(),
         }
+    }
+
+    pub fn pending(&self) -> bool {
+        !self.char_buffer.is_empty()
     }
 
     pub fn next_token(&mut self) -> Result<Token> {
@@ -54,25 +65,12 @@ impl<R: io::BufRead> Lexer<R> {
     }
 
     pub fn read_char(&mut self) -> Result<char> {
-        if self.char_buffer.is_empty() {
-            self.read_next()?;
-        }
         self.char_buffer
             .pop_front()
             .ok_or_else(|| ErrorKind::UnexpectedEof.into())
     }
 
-    fn read_next(&mut self) -> Result<()> {
-        let mut buf = String::new();
-        self.input.read_line(&mut buf)?;
-        self.char_buffer.extend(buf.chars());
-        Ok(())
-    }
-
     fn peek(&mut self) -> Result<char> {
-        if self.char_buffer.is_empty() {
-            self.read_next()?;
-        }
         self.char_buffer
             .front()
             .cloned()

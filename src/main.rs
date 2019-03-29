@@ -5,6 +5,7 @@ mod environment;
 mod errors;
 mod expression;
 mod interpreter;
+mod io;
 mod lexer;
 mod parser;
 
@@ -13,26 +14,43 @@ use error_chain::ChainedError;
 use errors::*;
 use expression::Expression;
 use interpreter::eval;
-use lexer::Lexer;
-use parser::parse;
-use std::io::{self, Write};
+use lexer::tokenize;
+use parser::Parser;
+use std::env;
+use crate::io::LineReader;
 
-fn repl<R: io::BufRead>(input: &mut Lexer<R>, global: EnvRef) -> Result<()> {
-    print!(">> ");
-    io::stdout().flush().unwrap();
-    let expr = parse(input)?;
-    match eval(expr, global)? {
-        Expression::Undefined => println!(),
-        res => println!("{}", res),
+fn repl(env: EnvRef) -> Result<()> {
+    let mut parser = Parser::new();
+
+    let mut input = io::ReplInput::new();
+
+    for token in tokenize(input.read_line()?) {
+        let token = token?;
+        loop {
+            let expr = loop {
+                match parser.push_token(token)? {
+                    Some(expr) => break expr,
+                    None => {}
+                }
+            };
+
+            match eval(expr, env.clone())? {
+                Expression::Undefined => {},
+                res => println!("{}", res),
+            }
+        }
     }
     Ok(())
 }
 
 fn main() {
-    let mut src = Lexer::new(io::BufReader::new(io::stdin()));
     let global = default_env();
+
+    for arg in env::args().skip(1) {
+    }
+
     loop {
-        match repl(&mut src, global.clone()) {
+        match repl(global.clone()) {
             Ok(_) => {}
             Err(Error(ErrorKind::UnexpectedEof, _)) => {
                 println!("EOF");

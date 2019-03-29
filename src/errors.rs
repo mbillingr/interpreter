@@ -1,4 +1,5 @@
 pub use errors_impl::*;
+use rustyline;
 
 #[allow(deprecated)]
 mod errors_impl {
@@ -36,6 +37,7 @@ mod errors_impl {
 
         foreign_links {
             Io(::std::io::Error);
+            ReadlineError(rustyline::error::ReadlineError);
         }
     }
 
