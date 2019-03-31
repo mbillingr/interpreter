@@ -19,10 +19,8 @@ use lexer::tokenize;
 use parser::Parser;
 use std::env;
 
-fn repl(env: EnvRef) -> Result<()> {
+fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     let mut parser = Parser::new();
-
-    let mut input = io::ReplInput::new();
 
     loop {
         for token in tokenize(input.read_line()?)? {
@@ -36,13 +34,39 @@ fn repl(env: EnvRef) -> Result<()> {
     }
 }
 
+fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
+    let mut parser = Parser::new();
+
+    while !input.is_eof() {
+        for token in tokenize(input.read_line()?)? {
+            println!("{:?}", token);
+            if let Some(expr) = parser.push_token(token)? {
+                match eval(expr, env.clone())? {
+                    Expression::Undefined => {}
+                    res => println!("{}", res),
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     let global = default_env();
 
-    for arg in env::args().skip(1) {}
+    for arg in env::args().skip(1) {
+        match arg {
+            _ => {
+                let mut file = io::FileInput::new(&arg).unwrap();
+                run_file(&mut file, global.clone()).unwrap();
+            }
+        }
+    }
+
+    let mut input = io::ReplInput::new();
 
     loop {
-        match repl(global.clone()) {
+        match repl(&mut input, global.clone()) {
             Ok(_) => {}
             Err(Error(ErrorKind::ReadlineError(rustyline::error::ReadlineError::Eof), _)) => {
                 println!("EOF");

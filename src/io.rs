@@ -1,8 +1,11 @@
 use crate::errors::Result;
 use rustyline::Editor;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 pub trait LineReader {
     fn read_line(&mut self) -> Result<String>;
+    fn is_eof(&self) -> bool;
 }
 
 pub struct ReplInput {
@@ -21,27 +24,36 @@ impl LineReader for ReplInput {
         self.rl.add_history_entry(line.as_str());
         Ok(line + "\n")
     }
-}
 
-/*pub struct ReplInput {
-    stdin: BufReader<io::Stdin>,
-}
-
-impl ReplInput {
-    pub fn new() -> Self {
-        ReplInput {
-            stdin: BufReader::new(io::stdin()),
-        }
+    fn is_eof(&self) -> bool {
+        false
     }
 }
 
-impl LineReader for ReplInput {
-    fn read_line(&mut self) -> Result<String> {
-        print!(">> ");
-        io::stdout().flush().unwrap();
+pub struct FileInput {
+    file: BufReader<File>,
+    eof: bool,
+}
 
+impl FileInput {
+    pub fn new(filename: &str) -> Result<Self> {
+        Ok(FileInput {
+            file: BufReader::new(File::open(filename)?),
+            eof: false,
+        })
+    }
+}
+
+impl LineReader for FileInput {
+    fn read_line(&mut self) -> Result<String> {
         let mut buf = String::new();
-        self.stdin.read_line(&mut buf)?;
+        if self.file.read_line(&mut buf)? == 0 {
+            self.eof = true;
+        }
         Ok(buf)
     }
-}*/
+
+    fn is_eof(&self) -> bool {
+        self.eof
+    }
+}

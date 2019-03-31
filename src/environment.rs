@@ -103,6 +103,7 @@ pub fn default_env() -> EnvRef {
     env
 }
 
+#[derive(Debug)]
 pub struct Environment {
     map: HashMap<Symbol, Expression>,
     parent: Option<EnvRef>,
