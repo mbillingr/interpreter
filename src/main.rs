@@ -42,10 +42,7 @@ fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     while !input.is_eof() {
         for token in lexer.tokenize(input.read_line()?)? {
             if let Some(expr) = parser.push_token(token)? {
-                match eval(expr, env.clone())? {
-                    Expression::Undefined => {}
-                    res => println!("{}", res),
-                }
+                eval(expr, env.clone())?;
             }
         }
     }
