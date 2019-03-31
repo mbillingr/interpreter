@@ -12,28 +12,11 @@ impl Parser {
     }
 
     pub fn push_token(&mut self, token: Token) -> Result<Option<Expression>> {
-        let result = if self.list_stack.is_empty() {
-            self.begin_expression(token)
-        } else {
-            self.continue_expression(token)
-        };
-
-        result.and_then(|o| o.map(transform).transpose())
+        self.parse_expression(token)
+            .and_then(|o| o.map(transform).transpose())
     }
 
-    fn begin_expression(&mut self, token: Token) -> Result<Option<Expression>> {
-        match token {
-            Token::String(s) => Ok(Some(Expression::String(s))),
-            Token::Symbol(s) => Ok(Some(s.into())),
-            Token::ListOpen => {
-                self.list_stack.push(List::new());
-                Ok(None)
-            }
-            Token::ListClose => Err(ErrorKind::UnexpectedToken(token.into()).into()),
-        }
-    }
-
-    fn continue_expression(&mut self, token: Token) -> Result<Option<Expression>> {
+    fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
         let expr = match token {
             Token::String(s) => Expression::String(s),
             Token::Symbol(s) => s.into(),
@@ -41,11 +24,19 @@ impl Parser {
                 self.list_stack.push(List::new());
                 return Ok(None);
             }
-            Token::ListClose => return Ok(Some(Expression::List(self.list_stack.pop().unwrap()))),
+            Token::ListClose => match self.list_stack.pop() {
+                Some(list) => Expression::List(list),
+                None => return Err(ErrorKind::UnexpectedToken(token.into()))?,
+            },
         };
 
-        self.list_stack.last_mut().unwrap().push(expr);
-        Ok(None)
+        match self.list_stack.last_mut() {
+            Some(list) => {
+                list.push(expr);
+                Ok(None)
+            }
+            None => Ok(Some(expr)),
+        }
     }
 }
 
