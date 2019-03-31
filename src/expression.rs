@@ -217,6 +217,20 @@ impl std::ops::Div for Expression {
     }
 }
 
+impl std::ops::Rem for Expression {
+    type Output = Result<Expression>;
+    fn rem(self, other: Self) -> Self::Output {
+        use Expression::*;
+        match (self, other) {
+            (Integer(a), Integer(b)) => Ok(Integer(a % b)),
+            (Integer(a), Float(b)) => Ok(Float(a as f64 % b)),
+            (Float(a), Integer(b)) => Ok(Float(a % b as f64)),
+            (Float(a), Float(b)) => Ok(Float(a % b)),
+            (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
+        }
+    }
+}
+
 impl std::cmp::PartialOrd for Expression {
     fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
         use Expression::*;

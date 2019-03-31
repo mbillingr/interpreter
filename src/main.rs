@@ -56,7 +56,13 @@ fn main() {
         match arg {
             _ => {
                 let mut file = io::FileInput::new(&arg).unwrap();
-                run_file(&mut file, global.clone()).unwrap();
+                match run_file(&mut file, global.clone()) {
+                    Err(e) => {
+                        report_error(e);
+                        return;
+                    }
+                    Ok(_) => {}
+                }
             }
         }
     }

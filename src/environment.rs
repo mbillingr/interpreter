@@ -2,7 +2,7 @@ use crate::errors::*;
 use crate::expression::{Args, Expression, Procedure, Symbol};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::rc::Rc;
 use std::time::SystemTime;
 
@@ -34,6 +34,10 @@ pub fn default_env() -> EnvRef {
     map.insert(
         "/".to_string(),
         X::Native(|args| native_unifold(args, X::one(), X::div)),
+    );
+    map.insert(
+        "modulo".to_string(),
+        X::Native(|args| native_unifold(args, X::one(), X::rem)),
     );
 
     // logical operations
