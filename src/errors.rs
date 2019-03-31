@@ -1,5 +1,4 @@
 pub use errors_impl::*;
-use rustyline;
 
 #[allow(deprecated)]
 mod errors_impl {
@@ -27,6 +26,8 @@ mod errors_impl {
             }
 
             UnexpectedEof
+
+            UndelimitedString
 
             UnexpectedCharacter(expected: char, got: char) {
                 display("Expected character '{}' but found '{}'", expected, got)

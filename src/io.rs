@@ -1,4 +1,3 @@
-use std::io::{self, BufRead, BufReader, Read, Write};
 use crate::errors::Result;
 use rustyline::Editor;
 
@@ -12,9 +11,7 @@ pub struct ReplInput {
 
 impl ReplInput {
     pub fn new() -> Self {
-        ReplInput {
-            rl: Editor::new(),
-        }
+        ReplInput { rl: Editor::new() }
     }
 }
 

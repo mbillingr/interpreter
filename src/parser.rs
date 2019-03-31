@@ -1,7 +1,6 @@
 use crate::errors::*;
 use crate::expression::{Expression, List};
-use crate::lexer::{Lexer, Token};
-use crate::io::LineReader;
+use crate::lexer::Token;
 
 pub struct Parser {
     list_stack: Vec<List>,
@@ -9,9 +8,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new() -> Self {
-        Parser {
-            list_stack: vec![]
-        }
+        Parser { list_stack: vec![] }
     }
 
     pub fn push_token(&mut self, token: Token) -> Result<Option<Expression>> {
@@ -34,7 +31,6 @@ impl Parser {
             }
             Token::ListClose => Err(ErrorKind::UnexpectedToken(token.into()).into()),
         }
-
     }
 
     fn continue_expression(&mut self, token: Token) -> Result<Option<Expression>> {
@@ -43,19 +39,15 @@ impl Parser {
             Token::Symbol(s) => s.into(),
             Token::ListOpen => {
                 self.list_stack.push(List::new());
-                return Ok(None)
+                return Ok(None);
             }
-            Token::ListClose => {
-                return Ok(Some(Expression::List(self.list_stack.pop().unwrap())))
-            },
+            Token::ListClose => return Ok(Some(Expression::List(self.list_stack.pop().unwrap()))),
         };
 
         self.list_stack.last_mut().unwrap().push(expr);
         Ok(None)
     }
 }
-
-
 
 // convert some syntactic forms, expand macros(?), check errors, ... (mostly to-do)
 fn transform(expr: Expression) -> Result<Expression> {
