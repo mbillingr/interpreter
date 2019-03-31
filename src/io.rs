@@ -20,6 +20,9 @@ impl ReplInput {
 
 impl LineReader for ReplInput {
     fn read_line(&mut self) -> Result<String> {
+        // todo: stdout.flush() does not seem to work correctly, and without flushing we don't
+        //       see the result of (display ...) commands.
+        println!();
         let line = self.rl.readline(">> ")?;
         self.rl.add_history_entry(line.as_str());
         Ok(line + "\n")

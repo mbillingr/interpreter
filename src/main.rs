@@ -39,7 +39,6 @@ fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
 
     while !input.is_eof() {
         for token in tokenize(input.read_line()?)? {
-            println!("{:?}", token);
             if let Some(expr) = parser.push_token(token)? {
                 match eval(expr, env.clone())? {
                     Expression::Undefined => {}
