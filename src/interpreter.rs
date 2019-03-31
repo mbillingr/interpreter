@@ -33,6 +33,11 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                         .collect::<Result<_>>()?;
                     match proc {
                         Procedure(p) => {
+                            // todo: there is a severe flaw in this tail call impleentation
+                            //       although we do not burden the call stack, each call creates
+                            //       a new env that refers to it's parent.
+                            //       I guess this makes primitive lookups slower and slower the
+                            //       deeper we recurse...
                             let local_env = Environment::new(env.clone());
                             local_env.borrow_mut().set_vars(p.params.as_slice(), args)?;
                             expr = p.body_ex();
