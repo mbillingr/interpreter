@@ -15,15 +15,16 @@ use error_chain::ChainedError;
 use errors::*;
 use expression::Expression;
 use interpreter::eval;
-use lexer::tokenize;
+use lexer::Lexer;
 use parser::Parser;
 use std::env;
 
 fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
+    let mut lexer = Lexer::new();
     let mut parser = Parser::new();
 
     loop {
-        for token in tokenize(input.read_line()?)? {
+        for token in lexer.tokenize(input.read_line()?)? {
             if let Some(expr) = parser.push_token(token)? {
                 match eval(expr, env.clone())? {
                     Expression::Undefined => {}
@@ -35,10 +36,11 @@ fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
 }
 
 fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
+    let mut lexer = Lexer::new();
     let mut parser = Parser::new();
 
     while !input.is_eof() {
-        for token in tokenize(input.read_line()?)? {
+        for token in lexer.tokenize(input.read_line()?)? {
             if let Some(expr) = parser.push_token(token)? {
                 match eval(expr, env.clone())? {
                     Expression::Undefined => {}
