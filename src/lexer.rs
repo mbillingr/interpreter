@@ -85,7 +85,15 @@ impl Lexer {
     ) -> Result<Option<Token>> {
         let delimiter = chars.next().unwrap();
         let mut buf = String::new();
-        for ch in chars {
+        while let Some(mut ch) = chars.next() {
+            if ch == '\\' {
+                match chars.next() {
+                    None => break,
+                    Some('n') => ch = '\n',
+                    _ => return Err("Illegal character in escape sequence")?
+                }
+            }
+
             if ch == delimiter {
                 return Ok(Some(Token::String(buf)));
             }
