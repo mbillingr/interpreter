@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 error-chain = "0.12"
-regex = "1"
+rand = "0.6"
 rustyline = "3"

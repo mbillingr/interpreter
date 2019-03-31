@@ -51,6 +51,13 @@ impl Expression {
         }
     }
 
+    pub fn try_as_integer(&self) -> Result<i64> {
+        match self {
+            Expression::Integer(i) => Ok(*i),
+            _ => Err(ErrorKind::TypeError(format!("{} is not an integer.", self)).into()),
+        }
+    }
+
     pub fn try_as_symbol(&self) -> Result<&Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),

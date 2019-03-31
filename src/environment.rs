@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::rc::Rc;
 use std::time::SystemTime;
+use rand::Rng;
 
 pub type EnvRef = Rc<RefCell<Environment>>;
 
@@ -89,6 +90,12 @@ pub fn default_env() -> EnvRef {
             Ok(Expression::Integer(t as i64))
         }),
     );
+
+    map.insert("random".to_string(), X::Native(|args| {
+        let n = args.into_iter().next().ok_or(ErrorKind::ArgumentError)?.try_as_integer()?;
+        let r = rand::thread_rng().gen_range(0, n);
+        Ok(Expression::Integer(r))
+    }));
 
     let env = Rc::new(RefCell::new(Environment { map, parent: None }));
 
