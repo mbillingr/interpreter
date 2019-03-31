@@ -45,6 +45,7 @@ fn transform(expr: Expression) -> Result<Expression> {
     use Expression::*;
     match expr {
         List(l) => match l.first() {
+            Some(Symbol(s)) if s == "cond" => transform_cond(l),
             Some(Symbol(s)) if s == "define" => transform_define(l),
             Some(Symbol(s)) if s == "if" => transform_if(l),
             _ => l
@@ -78,6 +79,25 @@ fn transform_define(list: List) -> Result<Expression> {
     } else {
         Err(ErrorKind::TypeError(format!("Cannot use {} as signature.", list[1])).into())
     }
+}
+
+fn transform_cond(list: List) -> Result<Expression> {
+    let list = list
+        .into_iter()
+        .map(|item| {
+            if let Expression::List(mut path) = item {
+                if let Some(Expression::Symbol(f)) = path.first() {
+                    if f == "else" {
+                        path[0] = Expression::True;
+                    }
+                }
+                Expression::List(path)
+            } else {
+                item
+            }
+        })
+        .collect();
+    Ok(Expression::List(list))
 }
 
 fn transform_if(list: List) -> Result<Expression> {
