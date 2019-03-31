@@ -46,6 +46,7 @@ fn transform(expr: Expression) -> Result<Expression> {
     match expr {
         List(l) => match l.first() {
             Some(Symbol(s)) if s == "define" => transform_define(l),
+            Some(Symbol(s)) if s == "if" => transform_if(l),
             _ => l
                 .into_iter()
                 .map(transform)
