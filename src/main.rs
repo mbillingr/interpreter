@@ -27,7 +27,6 @@ fn repl(env: EnvRef) -> Result<()> {
     loop {
         for token in tokenize(input.read_line()?)? {
             if let Some(expr) = parser.push_token(token)? {
-                println!("{:?}", expr);
                 match eval(expr, env.clone())? {
                     Expression::Undefined => {}
                     res => println!("{}", res),

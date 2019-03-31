@@ -79,7 +79,7 @@ fn read_token(chars: &mut Peekable<impl Iterator<Item = char>>) -> Result<Token>
 fn read_string(chars: &mut Peekable<impl Iterator<Item = char>>) -> Result<Token> {
     let delimiter = chars.next().unwrap();
     let mut buf = String::new();
-    while let Some(ch) = chars.next() {
+    for ch in chars {
         if ch == delimiter {
             return Ok(Token::String(buf));
         }

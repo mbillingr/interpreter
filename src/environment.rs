@@ -82,7 +82,7 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_millis();
-            return Ok(Expression::Integer(t as i64));
+            Ok(Expression::Integer(t as i64))
         }),
     );
 
@@ -173,9 +173,10 @@ fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
     };
 
     for b in args {
-        match pred(&a, &b) {
-            true => a = b,
-            false => return Ok(Expression::False),
+        if pred(&a, &b) {
+            a = b
+        } else {
+            return Ok(Expression::False);
         }
     }
 

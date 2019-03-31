@@ -73,16 +73,18 @@ impl Expression {
     }
 
     pub fn logical_and(self, other: Self) -> Result<Self> {
-        match self.is_true() {
-            true => Ok(other),
-            false => Ok(self),
+        if self.is_true() {
+            Ok(other)
+        } else {
+            Ok(self)
         }
     }
 
     pub fn logical_or(self, other: Self) -> Result<Self> {
-        match self.is_true() {
-            true => Ok(self),
-            false => Ok(other),
+        if self.is_true() {
+            Ok(self)
+        } else {
+            Ok(other)
         }
     }
 }
@@ -151,9 +153,10 @@ impl From<String> for Expression {
 
 impl From<bool> for Expression {
     fn from(b: bool) -> Self {
-        match b {
-            true => Expression::True,
-            false => Expression::False,
+        if b {
+            Expression::True
+        } else {
+            Expression::False
         }
     }
 }
