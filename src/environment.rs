@@ -36,7 +36,7 @@ pub fn default_env() -> EnvRef {
         X::Native(|args| native_unifold(args, X::one(), X::div)),
     );
     map.insert(
-        "modulo".to_string(),
+        "remainder".to_string(),
         X::Native(|args| native_unifold(args, X::one(), X::rem)),
     );
 
