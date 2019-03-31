@@ -4,7 +4,7 @@ pub type List = Vec<Expression>;
 pub type Args = List;
 pub type Symbol = String;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum Expression {
     Undefined,
     Nil,
@@ -240,6 +240,23 @@ impl std::cmp::PartialOrd for Expression {
             (Float(a), Integer(b)) => a.partial_cmp(&(*b as f64)),
             (Float(a), Float(b)) => a.partial_cmp(b),
             _ => None,
+        }
+    }
+}
+
+impl std::cmp::PartialEq for Expression {
+    fn eq(&self, rhs: &Self) -> bool {
+        use Expression::*;
+        match (self, rhs) {
+            (Integer(a), Integer(b)) => a == b,
+            (Integer(a), Float(b)) => (*a as f64) == *b,
+            (Float(a), Integer(b)) => *a == (*b as f64),
+            (Float(a), Float(b)) => a == b,
+            (String(a), String(b)) => a == b,
+            (True, True) => true,
+            (False, False) => true,
+            (Nil, Nil) => true,
+            _ => false,
         }
     }
 }
