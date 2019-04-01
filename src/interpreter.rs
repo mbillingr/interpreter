@@ -1,4 +1,4 @@
-use crate::environment::{EnvRef, Environment};
+use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, List, Procedure};
 
@@ -33,17 +33,8 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                         .collect::<Result<_>>()?;
                     match proc {
                         Procedure(p) => {
-                            // todo: there is a severe flaw in this tail call impleentation
-                            //       although we do not burden the call stack, each call creates
-                            //       a new env that refers to it's parent.
-                            //       I guess this makes primitive lookups slower and slower the
-                            //       deeper we recurse...
-                            //       The solution is to use as parent the environment the procudere
-                            //       is *defined* in rather than the one it is *called* in.
-                            let local_env = Environment::new(env.clone());
-                            local_env.borrow_mut().set_vars(p.params.as_slice(), args)?;
                             expr = p.body_ex();
-                            env = local_env;
+                            env = p.new_local_env(args)?;
                         }
                         Native(func) => return func(args),
                         _ => return Err(ErrorKind::TypeError("not callable".to_string()).into()),
@@ -76,7 +67,7 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
             env.borrow_mut().insert(s, value);
         }
         Expression::List(sig) => {
-            let proc = Procedure::build(sig, body)?;
+            let proc = Procedure::build(sig, body, &env)?;
             env.borrow_mut()
                 .insert(proc.name.clone().unwrap(), Expression::Procedure(proc));
         }

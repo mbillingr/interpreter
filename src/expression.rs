@@ -1,4 +1,6 @@
+use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
+use std::rc::Rc;
 
 pub type List = Vec<Expression>;
 pub type Args = List;
@@ -268,15 +270,16 @@ impl std::cmp::PartialEq for Expression {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Procedure {
     pub name: Option<Symbol>,
     pub body: Box<Expression>,
     pub params: List,
+    pub env: EnvWeak,
 }
 
 impl Procedure {
-    pub fn build(mut signature: List, body: Expression) -> Result<Self> {
+    pub fn build(mut signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
         if signature.is_empty() {
             return Err(ErrorKind::ArgumentError.into());
         }
@@ -287,7 +290,20 @@ impl Procedure {
             name: Some(name),
             body: Box::new(body),
             params: signature,
+            env: Rc::downgrade(env),
         })
+    }
+
+    pub fn env(&self) -> EnvRef {
+        self.env
+            .upgrade()
+            .expect("method's environment has been dropped")
+    }
+
+    pub fn new_local_env(&self, args: Vec<Expression>) -> Result<EnvRef> {
+        let mut env = Environment::new(self.env());
+        env.set_vars(self.params.as_slice(), args)?;
+        Ok(env.into())
     }
 
     pub fn name_ex(&self) -> Expression {

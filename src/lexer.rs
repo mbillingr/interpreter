@@ -90,7 +90,7 @@ impl Lexer {
                 match chars.next() {
                     None => break,
                     Some('n') => ch = '\n',
-                    _ => return Err("Illegal character in escape sequence")?
+                    _ => return Err("Illegal character in escape sequence")?,
                 }
             }
 

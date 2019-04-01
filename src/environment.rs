@@ -1,13 +1,14 @@
 use crate::errors::*;
 use crate::expression::{Args, Expression, Procedure, Symbol};
+use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Rem, Sub};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::time::SystemTime;
-use rand::Rng;
 
 pub type EnvRef = Rc<RefCell<Environment>>;
+pub type EnvWeak = Weak<RefCell<Environment>>;
 
 pub fn default_env() -> EnvRef {
     use Expression as X;
@@ -86,32 +87,45 @@ pub fn default_env() -> EnvRef {
             let t = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
-                .as_millis();
+                .as_micros();
             Ok(Expression::Integer(t as i64))
         }),
     );
 
-    map.insert("random".to_string(), X::Native(|args| {
-        let n = args.into_iter().next().ok_or(ErrorKind::ArgumentError)?.try_as_integer()?;
-        let r = rand::thread_rng().gen_range(0, n);
-        Ok(Expression::Integer(r))
-    }));
+    map.insert(
+        "random".to_string(),
+        X::Native(|args| {
+            let n = args
+                .into_iter()
+                .next()
+                .ok_or(ErrorKind::ArgumentError)?
+                .try_as_integer()?;
+            let r = rand::thread_rng().gen_range(0, n);
+            Ok(Expression::Integer(r))
+        }),
+    );
 
     let env = Rc::new(RefCell::new(Environment { map, parent: None }));
 
     env.borrow_mut().map.insert(
         "newline".to_string(),
-        X::Procedure(Procedure {
-            name: Some("newline".into()),
-            body: Box::new(X::List(vec![
-                X::Symbol("display".into()),
-                X::String("\n".into()),
-            ])),
-            params: vec![],
-        }),
+        X::Procedure(
+            Procedure::build(
+                vec![X::Symbol("newline".into())],
+                X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
+                &env,
+            )
+            .unwrap(),
+        ),
     );
 
     env
+}
+
+impl From<Environment> for EnvRef {
+    fn from(env: Environment) -> Self {
+        Rc::new(RefCell::new(env))
+    }
 }
 
 #[derive(Debug)]
@@ -121,11 +135,11 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn new(parent: EnvRef) -> EnvRef {
-        Rc::new(RefCell::new(Environment {
+    pub fn new(parent: EnvRef) -> Environment {
+        Environment {
             map: Default::default(),
             parent: Some(parent),
-        }))
+        }
     }
 
     pub fn lookup(&self, key: &str) -> Option<Expression> {
