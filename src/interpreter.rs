@@ -38,6 +38,8 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                             //       a new env that refers to it's parent.
                             //       I guess this makes primitive lookups slower and slower the
                             //       deeper we recurse...
+                            //       The solution is to use as parent the environment the procudere
+                            //       is *defined* in rather than the one it is *called* in.
                             let local_env = Environment::new(env.clone());
                             local_env.borrow_mut().set_vars(p.params.as_slice(), args)?;
                             expr = p.body_ex();
