@@ -9,6 +9,8 @@
  (display elapsed))
 
 (define (abs x) (if (< x 0) (- x) x))
+(define (inc n) (+ n 1))
+(define (dec n) (- n 1))
 
 (define (even? x) (= 0 (modulo x 2)))
 
@@ -17,8 +19,8 @@
   (cond ((and (< a 0) (> b 0)) (+ b r))
         ((and (> a 0) (< b 0)) (+ b r))
         (else r)))
- (fix a b (remainder a b))
-)
+ (fix a b (remainder a b)))
+
 
 (define (sqr x) (* x x))
 (define (cube x) (* x x x))
