@@ -10,6 +10,50 @@ use std::time::SystemTime;
 pub type EnvRef = Rc<RefCell<Environment>>;
 pub type EnvWeak = Weak<RefCell<Environment>>;
 
+impl From<Environment> for EnvRef {
+    fn from(env: Environment) -> Self {
+        Rc::new(RefCell::new(env))
+    }
+}
+
+#[derive(Debug)]
+pub struct Environment {
+    map: HashMap<Symbol, Expression>,
+    parent: Option<EnvRef>,
+}
+
+impl Environment {
+    pub fn new(parent: EnvRef) -> Environment {
+        Environment {
+            map: Default::default(),
+            parent: Some(parent),
+        }
+    }
+
+    pub fn lookup(&self, key: &str) -> Option<Expression> {
+        self.map
+            .get(key)
+            .cloned()
+            .or_else(|| self.parent.clone().and_then(|p| p.borrow().lookup(key)))
+    }
+
+    pub fn insert(&mut self, key: String, expr: Expression) {
+        self.map.insert(key, expr);
+    }
+
+    pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
+        if names.len() < args.len() {
+            return Err(ErrorKind::ArgumentError.into());
+        }
+
+        for (n, a) in names.iter().zip(args) {
+            self.map.insert(n.try_as_symbol()?.clone(), a);
+        }
+
+        Ok(())
+    }
+}
+
 pub fn default_env() -> EnvRef {
     use Expression as X;
 
@@ -120,50 +164,6 @@ pub fn default_env() -> EnvRef {
     );
 
     env
-}
-
-impl From<Environment> for EnvRef {
-    fn from(env: Environment) -> Self {
-        Rc::new(RefCell::new(env))
-    }
-}
-
-#[derive(Debug)]
-pub struct Environment {
-    map: HashMap<Symbol, Expression>,
-    parent: Option<EnvRef>,
-}
-
-impl Environment {
-    pub fn new(parent: EnvRef) -> Environment {
-        Environment {
-            map: Default::default(),
-            parent: Some(parent),
-        }
-    }
-
-    pub fn lookup(&self, key: &str) -> Option<Expression> {
-        self.map
-            .get(key)
-            .cloned()
-            .or_else(|| self.parent.clone().and_then(|p| p.borrow().lookup(key)))
-    }
-
-    pub fn insert(&mut self, key: String, expr: Expression) {
-        self.map.insert(key, expr);
-    }
-
-    pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
-        if names.len() < args.len() {
-            return Err(ErrorKind::ArgumentError.into());
-        }
-
-        for (n, a) in names.iter().zip(args) {
-            self.map.insert(n.try_as_symbol()?.clone(), a);
-        }
-
-        Ok(())
-    }
 }
 
 fn native_display(args: Args) -> Result<Expression> {
