@@ -1,5 +1,5 @@
 use crate::errors::*;
-use crate::expression::{Args, Expression, Procedure, Symbol};
+use crate::expression::{Args, Expression, Procedure, Symbol, WeakProcedure};
 use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -17,8 +17,23 @@ impl From<Environment> for EnvRef {
 }
 
 #[derive(Debug)]
+enum Entry {
+    Value(Expression),
+    Procedure(WeakProcedure),
+}
+
+impl From<Expression> for Entry {
+    fn from(expr: Expression) -> Self {
+        match expr {
+            Expression::Procedure(proc) => Entry::Procedure(proc.into()),
+            expr => Entry::Value(expr),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Environment {
-    map: HashMap<Symbol, Expression>,
+    map: HashMap<Symbol, Entry>,
     parent: Option<EnvRef>,
 }
 
@@ -32,28 +47,35 @@ pub struct Environment {
 }*/
 
 impl Environment {
-    pub fn new(map: HashMap<Symbol, Expression>, parent: Option<EnvRef>) -> Environment {
-        Environment { map, parent }
+    pub fn new(parent: Option<EnvRef>) -> Environment {
+        Environment {
+            map: Default::default(),
+            parent,
+        }
     }
     pub fn new_child(parent: EnvRef) -> Environment {
-        Environment::new(Default::default(), Some(parent))
+        Environment::new(Some(parent))
     }
 
     pub fn lookup(&self, key: &str) -> Option<Expression> {
-        self.map
-            .get(key)
-            .cloned()
-            .or_else(|| self.parent.clone().and_then(|p| p.borrow().lookup(key)))
+        let entry = self.map.get(key);
+        match entry {
+            None => self.parent.clone().and_then(|p| p.borrow().lookup(key)),
+            Some(Entry::Value(expr)) => Some(expr.clone()),
+            Some(Entry::Procedure(proc)) => Some(proc.clone().into()),
+        }
     }
 
-    pub fn insert(&mut self, key: String, expr: Expression) {
-        self.map.insert(key, expr);
+    pub fn insert<K: Into<String>>(&mut self, key: K, expr: Expression) {
+        self.map.insert(key.into(), expr.into());
     }
 
     pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
         if names.len() < args.len() {
             return Err(ErrorKind::ArgumentError.into());
         }
+
+        let args = args.into_iter().map(Entry::from);
 
         for (n, a) in names.iter().zip(args) {
             self.map.insert(n.try_as_symbol()?.clone(), a);
@@ -76,113 +98,115 @@ impl Environment {
 pub fn default_env() -> EnvRef {
     use Expression as X;
 
-    let mut map = HashMap::new();
+    let defenv: EnvRef = Environment::new(None).into();
 
-    // simple i/o
+    {
+        let mut env = defenv.borrow_mut();
 
-    map.insert("display".to_string(), X::Native(native_display));
+        // simple i/o
 
-    // numerical operations
+        env.insert("display", X::Native(native_display));
 
-    map.insert(
-        "+".to_string(),
-        X::Native(|args| native_fold(args, X::zero(), X::add)),
-    );
-    map.insert(
-        "*".to_string(),
-        X::Native(|args| native_fold(args, X::one(), X::mul)),
-    );
-    map.insert(
-        "-".to_string(),
-        X::Native(|args| native_unifold(args, X::zero(), X::sub)),
-    );
-    map.insert(
-        "/".to_string(),
-        X::Native(|args| native_unifold(args, X::one(), X::div)),
-    );
-    map.insert(
-        "remainder".to_string(),
-        X::Native(|args| native_unifold(args, X::one(), X::rem)),
-    );
+        // numerical operations
 
-    // logical operations
-    //    todo: would it make sense to implement these as special forms to take advantage of short-circuting?
+        env.insert(
+            "+".to_string(),
+            X::Native(|args| native_fold(args, X::zero(), X::add)),
+        );
+        env.insert(
+            "*".to_string(),
+            X::Native(|args| native_fold(args, X::one(), X::mul)),
+        );
+        env.insert(
+            "-".to_string(),
+            X::Native(|args| native_unifold(args, X::zero(), X::sub)),
+        );
+        env.insert(
+            "/".to_string(),
+            X::Native(|args| native_unifold(args, X::one(), X::div)),
+        );
+        env.insert(
+            "remainder".to_string(),
+            X::Native(|args| native_unifold(args, X::one(), X::rem)),
+        );
 
-    map.insert(
-        "and".to_string(),
-        X::Native(|args| native_fold(args, X::True, X::logical_and)),
-    );
-    map.insert(
-        "or".to_string(),
-        X::Native(|args| native_fold(args, X::False, X::logical_or)),
-    );
-    map.insert(
-        "not".to_string(),
-        X::Native(|args| {
-            if args.len() != 1 {
-                Err(ErrorKind::ArgumentError.into())
-            } else {
-                Ok((!args[0].is_true()).into())
-            }
-        }),
-    );
+        // logical operations
+        //    todo: would it make sense to implement these as special forms to take advantage of short-circuting?
 
-    // comparison
+        env.insert(
+            "and".to_string(),
+            X::Native(|args| native_fold(args, X::True, X::logical_and)),
+        );
+        env.insert(
+            "or".to_string(),
+            X::Native(|args| native_fold(args, X::False, X::logical_or)),
+        );
+        env.insert(
+            "not".to_string(),
+            X::Native(|args| {
+                if args.len() != 1 {
+                    Err(ErrorKind::ArgumentError.into())
+                } else {
+                    Ok((!args[0].is_true()).into())
+                }
+            }),
+        );
 
-    map.insert(
-        "=".to_string(),
-        X::Native(|args| native_compare(args, X::eq)),
-    );
-    map.insert(
-        "<".to_string(),
-        X::Native(|args| native_compare(args, X::lt)),
-    );
-    map.insert(
-        ">".to_string(),
-        X::Native(|args| native_compare(args, X::gt)),
-    );
+        // comparison
 
-    // misc
+        env.insert(
+            "=".to_string(),
+            X::Native(|args| native_compare(args, X::eq)),
+        );
+        env.insert(
+            "<".to_string(),
+            X::Native(|args| native_compare(args, X::lt)),
+        );
+        env.insert(
+            ">".to_string(),
+            X::Native(|args| native_compare(args, X::gt)),
+        );
 
-    map.insert(
-        "runtime".to_string(),
-        X::Native(|_| {
-            let t = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_micros();
-            Ok(Expression::Integer(t as i64))
-        }),
-    );
+        // misc
 
-    map.insert(
-        "random".to_string(),
-        X::Native(|args| {
-            let n = args
-                .into_iter()
-                .next()
-                .ok_or(ErrorKind::ArgumentError)?
-                .try_as_integer()?;
-            let r = rand::thread_rng().gen_range(0, n);
-            Ok(Expression::Integer(r))
-        }),
-    );
+        env.insert(
+            "runtime".to_string(),
+            X::Native(|_| {
+                let t = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros();
+                Ok(Expression::Integer(t as i64))
+            }),
+        );
 
-    let env: EnvRef = Environment::new(map, None).into();
+        env.insert(
+            "random".to_string(),
+            X::Native(|args| {
+                let n = args
+                    .into_iter()
+                    .next()
+                    .ok_or(ErrorKind::ArgumentError)?
+                    .try_as_integer()?;
+                let r = rand::thread_rng().gen_range(0, n);
+                Ok(Expression::Integer(r))
+            }),
+        );
 
-    env.borrow_mut().map.insert(
-        "newline".to_string(),
-        X::Procedure(
-            Procedure::build(
-                vec![X::Symbol("newline".into())],
-                X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
-                &env,
-            )
-            .unwrap(),
-        ),
-    );
+        env.insert(
+            "newline".to_string(),
+            X::Procedure(
+                Procedure::build(
+                    vec![X::Symbol("newline".into())],
+                    X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
+                    &defenv,
+                )
+                .unwrap(),
+            ),
+        );
+    }
 
-    env
+    defenv
 }
 
 fn native_display(args: Args) -> Result<Expression> {

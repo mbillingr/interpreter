@@ -36,3 +36,8 @@
   (if (= n 0)
       0
       (count-iter (dec n))))
+
+(define (make-sqr)
+  (define (s x) (* x x))
+  s)
+  

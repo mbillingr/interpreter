@@ -275,7 +275,7 @@ pub struct Procedure {
     pub name: Option<Symbol>,
     pub body: Box<Expression>,
     pub params: List,
-    pub env: EnvWeak,
+    pub env: EnvRef,
 }
 /*
 impl Drop for Procedure {
@@ -310,14 +310,14 @@ impl Procedure {
             name: Some(name),
             body: Box::new(body),
             params: signature,
-            env: Rc::downgrade(env),
+            env: env.clone(),
         })
     }
 
     pub fn env(&self) -> EnvRef {
-        self.env
-            .upgrade()
-            .expect("method's environment has been dropped")
+        self.env.clone()
+        //.upgrade()
+        //.expect("method's environment has been dropped")
     }
 
     pub fn new_local_env(&self, args: Vec<Expression>) -> Result<EnvRef> {
@@ -336,5 +336,47 @@ impl Procedure {
 
     pub fn params_ex(&self) -> Expression {
         Expression::List(self.params.clone())
+    }
+}
+
+/// A procedure that stores only a weak reference to it's environment
+///
+/// Used to store procedures inside environments without Rc cycles.
+#[derive(Debug, Clone)]
+pub struct WeakProcedure {
+    pub name: Option<Symbol>,
+    pub body: Box<Expression>,
+    pub params: List,
+    pub env: EnvWeak,
+}
+
+impl From<Procedure> for WeakProcedure {
+    fn from(proc: Procedure) -> Self {
+        WeakProcedure {
+            name: proc.name,
+            body: proc.body,
+            params: proc.params,
+            env: Rc::downgrade(&proc.env),
+        }
+    }
+}
+
+impl From<WeakProcedure> for Procedure {
+    fn from(proc: WeakProcedure) -> Self {
+        Procedure {
+            name: proc.name,
+            body: proc.body,
+            params: proc.params,
+            env: proc
+                .env
+                .upgrade()
+                .expect("procedure's environment has been dropped"),
+        }
+    }
+}
+
+impl From<WeakProcedure> for Expression {
+    fn from(proc: WeakProcedure) -> Self {
+        Expression::Procedure(proc.into())
     }
 }
