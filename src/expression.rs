@@ -364,13 +364,13 @@ impl From<Procedure> for WeakProcedure {
 impl From<WeakProcedure> for Procedure {
     fn from(proc: WeakProcedure) -> Self {
         Procedure {
-            name: proc.name,
-            body: proc.body,
-            params: proc.params,
             env: proc
                 .env
                 .upgrade()
-                .expect("procedure's environment has been dropped"),
+                .unwrap_or_else(||panic!("procedure {:?}'s environment has been dropped", proc.name)),
+            name: proc.name,
+            body: proc.body,
+            params: proc.params,
         }
     }
 }

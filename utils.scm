@@ -22,6 +22,12 @@
  (fix a b (remainder a b)))
 
 
+(define (gcd a b)
+  (if (= b 0)
+      a
+      (gcd b (remainder a b))))
+
+
 (define (sqr x) (* x x))
 (define (cube x) (* x x x))
 
@@ -40,4 +46,3 @@
 (define (make-sqr)
   (define (s x) (* x x))
   s)
-  
