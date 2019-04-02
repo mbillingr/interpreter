@@ -22,14 +22,6 @@ enum Entry {
     Procedure(WeakProcedure),
 }
 
-impl From<Expression> for Entry {
-    fn from(expr: Expression) -> Self {
-        match expr {
-            Expression::Procedure(proc) => Entry::Procedure(proc.into()),
-            expr => Entry::Value(expr),
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Environment {
@@ -67,7 +59,19 @@ impl Environment {
     }
 
     pub fn insert<K: Into<String>>(&mut self, key: K, expr: Expression) {
-        self.map.insert(key.into(), expr.into());
+        // avoid Rc loops by storing functions that refer to the
+        // environment they live in as weak references.
+        let entry = match expr {
+            Expression::Procedure(proc) => {
+                if proc.env.as_ptr() == self {
+                    Entry::Procedure(proc.into())
+                } else {
+                    Entry::Value(Expression::Procedure(proc))
+                }
+            },
+            expr => Entry::Value(expr),
+        } ;
+        self.map.insert(key.into(), entry);
     }
 
     pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
@@ -75,10 +79,8 @@ impl Environment {
             return Err(ErrorKind::ArgumentError.into());
         }
 
-        let args = args.into_iter().map(Entry::from);
-
         for (n, a) in names.iter().zip(args) {
-            self.map.insert(n.try_as_symbol()?.clone(), a);
+            self.insert(n.try_as_symbol()?.clone(), a);
         }
 
         Ok(())
