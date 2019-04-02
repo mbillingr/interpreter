@@ -277,6 +277,24 @@ pub struct Procedure {
     pub params: List,
     pub env: EnvWeak,
 }
+/*
+impl Drop for Procedure {
+    fn drop(&mut self) {
+        println!("Dropping proceduce {:?}", self.name);
+    }
+}
+
+impl Clone for Procedure {
+    fn clone(&self) -> Self {
+        println!("Cloning proceduce {:?}", self.name);
+        Procedure {
+            name: self.name.clone(),
+            body: self.body.clone(),
+            params: self.params.clone(),
+            env: self.env.clone(),
+        }
+    }
+}*/
 
 impl Procedure {
     pub fn build(mut signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
@@ -285,6 +303,8 @@ impl Procedure {
         }
 
         let name = signature.remove(0).try_into_symbol()?;
+
+        //println!("Creating procedure: {} in {}", name, env.borrow().id);
 
         Ok(Procedure {
             name: Some(name),
@@ -301,7 +321,7 @@ impl Procedure {
     }
 
     pub fn new_local_env(&self, args: Vec<Expression>) -> Result<EnvRef> {
-        let mut env = Environment::new(self.env());
+        let mut env = Environment::new_child(self.env());
         env.set_vars(self.params.as_slice(), args)?;
         Ok(env.into())
     }

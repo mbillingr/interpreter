@@ -40,7 +40,8 @@ fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     let mut parser = Parser::new();
 
     while !input.is_eof() {
-        for token in lexer.tokenize(input.read_line()?)? {
+        let line = input.read_line()?;
+        for token in lexer.tokenize(line)? {
             if let Some(expr) = parser.push_token(token)? {
                 eval(expr, env.clone())?;
             }

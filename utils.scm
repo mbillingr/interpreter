@@ -24,3 +24,15 @@
 
 (define (sqr x) (* x x))
 (define (cube x) (* x x x))
+
+
+;; ==========================================
+;;   useless stuff
+;; ==========================================
+
+
+(define (count-iter n)
+  (define (dec n) (- n 1))
+  (if (= n 0)
+      0
+      (count-iter (dec n))))

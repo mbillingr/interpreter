@@ -22,12 +22,21 @@ pub struct Environment {
     parent: Option<EnvRef>,
 }
 
+/*impl Drop for Environment {
+    fn drop(&mut self) {
+        println!("Dropping env {}", self.id);
+        NEXT_ID.with(|n| {
+            n.set(n.get() - 1);
+        });
+    }
+}*/
+
 impl Environment {
-    pub fn new(parent: EnvRef) -> Environment {
-        Environment {
-            map: Default::default(),
-            parent: Some(parent),
-        }
+    pub fn new(map: HashMap<Symbol, Expression>, parent: Option<EnvRef>) -> Environment {
+        Environment { map, parent }
+    }
+    pub fn new_child(parent: EnvRef) -> Environment {
+        Environment::new(Default::default(), Some(parent))
     }
 
     pub fn lookup(&self, key: &str) -> Option<Expression> {
@@ -149,7 +158,7 @@ pub fn default_env() -> EnvRef {
         }),
     );
 
-    let env = Rc::new(RefCell::new(Environment { map, parent: None }));
+    let env: EnvRef = Environment::new(map, None).into();
 
     env.borrow_mut().map.insert(
         "newline".to_string(),
