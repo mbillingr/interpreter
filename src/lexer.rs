@@ -9,6 +9,16 @@ pub enum Token {
     Symbol(String),
 }
 
+impl Token {
+    pub fn is_symbol(&self) -> bool {
+        if let Token::Symbol(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 impl From<char> for Token {
     fn from(ch: char) -> Self {
         match ch {
@@ -30,6 +40,37 @@ impl From<Token> for String {
     }
 }
 
+#[derive(Debug)]
+pub struct PositionalToken {
+    pub start_idx: usize,
+    pub end_idx: usize,
+    pub token: Token,
+}
+
+impl From<PositionalToken> for String {
+    fn from(token: PositionalToken) -> Self {
+        token.token.into()
+    }
+}
+
+impl From<PositionalToken> for Token {
+    fn from(token: PositionalToken) -> Self {
+        token.token
+    }
+}
+
+impl From<(usize, char)> for PositionalToken {
+    fn from((i, ch): (usize, char)) -> Self {
+        PositionalToken {
+            start_idx: i,
+            end_idx: i + 1,
+            token: ch.into(),
+        }
+    }
+}
+
+type CharI = <std::str::CharIndices<'static> as Iterator>::Item;
+
 pub struct Lexer {
     comment_level: usize,
 }
@@ -39,9 +80,9 @@ impl Lexer {
         Lexer { comment_level: 0 }
     }
 
-    pub fn tokenize(&mut self, input: String) -> Result<Vec<Token>> {
+    pub fn tokenize(&mut self, input: String) -> Result<Vec<PositionalToken>> {
         let mut tokens = vec![];
-        let mut chars = input.chars().peekable();
+        let mut chars = input.char_indices().peekable();
         while self.skip_whitespace(&mut chars) {
             if self.comment_level > 0 {
                 self.read_block_comment(&mut chars)?;
@@ -53,10 +94,10 @@ impl Lexer {
     }
 
     /// read whitespace from char iterator and return true if
-    fn skip_whitespace(&mut self, chars: &mut Peekable<impl Iterator<Item = char>>) -> bool {
+    fn skip_whitespace(&mut self, chars: &mut Peekable<impl Iterator<Item = CharI>>) -> bool {
         loop {
             match chars.peek() {
-                Some(ch) if ch.is_whitespace() => {
+                Some((_, ch)) if ch.is_whitespace() => {
                     chars.next();
                 }
                 Some(_) => return true,
@@ -67,10 +108,10 @@ impl Lexer {
 
     fn read_token(
         &mut self,
-        chars: &mut Peekable<impl Iterator<Item = char>>,
-    ) -> Result<Option<Token>> {
-        match chars.peek().unwrap() {
-            '(' | ')' => Ok(chars.next().map(Token::from)),
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
+        match chars.peek().unwrap().1 {
+            '(' | ')' => Ok(chars.next().map(PositionalToken::from)),
             '"' => self.read_string(chars),
             '#' => self.read_hash(chars),
             ';' => self.read_line_comment(chars),
@@ -81,21 +122,25 @@ impl Lexer {
     // read characters until the first character (=delimiter) is read again.
     fn read_string(
         &mut self,
-        chars: &mut Peekable<impl Iterator<Item = char>>,
-    ) -> Result<Option<Token>> {
-        let delimiter = chars.next().unwrap();
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
+        let (start_idx, delimiter) = chars.next().unwrap();
         let mut buf = String::new();
-        while let Some(mut ch) = chars.next() {
+        while let Some((idx, mut ch)) = chars.next() {
             if ch == '\\' {
                 match chars.next() {
                     None => break,
-                    Some('n') => ch = '\n',
+                    Some((_, 'n')) => ch = '\n',
                     _ => return Err("Illegal character in escape sequence")?,
                 }
             }
 
             if ch == delimiter {
-                return Ok(Some(Token::String(buf)));
+                return Ok(Some(PositionalToken {
+                    start_idx,
+                    end_idx: idx,
+                    token: Token::String(buf),
+                }));
             }
             buf.push(ch)
         }
@@ -104,55 +149,71 @@ impl Lexer {
 
     fn read_symbol(
         &mut self,
-        chars: &mut Peekable<impl Iterator<Item = char>>,
-    ) -> Result<Option<Token>> {
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
         let mut buf = String::new();
-        loop {
+        let (start_idx, _) = *chars
+            .peek()
+            .ok_or_else(|| ErrorKind::UnexpectedToken(String::new()))?;
+        let mut last_idx = start_idx;
+        let end_idx = loop {
             match chars.peek() {
-                None => break,
-                Some(ch) if ch.is_whitespace() => break,
-                Some(ch) if is_special_char(*ch) => break,
-                Some(_) => buf.push(chars.next().unwrap()),
+                None => break last_idx + 1,
+                Some(&(idx, ch)) if ch.is_whitespace() => break idx,
+                Some(&(idx, ch)) if is_special_char(ch) => break idx,
+                Some(&(idx, _)) => {
+                    last_idx = idx;
+                    buf.push(chars.next().unwrap().1);
+                }
             }
-        }
-        Ok(Some(Token::Symbol(buf)))
+        };
+        Ok(Some(PositionalToken {
+            start_idx,
+            end_idx,
+            token: Token::Symbol(buf),
+        }))
     }
 
     fn read_hash(
         &mut self,
-        chars: &mut Peekable<impl Iterator<Item = char>>,
-    ) -> Result<Option<Token>> {
-        assert_eq!(Some('#'), chars.next());
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
+        let (start_idx, ch) = chars.next().unwrap();
+        assert_eq!('#', ch);
         match chars.next() {
             None => Err(ErrorKind::UnexpectedEof)?,
-            Some('!') => {
+            Some((_, '!')) => {
                 self.comment_level += 1;
                 Ok(None)
             }
-            Some(ch) => Ok(Some(Token::Symbol(format!("#{}", ch)))),
+            Some((end_idx, ch)) => Ok(Some(PositionalToken {
+                start_idx,
+                end_idx,
+                token: Token::Symbol(format!("#{}", ch)),
+            })),
         }
     }
 
     fn read_block_comment(
         &mut self,
-        chars: &mut Peekable<impl Iterator<Item = char>>,
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
     ) -> Result<()> {
-        let mut last = ' ';
-        for ch in chars {
-            if last == '!' && ch == '#' {
+        let mut last = (0, ' ');
+        for ich in chars {
+            if last.1 == '!' && ich.1 == '#' {
                 self.comment_level -= 1;
                 break;
             }
-            last = ch;
+            last = ich;
         }
         Ok(())
     }
 
     fn read_line_comment(
         &mut self,
-        chars: &mut Peekable<impl Iterator<Item = char>>,
-    ) -> Result<Option<Token>> {
-        for ch in chars {
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
+        for (_, ch) in chars {
             if ch == '\n' {
                 break;
             }

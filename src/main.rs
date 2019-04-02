@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate error_chain;
 
+mod completer;
 mod environment;
 mod errors;
 mod expression;
@@ -18,6 +19,7 @@ use interpreter::eval;
 use lexer::Lexer;
 use parser::Parser;
 use std::env;
+use std::rc::Rc;
 
 const LINE_PROMPT: &str = ">> ";
 const MULTI_PROMPT: &str = " ... ";
@@ -28,7 +30,7 @@ fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
 
     loop {
         for token in lexer.tokenize(input.read_line()?)? {
-            if let Some(expr) = parser.push_token(token)? {
+            if let Some(expr) = parser.push_token(token.into())? {
                 match eval(expr, env.clone())? {
                     Expression::Undefined => {}
                     res => println!("{}", res),
@@ -48,7 +50,7 @@ fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     while !input.is_eof() {
         let line = input.read_line()?;
         for token in lexer.tokenize(line)? {
-            if let Some(expr) = parser.push_token(token)? {
+            if let Some(expr) = parser.push_token(token.into())? {
                 eval(expr, env.clone())?;
             }
         }
@@ -75,6 +77,7 @@ fn main() {
     }
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
+    input.set_env(Rc::downgrade(&global));
 
     loop {
         input.set_prompt(LINE_PROMPT);

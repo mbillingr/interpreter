@@ -61,6 +61,16 @@ impl Environment {
 
         Ok(())
     }
+
+    pub fn all_keys(&self) -> impl Iterator<Item = Symbol> {
+        let mut keys: Vec<_> = self.map.keys().cloned().collect();
+        keys.extend(
+            self.parent
+                .iter()
+                .flat_map(|parent| parent.borrow().all_keys()),
+        );
+        keys.into_iter()
+    }
 }
 
 pub fn default_env() -> EnvRef {
