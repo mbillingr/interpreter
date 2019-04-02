@@ -19,6 +19,9 @@ use lexer::Lexer;
 use parser::Parser;
 use std::env;
 
+const LINE_PROMPT: &str = ">> ";
+const MULTI_PROMPT: &str = " ... ";
+
 fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     let mut lexer = Lexer::new();
     let mut parser = Parser::new();
@@ -30,6 +33,9 @@ fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
                     Expression::Undefined => {}
                     res => println!("{}", res),
                 }
+                input.set_prompt(LINE_PROMPT);
+            } else {
+                input.set_prompt(MULTI_PROMPT);
             }
         }
     }
@@ -68,9 +74,10 @@ fn main() {
         }
     }
 
-    let mut input = io::ReplInput::new();
+    let mut input = io::ReplInput::new(LINE_PROMPT);
 
     loop {
+        input.set_prompt(LINE_PROMPT);
         match repl(&mut input, global.clone()) {
             Ok(_) => {}
             Err(Error(ErrorKind::ReadlineError(rustyline::error::ReadlineError::Eof), _)) => {
