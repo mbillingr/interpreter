@@ -2,7 +2,6 @@ use crate::destructure::Destructure;
 use crate::errors::*;
 use crate::expression::{Expression, List};
 use crate::lexer::Token;
-use rand::distributions::Exp;
 
 pub struct Parser {
     list_stack: Vec<List>,
@@ -21,7 +20,7 @@ impl Parser {
     fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
         let expr = match token {
             Token::String(s) => Expression::String(s),
-            Token::Symbol(s) => s.into(),
+            Token::Symbol(s) => Expression::from_literal(s),
             Token::ListOpen => {
                 self.list_stack.push(List::new());
                 return Ok(None);
@@ -120,7 +119,7 @@ fn transform_if(list: List) -> Result<Expression> {
     Ok(Expression::List(list))
 }
 
-fn transform_let(mut list: List) -> Result<Expression> {
+fn transform_let(list: List) -> Result<Expression> {
     let (_, assignments, body): (Expression, List, Expression) = list.destructure()?;
 
     let mut lambda_form = List::new();
@@ -135,7 +134,7 @@ fn transform_let(mut list: List) -> Result<Expression> {
         exps.push(expr);
     }
 
-    let lambda_form = scheme!(("lambda", vars, body));
+    let lambda_form = scheme!((lambda, @vars, @body));
     exps.insert(0, lambda_form);
     Ok(Expression::List(exps))
 }

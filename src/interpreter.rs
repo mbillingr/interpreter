@@ -84,7 +84,7 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
     Ok(Expression::Undefined)
 }
 
-fn lambda(mut list: List, env: &EnvRef) -> Result<Expression> {
+fn lambda(list: List, env: &EnvRef) -> Result<Expression> {
     let (_, signature, body): (Expression, List, Expression) = list.destructure()?;
     let proc = Procedure::build(None, signature, body, env)?;
     Ok(Expression::Procedure(proc))

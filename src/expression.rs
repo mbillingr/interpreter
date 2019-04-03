@@ -28,8 +28,27 @@ impl Expression {
     pub fn zero() -> Self {
         Expression::Integer(0)
     }
+
     pub fn one() -> Self {
         Expression::Integer(1)
+    }
+
+    pub fn from_literal<T: AsRef<str> + ToString>(s: T) -> Self {
+        match s.as_ref() {
+            "#t" => return Expression::True,
+            "#f" => return Expression::False,
+            _ => {}
+        }
+
+        if let Ok(i) = s.as_ref().parse() {
+            return Expression::Integer(i);
+        }
+
+        if let Ok(f) = s.as_ref().parse() {
+            return Expression::Float(f);
+        }
+
+        Expression::Symbol(s.to_string())
     }
 
     pub fn is_true(&self) -> bool {
@@ -142,41 +161,13 @@ impl std::fmt::Display for Expression {
 
 impl From<&str> for Expression {
     fn from(s: &str) -> Self {
-        match s {
-            "#t" => return Expression::True,
-            "#f" => return Expression::False,
-            _ => {}
-        }
-
-        if let Ok(i) = s.parse() {
-            return Expression::Integer(i);
-        }
-
-        if let Ok(f) = s.parse() {
-            return Expression::Float(f);
-        }
-
-        Expression::Symbol(s.into())
+        Expression::String(s.into())
     }
 }
 
 impl From<String> for Expression {
     fn from(s: String) -> Self {
-        match s.as_str() {
-            "#t" => return Expression::True,
-            "#f" => return Expression::False,
-            _ => {}
-        }
-
-        if let Ok(i) = s.parse() {
-            return Expression::Integer(i);
-        }
-
-        if let Ok(f) = s.parse() {
-            return Expression::Float(f);
-        }
-
-        Expression::Symbol(s)
+        Expression::String(s)
     }
 }
 

@@ -200,7 +200,8 @@ pub fn default_env() -> EnvRef {
                 Procedure::build(
                     Some("newline".into()),
                     vec![],
-                    X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
+                    //X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
+                    scheme!((display, "\n")),
                     &defenv,
                 )
                 .unwrap(),
