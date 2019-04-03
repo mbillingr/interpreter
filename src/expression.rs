@@ -140,6 +140,26 @@ impl std::fmt::Display for Expression {
     }
 }
 
+impl From<&str> for Expression {
+    fn from(s: &str) -> Self {
+        match s {
+            "#t" => return Expression::True,
+            "#f" => return Expression::False,
+            _ => {}
+        }
+
+        if let Ok(i) = s.parse() {
+            return Expression::Integer(i);
+        }
+
+        if let Ok(f) = s.parse() {
+            return Expression::Float(f);
+        }
+
+        Expression::Symbol(s.into())
+    }
+}
+
 impl From<String> for Expression {
     fn from(s: String) -> Self {
         match s.as_str() {
@@ -160,6 +180,18 @@ impl From<String> for Expression {
     }
 }
 
+impl From<i64> for Expression {
+    fn from(i: i64) -> Self {
+        Expression::Integer(i)
+    }
+}
+
+impl From<f64> for Expression {
+    fn from(f: f64) -> Self {
+        Expression::Float(f)
+    }
+}
+
 impl From<bool> for Expression {
     fn from(b: bool) -> Self {
         if b {
@@ -167,6 +199,12 @@ impl From<bool> for Expression {
         } else {
             Expression::False
         }
+    }
+}
+
+impl From<List> for Expression {
+    fn from(list: List) -> Self {
+        Expression::List(list)
     }
 }
 
@@ -297,7 +335,12 @@ impl Clone for Procedure {
 }*/
 
 impl Procedure {
-    pub fn build(name: Option<Symbol>, signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
+    pub fn build(
+        name: Option<Symbol>,
+        signature: List,
+        body: Expression,
+        env: &EnvRef,
+    ) -> Result<Self> {
         Ok(Procedure {
             name,
             body: Box::new(body),
@@ -356,10 +399,9 @@ impl From<Procedure> for WeakProcedure {
 impl From<WeakProcedure> for Procedure {
     fn from(proc: WeakProcedure) -> Self {
         Procedure {
-            env: proc
-                .env
-                .upgrade()
-                .unwrap_or_else(||panic!("procedure {:?}'s environment has been dropped", proc.name)),
+            env: proc.env.upgrade().unwrap_or_else(|| {
+                panic!("procedure {:?}'s environment has been dropped", proc.name)
+            }),
             name: proc.name,
             body: proc.body,
             params: proc.params,

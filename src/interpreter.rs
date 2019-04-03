@@ -1,3 +1,4 @@
+use crate::destructure::Destructure;
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, List, Procedure};
@@ -84,9 +85,7 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
 }
 
 fn lambda(mut list: List, env: &EnvRef) -> Result<Expression> {
-    assert_eq!(3, list.len());
-    let body = list.pop().unwrap();
-    let signature = list.pop().unwrap().try_into_list()?;
+    let (_, signature, body): (Expression, List, Expression) = list.destructure()?;
     let proc = Procedure::build(None, signature, body, env)?;
     Ok(Expression::Procedure(proc))
 }

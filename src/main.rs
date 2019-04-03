@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+mod scheme;
 
 mod completer;
 mod destructure;

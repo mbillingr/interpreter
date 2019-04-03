@@ -22,7 +22,6 @@ enum Entry {
     Procedure(WeakProcedure),
 }
 
-
 #[derive(Debug)]
 pub struct Environment {
     map: HashMap<Symbol, Entry>,
@@ -68,9 +67,9 @@ impl Environment {
                 } else {
                     Entry::Value(Expression::Procedure(proc))
                 }
-            },
+            }
             expr => Entry::Value(expr),
-        } ;
+        };
         self.map.insert(key.into(), entry);
     }
 
@@ -198,7 +197,8 @@ pub fn default_env() -> EnvRef {
         env.insert(
             "newline".to_string(),
             X::Procedure(
-                Procedure::build(Some("newline".into()),
+                Procedure::build(
+                    Some("newline".into()),
                     vec![],
                     X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
                     &defenv,

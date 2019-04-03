@@ -1,12 +1,13 @@
-use crate::expression::{Expression as X, List};
 use crate::errors::*;
+use crate::expression::{Expression as X, List};
 
 pub trait Destructure<T> {
     fn destructure(self) -> Result<T>;
 }
 
 impl<T> Destructure<T> for X
-where List: Destructure<T>
+where
+    List: Destructure<T>,
 {
     fn destructure(self) -> Result<T> {
         self.try_into_list()?.destructure()
@@ -59,7 +60,11 @@ impl Destructure<(X, X, X)> for List {
             return Err(ErrorKind::ArgumentError.into());
         }
         let mut list = self.into_iter();
-        Ok((list.next().unwrap(), list.next().unwrap(), list.next().unwrap()))
+        Ok((
+            list.next().unwrap(),
+            list.next().unwrap(),
+            list.next().unwrap(),
+        ))
     }
 }
 
@@ -108,6 +113,10 @@ impl Destructure<(List, List, X)> for List {
 impl Destructure<(List, List, List)> for List {
     fn destructure(self) -> Result<(List, List, List)> {
         let tmp: (X, X, X) = self.destructure()?;
-        Ok((tmp.0.try_into_list()?, tmp.1.try_into_list()?, tmp.2.try_into_list()?))
+        Ok((
+            tmp.0.try_into_list()?,
+            tmp.1.try_into_list()?,
+            tmp.2.try_into_list()?,
+        ))
     }
 }

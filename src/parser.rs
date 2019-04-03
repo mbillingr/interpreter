@@ -135,13 +135,7 @@ fn transform_let(mut list: List) -> Result<Expression> {
         exps.push(expr);
     }
 
-    let lambda_form = vec![
-        Expression::Symbol("lambda".into()),
-        Expression::List(vars),
-        body,
-    ];
-
-    exps.insert(0, Expression::List(lambda_form));
-
+    let lambda_form = scheme!(("lambda", vars, body));
+    exps.insert(0, lambda_form);
     Ok(Expression::List(exps))
 }
