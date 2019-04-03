@@ -1,6 +1,8 @@
+use crate::destructure::Destructure;
 use crate::errors::*;
 use crate::expression::{Expression, List};
 use crate::lexer::Token;
+use rand::distributions::Exp;
 
 pub struct Parser {
     list_stack: Vec<List>,
@@ -48,6 +50,7 @@ fn transform(expr: Expression) -> Result<Expression> {
             Some(Symbol(s)) if s == "cond" => transform_cond(l),
             Some(Symbol(s)) if s == "define" => transform_define(l),
             Some(Symbol(s)) if s == "if" => transform_if(l),
+            Some(Symbol(s)) if s == "let" => transform_let(l),
             _ => l
                 .into_iter()
                 .map(transform)
@@ -115,4 +118,30 @@ fn transform_if(list: List) -> Result<Expression> {
     }
 
     Ok(Expression::List(list))
+}
+
+fn transform_let(mut list: List) -> Result<Expression> {
+    let (_, assignments, body): (Expression, List, Expression) = list.destructure()?;
+
+    let mut lambda_form = List::new();
+    lambda_form.push(Expression::Symbol("lambda".into()));
+
+    let mut vars = List::with_capacity(assignments.len());
+    let mut exps = List::with_capacity(assignments.len());
+
+    for vx in assignments {
+        let (var, expr) = vx.destructure()?;
+        vars.push(var);
+        exps.push(expr);
+    }
+
+    let lambda_form = vec![
+        Expression::Symbol("lambda".into()),
+        Expression::List(vars),
+        body,
+    ];
+
+    exps.insert(0, Expression::List(lambda_form));
+
+    Ok(Expression::List(exps))
 }
