@@ -2,6 +2,7 @@
 extern crate error_chain;
 
 mod completer;
+mod destructure;
 mod environment;
 mod errors;
 mod expression;
