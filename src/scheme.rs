@@ -1,3 +1,13 @@
+/// construct Scheme expressions from Rust code.
+///
+/// Examples:
+///     `scheme!(42)`  =>  42
+///     `scheme!((42))`  =>  (42)
+///     `scheme!(42, "abc")`  => (42 "abc")
+///     `scheme!((42, "abc"))`  => (42 "abc")
+///     `scheme!(abc)`  => (abc)
+///     `let x = 5; scheme!(x, @x)`  => (x 5)
+///
 // much inspired by serde_json's json! macro
 // todo: which is better?
 //       a) pass in local variables as they are and symbols as strings: `scheme!("lambda", vars, body)`
@@ -10,6 +20,10 @@ macro_rules! scheme {
 
     ( ($($tt:tt)+) ) => {
         scheme!(@list () $($tt)+)
+    };
+
+    ( $first:tt, $($rest:tt)* ) => {
+        scheme!(@list (scheme!($first)), $($rest)+ )
     };
 
     // Done with trailing comma.

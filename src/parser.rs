@@ -93,12 +93,12 @@ fn transform_cond(list: List) -> Result<Expression> {
                         path[0] = Expression::True;
                     }
                 }
-                Expression::List(path)
+                transform(Expression::List(path))
             } else {
-                item
+                Ok(item)
             }
         })
-        .collect();
+        .collect::<Result<_>>()?;
     Ok(Expression::List(list))
 }
 
@@ -134,7 +134,7 @@ fn transform_let(list: List) -> Result<Expression> {
         exps.push(expr);
     }
 
-    let lambda_form = scheme!((lambda, @vars, @body));
+    let lambda_form = scheme!(lambda, @vars, @transform(body)?);
     exps.insert(0, lambda_form);
     Ok(Expression::List(exps))
 }

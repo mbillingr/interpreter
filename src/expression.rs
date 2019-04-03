@@ -123,7 +123,7 @@ impl std::fmt::Debug for Expression {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
             Expression::List(l) => {
-                let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
+                let tmp: Vec<_> = l.iter().map(|item| format!("{:?}", item)).collect();
                 write!(f, "({})", tmp.join(" "))
             }
             Expression::Symbol(s) => write!(f, "{}", s),
