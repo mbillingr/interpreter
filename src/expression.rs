@@ -297,17 +297,9 @@ impl Clone for Procedure {
 }*/
 
 impl Procedure {
-    pub fn build(mut signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
-        if signature.is_empty() {
-            return Err(ErrorKind::ArgumentError.into());
-        }
-
-        let name = signature.remove(0).try_into_symbol()?;
-
-        //println!("Creating procedure: {} in {}", name, env.borrow().id);
-
+    pub fn build(name: Option<Symbol>, signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
         Ok(Procedure {
-            name: Some(name),
+            name,
             body: Box::new(body),
             params: signature,
             env: env.clone(),

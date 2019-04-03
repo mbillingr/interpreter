@@ -198,8 +198,8 @@ pub fn default_env() -> EnvRef {
         env.insert(
             "newline".to_string(),
             X::Procedure(
-                Procedure::build(
-                    vec![X::Symbol("newline".into())],
+                Procedure::build(Some("newline".into()),
+                    vec![],
                     X::List(vec![X::Symbol("display".into()), X::String("\n".into())]),
                     &defenv,
                 )

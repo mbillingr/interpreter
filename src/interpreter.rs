@@ -24,6 +24,7 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                     Return::TailCall(ex) => expr = ex,
                 },
                 Some(Symbol(s)) if s == "define" => return define(l, env.clone()),
+                Some(Symbol(s)) if s == "lambda" => return lambda(l, &env),
                 Some(Symbol(s)) if s == "if" => expr = if_form(l, env.clone())?,
                 Some(_) => {
                     let mut items = l.into_iter();
@@ -66,8 +67,9 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
             let value = eval(body, env.clone())?;
             env.borrow_mut().insert(s, value);
         }
-        Expression::List(sig) => {
-            let proc = Procedure::build(sig, body, &env)?;
+        Expression::List(mut sig) => {
+            let name = sig.remove(0).try_into_symbol()?;
+            let proc = Procedure::build(Some(name), sig, body, &env)?;
             env.borrow_mut()
                 .insert(proc.name.clone().unwrap(), Expression::Procedure(proc));
         }
@@ -79,6 +81,14 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
     }
 
     Ok(Expression::Undefined)
+}
+
+fn lambda(mut list: List, env: &EnvRef) -> Result<Expression> {
+    assert_eq!(3, list.len());
+    let body = list.pop().unwrap();
+    let signature = list.pop().unwrap().try_into_list()?;
+    let proc = Procedure::build(None, signature, body, env)?;
+    Ok(Expression::Procedure(proc))
 }
 
 enum Return {
