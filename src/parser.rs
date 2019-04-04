@@ -133,7 +133,7 @@ fn transform_if(list: List) -> Result<Expression> {
 }
 
 fn transform_let(list: List) -> Result<Expression> {
-    let (_, assignments, body): (Expression, List, Expression) = list.destructure()?;
+    let ((_, assignments), body): ((Expression, List), _) = list.tail_destructure()?;
 
     let mut lambda_form = List::new();
     lambda_form.push(Expression::Symbol("lambda".into()));
@@ -147,7 +147,7 @@ fn transform_let(list: List) -> Result<Expression> {
         exps.push(expr);
     }
 
-    let lambda_form = scheme!(lambda, @vars, @transform(body)?);
+    let lambda_form = scheme!(lambda, @vars, ...body);
     exps.insert(0, lambda_form);
-    Ok(Expression::List(exps))
+    transform(Expression::List(exps))
 }
