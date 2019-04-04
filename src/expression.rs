@@ -140,7 +140,7 @@ impl std::fmt::Debug for Expression {
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Procedure(p) => write!(f, "#<procedure {} {}>", p.name_ex(), p.params_ex()),
+            Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
         }
     }
@@ -161,7 +161,7 @@ impl std::fmt::Display for Expression {
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Procedure(p) => write!(f, "#<procedure {} {}>", p.name_ex(), p.params_ex()),
+            Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
         }
     }
@@ -309,7 +309,6 @@ impl std::cmp::PartialEq for Expression {
 
 #[derive(Debug, Clone)]
 pub struct Procedure {
-    pub name: Option<Symbol>,
     pub body: Box<Expression>,
     pub params: List,
     pub env: EnvRef,
@@ -335,13 +334,11 @@ impl Clone for Procedure {
 
 impl Procedure {
     pub fn build(
-        name: Option<Symbol>,
         signature: List,
         body: Expression,
         env: &EnvRef,
     ) -> Result<Self> {
         Ok(Procedure {
-            name,
             body: Box::new(body),
             params: signature,
             env: env.clone(),
@@ -360,10 +357,6 @@ impl Procedure {
         Ok(env.into())
     }
 
-    pub fn name_ex(&self) -> Expression {
-        Expression::Symbol(self.name.clone().unwrap_or_else(|| format!("{:p}", self)))
-    }
-
     pub fn body_ex(&self) -> Expression {
         (*self.body).clone()
     }
@@ -378,7 +371,6 @@ impl Procedure {
 /// Used to store procedures inside environments without Rc cycles.
 #[derive(Debug, Clone)]
 pub struct WeakProcedure {
-    pub name: Option<Symbol>,
     pub body: Box<Expression>,
     pub params: List,
     pub env: EnvWeak,
@@ -387,7 +379,6 @@ pub struct WeakProcedure {
 impl From<Procedure> for WeakProcedure {
     fn from(proc: Procedure) -> Self {
         WeakProcedure {
-            name: proc.name,
             body: proc.body,
             params: proc.params,
             env: Rc::downgrade(&proc.env),
@@ -399,9 +390,8 @@ impl From<WeakProcedure> for Procedure {
     fn from(proc: WeakProcedure) -> Self {
         Procedure {
             env: proc.env.upgrade().unwrap_or_else(|| {
-                panic!("procedure {:?}'s environment has been dropped", proc.name)
+                panic!("procedure's environment has been dropped")
             }),
-            name: proc.name,
             body: proc.body,
             params: proc.params,
         }

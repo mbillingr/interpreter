@@ -69,9 +69,9 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
         }
         Expression::List(mut sig) => {
             let name = sig.remove(0).try_into_symbol()?;
-            let proc = Procedure::build(Some(name), sig, body, &env)?;
+            let proc = Procedure::build(sig, body, &env)?;
             env.borrow_mut()
-                .insert(proc.name.clone().unwrap(), Expression::Procedure(proc));
+                .insert(name, Expression::Procedure(proc));
         }
         _ => {
             return Err(
@@ -85,7 +85,7 @@ fn define(mut list: List, env: EnvRef) -> Result<Expression> {
 
 fn lambda(list: List, env: &EnvRef) -> Result<Expression> {
     let (_, signature, body): (Expression, List, Expression) = list.destructure()?;
-    let proc = Procedure::build(None, signature, body, env)?;
+    let proc = Procedure::build(signature, body, env)?;
     Ok(Expression::Procedure(proc))
 }
 
