@@ -28,6 +28,7 @@
       (gcd b (remainder a b))))
 
 
+(define (average a b) (/ (+ a b) 2))
 (define (sqr x) (* x x))
 (define (cube x) (* x x x))
 
