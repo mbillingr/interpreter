@@ -51,6 +51,13 @@ macro_rules! scheme {
         scheme!(@list ($($elems,)* scheme!(($($list)*))) $($rest)*)
     };
 
+    // Last element is a list expression to append.
+    (@list ($($elems:expr,)*) ...$last:expr) => {{
+        let mut list = vec![$($elems),*];
+        list.extend($last);
+        Expression::List(list)
+    }};
+
     // Next element is an identifier followed by comma.
     (@list ($($elems:expr,)*) $next:ident, $($tail:tt)*) => {
         scheme!(@list ($($elems,)* scheme!($next),) $($tail)*)

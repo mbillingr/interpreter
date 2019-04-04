@@ -2,7 +2,6 @@ use crate::destructure::Destructure;
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, List, Procedure};
-use rand::distributions::Exp;
 
 pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
@@ -59,27 +58,10 @@ fn begin(mut list: List, env: EnvRef) -> Result<Expression> {
     Ok(last)
 }
 
-fn define(mut list: List, env: EnvRef) -> Result<Expression> {
-    let (_, signature, body): (Expression, Expression, Expression) = list.destructure()?;
-
-    match signature {
-        Expression::Symbol(s) => {
-            let value = eval(body, env.clone())?;
-            env.borrow_mut().insert(s, value);
-        }
-        Expression::List(mut sig) => {
-            let name = sig.remove(0).try_into_symbol()?;
-            let proc = Procedure::build(sig, body, &env)?;
-            env.borrow_mut()
-                .insert(name, Expression::Procedure(proc));
-        }
-        _ => {
-            return Err(
-                ErrorKind::TypeError(format!("Cannot use {} as signature.", signature)).into(),
-            );
-        }
-    }
-
+fn define(list: List, env: EnvRef) -> Result<Expression> {
+    let (_, name, val_ex): (Expression, Expression, Expression) = list.destructure()?;
+    let value = eval(val_ex, env.clone())?;
+    env.borrow_mut().insert(name.try_into_symbol()?, value);
     Ok(Expression::Undefined)
 }
 

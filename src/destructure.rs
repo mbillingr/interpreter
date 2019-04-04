@@ -28,6 +28,15 @@ where
     }
 }
 
+impl Destructure<X> for List {
+    fn tail_destructure(self) -> Result<(X, List)> {
+        let mut list = self.into_iter();
+        let front = list.next().ok_or(ErrorKind::ArgumentError)?;
+        let tail = list.collect();
+        Ok((front, tail))
+    }
+}
+
 impl Destructure<(X,)> for List {
     fn tail_destructure(self) -> Result<((X,), List)> {
         let mut list = self.into_iter();

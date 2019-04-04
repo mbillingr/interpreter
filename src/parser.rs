@@ -62,25 +62,20 @@ fn transform(expr: Expression) -> Result<Expression> {
 }
 
 fn transform_define(list: List) -> Result<Expression> {
-    if list.len() < 3 {
-        return Err(ErrorKind::ArgumentError.into());
-    }
+    let ((_, signature), body): ((Expression, Expression), _) = list.tail_destructure()?;
 
-    let mut list: Vec<_> = list.into_iter().map(transform).collect::<Result<_>>()?;
+    if signature.is_symbol() {
+        let value = transform(body.destructure()?)?;
+        Ok(scheme!(define, @signature, @value))
+    } else if signature.is_list() {
+        let (name, params): (Expression, _) = signature.try_into_list().unwrap().tail_destructure()?;
 
-    if list[1].is_symbol() {
-        Ok(Expression::List(list))
-    } else if list[1].is_list() {
-        let mut new_body = vec![];
-        while list.len() > 2 {
-            new_body.push(list.pop().unwrap());
-        }
-        new_body.push(Expression::Symbol("begin".to_string()));
-        new_body.reverse();
-        list.push(Expression::List(new_body));
-        Ok(Expression::List(list))
+        let lambda = scheme!(lambda, @params, ...body);
+        let lambda = transform_lambda(lambda.try_into_list().unwrap())?;
+
+        Ok(scheme!(define, @name, @lambda))
     } else {
-        Err(ErrorKind::TypeError(format!("Cannot use {} as signature.", list[1])).into())
+        Err(ErrorKind::TypeError(format!("invalid signature: {:?}", signature)).into())
     }
 }
 
@@ -88,7 +83,8 @@ fn transform_lambda(list: List) -> Result<Expression> {
     let ((_, signature), body): ((Expression, List), _) = list.tail_destructure()?;
 
     if body.len() == 1 {
-        Ok(scheme!(lambda, @signature, @body.into_iter().next().unwrap()))
+        let body = transform(body.into_iter().next().unwrap())?;
+        Ok(scheme!(lambda, @signature, @body))
     } else {
         let mut new_body = vec![scheme!(begin)];
         new_body.reserve(body.len());
