@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::rc::{Rc, Weak};
 use std::time::SystemTime;
+use crate::destructure::Destructure;
 
 pub type EnvRef = Rc<RefCell<Environment>>;
 pub type EnvWeak = Weak<RefCell<Environment>>;
@@ -167,6 +168,13 @@ pub fn default_env() -> EnvRef {
             ">".to_string(),
             X::Native(|args| native_compare(args, X::gt)),
         );
+
+        // advanced math stuff
+
+        env.insert("log", X::Native(|args| {
+            let x: Expression = args.destructure()?;
+            Ok(x.try_as_float()?.ln().into())
+        }));
 
         // misc
 

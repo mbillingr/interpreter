@@ -87,6 +87,14 @@ impl Expression {
         }
     }
 
+    pub fn try_as_float(&self) -> Result<f64> {
+        match self {
+            Expression::Integer(i) => Ok(*i as f64),
+            Expression::Float(f) => Ok(*f),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a number.", self)).into()),
+        }
+    }
+
     pub fn try_as_symbol(&self) -> Result<&Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),
