@@ -51,6 +51,14 @@ impl Expression {
         Expression::Symbol(s.to_string())
     }
 
+    pub fn flattened(mut list: List) -> Self {
+        if list.len() == 1 {
+            list.pop().unwrap()
+        } else {
+            Expression::List(list)
+        }
+    }
+
     pub fn is_true(&self) -> bool {
         match self {
             Expression::False => false,
@@ -299,7 +307,7 @@ impl std::cmp::PartialEq for Expression {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Procedure {
     pub name: Option<Symbol>,
     pub body: Box<Expression>,

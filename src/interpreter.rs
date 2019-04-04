@@ -2,6 +2,7 @@ use crate::destructure::Destructure;
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, List, Procedure};
+use rand::distributions::Exp;
 
 pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
@@ -59,9 +60,7 @@ fn begin(mut list: List, env: EnvRef) -> Result<Expression> {
 }
 
 fn define(mut list: List, env: EnvRef) -> Result<Expression> {
-    assert_eq!(3, list.len());
-    let body = list.pop().unwrap();
-    let signature = list.pop().unwrap();
+    let (_, signature, body): (Expression, Expression, Expression) = list.destructure()?;
 
     match signature {
         Expression::Symbol(s) => {

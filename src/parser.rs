@@ -49,6 +49,7 @@ fn transform(expr: Expression) -> Result<Expression> {
             Some(Symbol(s)) if s == "cond" => transform_cond(l),
             Some(Symbol(s)) if s == "define" => transform_define(l),
             Some(Symbol(s)) if s == "if" => transform_if(l),
+            Some(Symbol(s)) if s == "lambda" => transform_lambda(l),
             Some(Symbol(s)) if s == "let" => transform_let(l),
             _ => l
                 .into_iter()
@@ -80,6 +81,22 @@ fn transform_define(list: List) -> Result<Expression> {
         Ok(Expression::List(list))
     } else {
         Err(ErrorKind::TypeError(format!("Cannot use {} as signature.", list[1])).into())
+    }
+}
+
+fn transform_lambda(list: List) -> Result<Expression> {
+    let ((_, signature), body): ((Expression, List), _) = list.tail_destructure()?;
+
+    if body.len() == 1 {
+        Ok(scheme!(lambda, @signature, @body.into_iter().next().unwrap()))
+    } else {
+        let mut new_body = vec![scheme!(begin)];
+        new_body.reserve(body.len());
+        for expr in body {
+            new_body.push(transform(expr)?);
+        }
+
+        Ok(scheme!(lambda, @signature, @new_body))
     }
 }
 
