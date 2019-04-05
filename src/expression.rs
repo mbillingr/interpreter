@@ -18,9 +18,11 @@ pub enum Expression {
     Float(f64),
     True,
     False,
+    Pair(Box<(Expression, Expression)>),
     Procedure(Procedure),
     Native(fn(Args) -> Result<Expression>),
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
+    // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
     //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),
 }
 
@@ -116,6 +118,13 @@ impl Expression {
         }
     }
 
+    pub fn try_into_pair(self) -> Result<(Expression, Expression)> {
+        match self {
+            Expression::Pair(p) => Ok((*p)),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a pair.", self)).into()),
+        }
+    }
+
     pub fn logical_and(self, other: Self) -> Result<Self> {
         if self.is_true() {
             Ok(other)
@@ -148,6 +157,7 @@ impl std::fmt::Debug for Expression {
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
+            Expression::Pair(p) => write!(f, "[{:?} {:?}]", p.0, p.1),
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
         }
@@ -169,6 +179,7 @@ impl std::fmt::Display for Expression {
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
+            Expression::Pair(p) => write!(f, "[{} {}]", p.0, p.1),
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
         }

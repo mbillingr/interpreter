@@ -17,6 +17,7 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                 return Ok(expr);
             }
             Native(_) => return Ok(expr),
+            Pair(_) => return Ok(expr),
             List(l) => match l.first() {
                 None => return Ok(Nil),
                 Some(Symbol(s)) if s == "begin" => expr = begin(l, env.clone())?,

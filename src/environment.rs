@@ -109,6 +109,23 @@ pub fn default_env() -> EnvRef {
 
         env.insert("display", X::Native(native_display));
 
+        // pair operations
+
+        env.insert("cons", X::Native(|args|{
+            let (car, cdr): (Expression, Expression) = args.destructure()?;
+            Ok(Expression::Pair(Box::new((car, cdr))))
+        }));
+
+        env.insert("car", X::Native(|args|{
+            let pair: Expression = args.destructure()?;
+            Ok(pair.try_into_pair()?.0)
+        }));
+
+        env.insert("cdr", X::Native(|args|{
+            let pair: Expression = args.destructure()?;
+            Ok(pair.try_into_pair()?.1)
+        }));
+
         // numerical operations
 
         env.insert(
