@@ -109,6 +109,8 @@ pub fn default_env() -> EnvRef {
 
         env.insert("display", X::Native(native_display));
 
+        env.insert("error", X::Native(|args| Ok(X::Error(args))));
+
         // pair operations
 
         env.insert(

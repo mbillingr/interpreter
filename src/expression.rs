@@ -24,6 +24,7 @@ pub enum Expression {
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
     // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
     //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),
+    Error(List),
 }
 
 impl Expression {
@@ -168,6 +169,10 @@ impl std::fmt::Debug for Expression {
             Expression::Pair(p) => write!(f, "[{:?} {:?}]", p.0, p.1),
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
+            Expression::Error(l) => {
+                let tmp: Vec<_> = l.iter().skip(1).map(|item| format!("{:?}", item)).collect();
+                write!(f, "ERROR: {}", tmp.join(" "))
+            }
         }
     }
 }
@@ -190,6 +195,10 @@ impl std::fmt::Display for Expression {
             Expression::Pair(p) => write!(f, "[{} {}]", p.0, p.1),
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
+            Expression::Error(l) => {
+                let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
+                write!(f, "ERROR: {}", tmp.join(" "))
+            }
         }
     }
 }

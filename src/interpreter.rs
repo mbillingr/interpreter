@@ -13,7 +13,7 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                     .lookup(&s)
                     .ok_or_else(|| ErrorKind::Undefined(s).into());
             }
-            Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) => {
+            Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_) | Error(_) => {
                 return Ok(expr);
             }
             Native(_) => return Ok(expr),
