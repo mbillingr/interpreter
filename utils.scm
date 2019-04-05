@@ -32,6 +32,10 @@
 (define (sqr x) (* x x))
 (define (cube x) (* x x x))
 
+(define (xor a b)
+  (and (or a b)
+       (not (and a b))))
+
 
 ;; ==========================================
 ;;   useless stuff
