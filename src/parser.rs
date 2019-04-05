@@ -68,7 +68,8 @@ fn transform_define(list: List) -> Result<Expression> {
         let value = transform(body.destructure()?)?;
         Ok(scheme!(define, @signature, @value))
     } else if signature.is_list() {
-        let (name, params): (Expression, _) = signature.try_into_list().unwrap().tail_destructure()?;
+        let (name, params): (Expression, _) =
+            signature.try_into_list().unwrap().tail_destructure()?;
 
         let lambda = scheme!(lambda, @params, ...body);
         let lambda = transform_lambda(lambda.try_into_list().unwrap())?;

@@ -142,19 +142,11 @@ impl Expression {
     }
 
     pub fn min(self, other: Self) -> Result<Self> {
-        Ok(if other < self {
-            other
-        } else {
-            self
-        })
+        Ok(if other < self { other } else { self })
     }
 
     pub fn max(self, other: Self) -> Result<Self> {
-        Ok(if self < other {
-            other
-        } else {
-            self
-        })
+        Ok(if self < other { other } else { self })
     }
 }
 
@@ -368,11 +360,7 @@ impl Clone for Procedure {
 }*/
 
 impl Procedure {
-    pub fn build(
-        signature: List,
-        body: Expression,
-        env: &EnvRef,
-    ) -> Result<Self> {
+    pub fn build(signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
         Ok(Procedure {
             body: Box::new(body),
             params: signature,
@@ -424,9 +412,10 @@ impl From<Procedure> for WeakProcedure {
 impl From<WeakProcedure> for Procedure {
     fn from(proc: WeakProcedure) -> Self {
         Procedure {
-            env: proc.env.upgrade().unwrap_or_else(|| {
-                panic!("procedure's environment has been dropped")
-            }),
+            env: proc
+                .env
+                .upgrade()
+                .unwrap_or_else(|| panic!("procedure's environment has been dropped")),
             body: proc.body,
             params: proc.params,
         }

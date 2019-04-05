@@ -1,3 +1,4 @@
+use crate::destructure::Destructure;
 use crate::errors::*;
 use crate::expression::{Args, Expression, Procedure, Symbol, WeakProcedure};
 use rand::Rng;
@@ -6,7 +7,6 @@ use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::rc::{Rc, Weak};
 use std::time::SystemTime;
-use crate::destructure::Destructure;
 
 pub type EnvRef = Rc<RefCell<Environment>>;
 pub type EnvWeak = Weak<RefCell<Environment>>;
@@ -111,41 +111,44 @@ pub fn default_env() -> EnvRef {
 
         // pair operations
 
-        env.insert("cons", X::Native(|args|{
-            let (car, cdr): (Expression, Expression) = args.destructure()?;
-            Ok(Expression::Pair(Box::new((car, cdr))))
-        }));
+        env.insert(
+            "cons",
+            X::Native(|args| {
+                let (car, cdr): (Expression, Expression) = args.destructure()?;
+                Ok(Expression::Pair(Box::new((car, cdr))))
+            }),
+        );
 
-        env.insert("car", X::Native(|args|{
-            let pair: Expression = args.destructure()?;
-            Ok(pair.try_into_pair()?.0)
-        }));
+        env.insert(
+            "car",
+            X::Native(|args| {
+                let pair: Expression = args.destructure()?;
+                Ok(pair.try_into_pair()?.0)
+            }),
+        );
 
-        env.insert("cdr", X::Native(|args|{
-            let pair: Expression = args.destructure()?;
-            Ok(pair.try_into_pair()?.1)
-        }));
+        env.insert(
+            "cdr",
+            X::Native(|args| {
+                let pair: Expression = args.destructure()?;
+                Ok(pair.try_into_pair()?.1)
+            }),
+        );
 
         // numerical operations
 
+        env.insert("+", X::Native(|args| native_fold(args, X::zero(), X::add)));
+        env.insert("*", X::Native(|args| native_fold(args, X::one(), X::mul)));
         env.insert(
-            "+".to_string(),
-            X::Native(|args| native_fold(args, X::zero(), X::add)),
-        );
-        env.insert(
-            "*".to_string(),
-            X::Native(|args| native_fold(args, X::one(), X::mul)),
-        );
-        env.insert(
-            "-".to_string(),
+            "-",
             X::Native(|args| native_unifold(args, X::zero(), X::sub)),
         );
         env.insert(
-            "/".to_string(),
+            "/",
             X::Native(|args| native_unifold(args, X::one(), X::div)),
         );
         env.insert(
-            "remainder".to_string(),
+            "remainder",
             X::Native(|args| native_unifold(args, X::one(), X::rem)),
         );
         env.insert("min", X::Native(|args| native_fold2(args, X::min)));
@@ -155,15 +158,15 @@ pub fn default_env() -> EnvRef {
         //    todo: would it make sense to implement these as special forms to take advantage of short-circuting?
 
         env.insert(
-            "and".to_string(),
+            "and",
             X::Native(|args| native_fold(args, X::True, X::logical_and)),
         );
         env.insert(
-            "or".to_string(),
+            "or",
             X::Native(|args| native_fold(args, X::False, X::logical_or)),
         );
         env.insert(
-            "not".to_string(),
+            "not",
             X::Native(|args| {
                 if args.len() != 1 {
                     Err(ErrorKind::ArgumentError.into())
@@ -175,30 +178,24 @@ pub fn default_env() -> EnvRef {
 
         // comparison
 
-        env.insert(
-            "=".to_string(),
-            X::Native(|args| native_compare(args, X::eq)),
-        );
-        env.insert(
-            "<".to_string(),
-            X::Native(|args| native_compare(args, X::lt)),
-        );
-        env.insert(
-            ">".to_string(),
-            X::Native(|args| native_compare(args, X::gt)),
-        );
+        env.insert("=", X::Native(|args| native_compare(args, X::eq)));
+        env.insert("<", X::Native(|args| native_compare(args, X::lt)));
+        env.insert(">", X::Native(|args| native_compare(args, X::gt)));
 
         // advanced math stuff
 
-        env.insert("log", X::Native(|args| {
-            let x: Expression = args.destructure()?;
-            Ok(x.try_as_float()?.ln().into())
-        }));
+        env.insert(
+            "log",
+            X::Native(|args| {
+                let x: Expression = args.destructure()?;
+                Ok(x.try_as_float()?.ln().into())
+            }),
+        );
 
         // misc
 
         env.insert(
-            "runtime".to_string(),
+            "runtime",
             X::Native(|_| {
                 let t = SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
@@ -209,7 +206,7 @@ pub fn default_env() -> EnvRef {
         );
 
         env.insert(
-            "random".to_string(),
+            "random",
             X::Native(|args| {
                 let n = args
                     .into_iter()
@@ -222,15 +219,8 @@ pub fn default_env() -> EnvRef {
         );
 
         env.insert(
-            "newline".to_string(),
-            X::Procedure(
-                Procedure::build(
-                    vec![],
-                    scheme!((display, "\n")),
-                    &defenv,
-                )
-                .unwrap(),
-            ),
+            "newline",
+            X::Procedure(Procedure::build(vec![], scheme!((display, "\n")), &defenv).unwrap()),
         );
     }
 
