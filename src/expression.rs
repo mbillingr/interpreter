@@ -120,7 +120,7 @@ impl Expression {
 
     pub fn try_into_pair(self) -> Result<(Expression, Expression)> {
         match self {
-            Expression::Pair(p) => Ok((*p)),
+            Expression::Pair(p) => Ok(*p),
             _ => Err(ErrorKind::TypeError(format!("{} is not a pair.", self)).into()),
         }
     }
@@ -139,6 +139,22 @@ impl Expression {
         } else {
             Ok(other)
         }
+    }
+
+    pub fn min(self, other: Self) -> Result<Self> {
+        Ok(if other < self {
+            other
+        } else {
+            self
+        })
+    }
+
+    pub fn max(self, other: Self) -> Result<Self> {
+        Ok(if self < other {
+            other
+        } else {
+            self
+        })
     }
 }
 

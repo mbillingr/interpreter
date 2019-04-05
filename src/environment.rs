@@ -148,6 +148,8 @@ pub fn default_env() -> EnvRef {
             "remainder".to_string(),
             X::Native(|args| native_unifold(args, X::one(), X::rem)),
         );
+        env.insert("min", X::Native(|args| native_fold2(args, X::min)));
+        env.insert("max", X::Native(|args| native_fold2(args, X::max)));
 
         // logical operations
         //    todo: would it make sense to implement these as special forms to take advantage of short-circuting?
@@ -250,6 +252,19 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     func: F,
 ) -> Result<Expression> {
     for b in args {
+        acc = func(acc, b)?;
+    }
+    Ok(acc)
+}
+
+/// apply a bivariate function to all arguments in sequence, initializing the
+/// accumulator with the first element.
+fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
+    args: Args,
+    func: F,
+) -> Result<Expression> {
+    let (mut acc, tail) = args.tail_destructure()?;
+    for b in tail {
         acc = func(acc, b)?;
     }
     Ok(acc)
