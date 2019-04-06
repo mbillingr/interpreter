@@ -1,12 +1,24 @@
-(define (timed x) (measure x (runtime)))
 
-(define (measure x start)
- (report (f-recursive x) (- (runtime) start)))
-
-(define (report result elapsed)
- (display result)
- (display " -- ")
- (display elapsed))
+(define (timeit f)
+  (define (measure f start)
+    (f)
+    (- (runtime) start))
+  (define (report n sum sqsum)
+    (display n)
+    (display "x -- ")
+    (display (/ sum n))
+    (display " +- ")
+    (display (sqrt (/ (- sqsum (/ (sqr sum) n) (- n 1)))))
+    (newline))
+  (define (iter n sum sqsum end)
+    (if (and (> n 3) (> (runtime) end))
+        (report n sum sqsum)
+        (let ((time (measure f (runtime))))
+          (iter (+ n 1)
+                (+ sum time)
+                (+ sqsum (sqr time))
+                end))))
+  (iter 0 0 0 (+ (runtime) 1e5)))
 
 (define (abs x) (if (< x 0) (- x) x))
 (define (inc n) (+ n 1))
@@ -31,11 +43,31 @@
 (define (average a b) (/ (+ a b) 2))
 (define (sqr x) (* x x))
 (define (cube x) (* x x x))
+(define (sqrt x)
+  (define (improve guess)
+    (average guess (/ x guess)))
+  (fixed-point improve 1.0))
+
 
 (define (xor a b)
   (and (or a b)
        (not (and a b))))
 
+
+(define tolerance 1e-12)
+
+(define (iterative-improve good-enough? improve)
+  (define (iter guess)
+    (let ((next (improve guess)))
+         (if (good-enough? guess next)
+             next
+             (iter next))))
+  iter)
+
+(define (fixed-point f first-guess)
+  (define (good-enough? guess next)
+    (< (abs (- guess next)) tolerance))
+  ((iterative-improve good-enough? f) first-guess))
 
 ;; ==========================================
 ;;   useless stuff
