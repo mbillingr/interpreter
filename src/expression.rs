@@ -181,17 +181,30 @@ impl std::fmt::Debug for Expression {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
-            /*Expression::List(l) => {
-                let tmp: Vec<_> = l.iter().map(|item| format!("{:?}", item)).collect();
-                write!(f, "({})", tmp.join(" "))
-            }*/
             Expression::Symbol(s) => write!(f, "{}", s),
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Pair(car, cdr) => write!(f, "[{:?} {:?}]", car, cdr),
+            Expression::Pair(ref car, ref cdr) => {
+                let mut cdr = cdr;
+                write!(f, "({:?}", car)?;
+                loop {
+                    match **cdr {
+                        Expression::Nil => break,
+                        Expression::Pair(ref a, ref d) => {
+                            write!(f, " {:?}", a)?;
+                            cdr = d;
+                        },
+                        _ => {
+                            write!(f, " . {:?}", cdr)?;
+                            break
+                        }
+                    }
+                }
+                write!(f, ")")
+            },
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
@@ -207,17 +220,30 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
-            /*Expression::List(l) => {
-                let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
-                write!(f, "({})", tmp.join(" "))
-            }*/
             Expression::Symbol(s) => write!(f, "{}", s),
             Expression::String(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Pair(car, cdr) => write!(f, "[{} {}]", car, cdr),
+            Expression::Pair(ref car, ref cdr) => {
+                let mut cdr = cdr;
+                write!(f, "({}", car)?;
+                loop {
+                    match **cdr {
+                        Expression::Nil => break,
+                        Expression::Pair(ref a, ref d) => {
+                            write!(f, " {}", a)?;
+                            cdr = d;
+                        },
+                        _ => {
+                            write!(f, " . {}", cdr)?;
+                            break
+                        }
+                    }
+                }
+                write!(f, ")")
+            },
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
