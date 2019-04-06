@@ -117,7 +117,7 @@ pub fn default_env() -> EnvRef {
             "cons",
             X::Native(|args| {
                 let (car, cdr): (Expression, Expression) = args.destructure()?;
-                Ok(Expression::Pair(Box::new((car, cdr))))
+                Ok(Expression::cons(car, cdr))
             }),
         );
 

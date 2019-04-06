@@ -33,7 +33,7 @@ macro_rules! scheme {
 
     // Done without trailing comma.
     (@list ($($elems:expr),*)) => {
-        Expression::List(vec![$($elems),*])
+        Expression::from_vec(vec![$($elems),*])
     };
 
     // Next element is `true`.
@@ -55,7 +55,7 @@ macro_rules! scheme {
     (@list ($($elems:expr,)*) ...$last:expr) => {{
         let mut list = vec![$($elems),*];
         list.extend($last);
-        Expression::List(list)
+        Expression::from_vec(list)
     }};
 
     // Next element is an identifier followed by comma.

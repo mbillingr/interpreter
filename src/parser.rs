@@ -26,7 +26,7 @@ impl Parser {
                 return Ok(None);
             }
             Token::ListClose => match self.list_stack.pop() {
-                Some(list) => Expression::List(list),
+                Some(list) => Expression::from_vec(list),
                 None => return Err(ErrorKind::UnexpectedToken(token.into()))?,
             },
         };
@@ -45,18 +45,21 @@ impl Parser {
 fn transform(expr: Expression) -> Result<Expression> {
     use Expression::*;
     match expr {
-        List(l) => match l.first() {
-            Some(Symbol(s)) if s == "cond" => transform_cond(l),
-            Some(Symbol(s)) if s == "define" => transform_define(l),
-            Some(Symbol(s)) if s == "if" => transform_if(l),
-            Some(Symbol(s)) if s == "lambda" => transform_lambda(l),
-            Some(Symbol(s)) if s == "let" => transform_let(l),
-            _ => l
-                .into_iter()
-                .map(transform)
-                .collect::<Result<_>>()
-                .map(List),
-        },
+        Pair(_, _) => {
+            let l = expr.try_into_list()?;
+            match l.first() {
+                Some(Symbol(s)) if s == "cond" => transform_cond(l),
+                Some(Symbol(s)) if s == "define" => transform_define(l),
+                Some(Symbol(s)) if s == "if" => transform_if(l),
+                Some(Symbol(s)) if s == "lambda" => transform_lambda(l),
+                Some(Symbol(s)) if s == "let" => transform_let(l),
+                _ => l
+                    .into_iter()
+                    .map(transform)
+                    .collect::<Result<_>>()
+                    .map(Expression::from_vec),
+            }
+        }
         _ => Ok(expr),
     }
 }
@@ -101,19 +104,20 @@ fn transform_cond(list: List) -> Result<Expression> {
     let list = list
         .into_iter()
         .map(|item| {
-            if let Expression::List(mut path) = item {
+            if let Expression::Pair(_, _) = item {
+                let mut path = item.try_into_list().unwrap();
                 if let Some(Expression::Symbol(f)) = path.first() {
                     if f == "else" {
                         path[0] = Expression::True;
                     }
                 }
-                transform(Expression::List(path))
+                transform(Expression::from_vec(path))
             } else {
                 Ok(item)
             }
         })
         .collect::<Result<_>>()?;
-    Ok(Expression::List(list))
+    Ok(Expression::from_vec(list))
 }
 
 fn transform_if(list: List) -> Result<Expression> {
@@ -130,7 +134,7 @@ fn transform_if(list: List) -> Result<Expression> {
         list.push(Expression::Undefined);
     }
 
-    Ok(Expression::List(list))
+    Ok(Expression::from_vec(list))
 }
 
 fn transform_let(list: List) -> Result<Expression> {
@@ -150,5 +154,5 @@ fn transform_let(list: List) -> Result<Expression> {
 
     let lambda_form = scheme!(lambda, @vars, ...body);
     exps.insert(0, lambda_form);
-    transform(Expression::List(exps))
+    transform(Expression::from_vec(exps))
 }

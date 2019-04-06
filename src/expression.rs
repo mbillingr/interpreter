@@ -10,15 +10,13 @@ pub type Symbol = String;
 pub enum Expression {
     Undefined,
     Nil,
-    /// for now use a Vec... maybe change to linked list in the future?
-    List(List),
     Symbol(Symbol),
     String(String),
     Integer(i64),
     Float(f64),
     True,
     False,
-    Pair(Box<(Expression, Expression)>),
+    Pair(Box<(Expression)>, Box<(Expression)>),
     Procedure(Procedure),
     Native(fn(Args) -> Result<Expression>),
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
@@ -58,8 +56,20 @@ impl Expression {
         if list.len() == 1 {
             list.pop().unwrap()
         } else {
-            Expression::List(list)
+            Expression::from_vec(list)
         }
+    }
+
+    pub fn from_vec(l: List) -> Self {
+        let mut list = Expression::Nil;
+        for x in l.into_iter().rev() {
+            list = Expression::cons(x, list);
+        }
+        list
+    }
+
+    pub fn cons(car: Expression, cdr: Expression) -> Self {
+        Expression::Pair(Box::new(car), Box::new(cdr))
     }
 
     pub fn is_true(&self) -> bool {
@@ -78,7 +88,8 @@ impl Expression {
 
     pub fn is_list(&self) -> bool {
         match self {
-            Expression::List(_) => true,
+            Expression::Nil => true,
+            Expression::Pair(_, cdr) => cdr.is_list(),
             _ => false,
         }
     }
@@ -114,14 +125,28 @@ impl Expression {
 
     pub fn try_into_list(self) -> Result<List> {
         match self {
-            Expression::List(l) => Ok(l),
+            Expression::Nil => Ok(vec![]),
+            Expression::Pair(car, mut cdr) => {
+                let mut list = vec![*car];
+                loop {
+                    match *cdr {
+                        Expression::Nil => break,
+                        Expression::Pair(a, d) => {
+                            list.push(*a);
+                            cdr = d;
+                        }
+                        _ => return Err(ErrorKind::TypeError("not a List.".into()).into()),
+                    }
+                }
+                Ok(list)
+            }
             _ => Err(ErrorKind::TypeError(format!("{} is not a List.", self)).into()),
         }
     }
 
     pub fn try_into_pair(self) -> Result<(Expression, Expression)> {
         match self {
-            Expression::Pair(p) => Ok(*p),
+            Expression::Pair(car, cdr) => Ok((*car, *cdr)),
             _ => Err(ErrorKind::TypeError(format!("{} is not a pair.", self)).into()),
         }
     }
@@ -156,17 +181,17 @@ impl std::fmt::Debug for Expression {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
-            Expression::List(l) => {
+            /*Expression::List(l) => {
                 let tmp: Vec<_> = l.iter().map(|item| format!("{:?}", item)).collect();
                 write!(f, "({})", tmp.join(" "))
-            }
+            }*/
             Expression::Symbol(s) => write!(f, "{}", s),
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Pair(p) => write!(f, "[{:?} {:?}]", p.0, p.1),
+            Expression::Pair(car, cdr) => write!(f, "[{:?} {:?}]", car, cdr),
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
@@ -182,17 +207,17 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
-            Expression::List(l) => {
+            /*Expression::List(l) => {
                 let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
                 write!(f, "({})", tmp.join(" "))
-            }
+            }*/
             Expression::Symbol(s) => write!(f, "{}", s),
             Expression::String(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Pair(p) => write!(f, "[{} {}]", p.0, p.1),
+            Expression::Pair(car, cdr) => write!(f, "[{} {}]", car, cdr),
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
@@ -239,7 +264,7 @@ impl From<bool> for Expression {
 
 impl From<List> for Expression {
     fn from(list: List) -> Self {
-        Expression::List(list)
+        Expression::from_vec(list)
     }
 }
 
@@ -394,7 +419,7 @@ impl Procedure {
     }
 
     pub fn params_ex(&self) -> Expression {
-        Expression::List(self.params.clone())
+        Expression::from_vec(self.params.clone())
     }
 }
 
