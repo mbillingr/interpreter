@@ -164,6 +164,7 @@ mod test {
         assert_eq!(X::Integer(1), scheme!(1));
         assert_eq!(X::from("abc"), scheme!("abc"));
         assert_eq!(X::from_literal("xyz"), scheme!(xyz));
+        assert_eq!(conslist![X::from_literal("cond")], scheme!(cond, ));
         assert_eq!(
             X::cons(
                 X::from_literal("lambda"),

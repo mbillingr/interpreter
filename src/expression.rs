@@ -72,29 +72,105 @@ impl Expression {
         Expression::Pair(Box::new(car.into()), Box::new(cdr.into()))
     }
 
+    pub fn decons(self) -> Result<(Expression, Expression)> {
+        match self {
+            Expression::Pair(car, cdr) => Ok((*car, *cdr)),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn try_into_car(self) -> Result<Expression> {
+        match self {
+            Expression::Pair(car, _) => Ok(*car),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn try_into_cdr(self) -> Result<Expression> {
+        match self {
+            Expression::Pair(_, cdr) => Ok(*cdr),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn car(&self) -> Result<&Expression> {
+        match self {
+            Expression::Pair(car, _) => Ok(&**car),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn cdr(&self) -> Result<&Expression> {
+        match self {
+            Expression::Pair(_, cdr) => Ok(&**cdr),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn car_mut(&mut self) -> Result<&mut Expression> {
+        match self {
+            Expression::Pair(car, _) => Ok(&mut **car),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
+        match self {
+            Expression::Pair(_, cdr) => Ok(&mut **cdr),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+        }
+    }
+
+    pub fn next(&mut self) -> Result<Option<Expression>> {
+        match std::mem::replace(self, Expression::Nil) {
+            Expression::Nil => Ok(None),
+            Expression::Pair(car, cdr) => {
+                *self = *cdr;
+                Ok(Some(*car))
+            }
+            old => {
+                std::mem::replace(self, old);
+                Err(ErrorKind::TypeError("not a list".into()))?
+            }
+        }
+    }
+
+    pub fn len(&self) -> Result<usize> {
+        let mut n = 0;
+        for x in self.clone() {
+            x?;
+            n += 1;
+        }
+        Ok(n)
+    }
+
     pub fn append(mut self, last: Expression) -> Result<Self> {
         let mut start = Expression::Nil;
         let mut current = &mut start;
 
-        loop {
-            match self {
-                Expression::Nil => break,
-                Expression::Pair(x, y) => {
-                    self = *y;
-                    *current = Expression::cons(*x, Expression::Nil);
-
-                    current = match *current {
-                        Expression::Pair(_, ref mut cdr) => &mut **cdr,
-                        _ => unreachable!(),
-                    };
-                }
-                _ => return Err(ErrorKind::TypeError("not a list".into()))?
-            }
+        while let Some(x) = self.next()? {
+            *current = Expression::cons(x, Expression::Nil);
+            current = current.cdr_mut().unwrap();
         }
 
         *current = last;
 
         Ok(start)
+    }
+
+    pub fn map<F: Fn(Expression) -> Result<Expression>>(mut self, func: F) -> Result<Expression> {
+        let mut current = &mut self;
+        loop {
+            match current {
+                Expression::Nil => break,
+                Expression::Pair(car, cdr) => {
+                    **car = func((**car).clone())?;
+                    current = &mut **cdr;
+                }
+                _ => return Err(ErrorKind::TypeError("not a list".into()))?
+            }
+        }
+        Ok(self)
     }
 
     pub fn is_true(&self) -> bool {
@@ -276,6 +352,13 @@ impl std::fmt::Display for Expression {
                 write!(f, "ERROR: {}", tmp.join(" "))
             }
         }
+    }
+}
+
+impl Iterator for Expression {
+    type Item = Result<Expression>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next().transpose()
     }
 }
 

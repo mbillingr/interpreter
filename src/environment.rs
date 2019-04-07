@@ -180,9 +180,9 @@ pub fn default_env() -> EnvRef {
 
         // comparison
 
-        env.insert("=", X::Native(|args| native_compare(args, X::eq)));
-        env.insert("<", X::Native(|args| native_compare(args, X::lt)));
-        env.insert(">", X::Native(|args| native_compare(args, X::gt)));
+        env.insert("=", X::Native(|args| native_compare(args, <X as PartialEq>::eq)));
+        env.insert("<", X::Native(|args| native_compare(args, <X as PartialOrd>::lt)));
+        env.insert(">", X::Native(|args| native_compare(args, <X as PartialOrd>::gt)));
 
         // advanced math stuff
 
