@@ -68,8 +68,16 @@ impl Expression {
         list
     }
 
-    pub fn cons(car: Expression, cdr: Expression) -> Self {
-        Expression::Pair(Box::new(car), Box::new(cdr))
+    pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
+        Expression::Pair(Box::new(car.into()), Box::new(cdr.into()))
+    }
+
+    pub fn append(self, mut cdr: Expression) -> Result<Self> {
+        let tmp = self.try_into_list()?;
+        for x in tmp.into_iter().rev() {
+            cdr = Expression::cons(x, cdr);
+        }
+        Ok(cdr)
     }
 
     pub fn is_true(&self) -> bool {
@@ -196,15 +204,15 @@ impl std::fmt::Debug for Expression {
                         Expression::Pair(ref a, ref d) => {
                             write!(f, " {:?}", a)?;
                             cdr = d;
-                        },
+                        }
                         _ => {
                             write!(f, " . {:?}", cdr)?;
-                            break
+                            break;
                         }
                     }
                 }
                 write!(f, ")")
-            },
+            }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
@@ -235,15 +243,15 @@ impl std::fmt::Display for Expression {
                         Expression::Pair(ref a, ref d) => {
                             write!(f, " {}", a)?;
                             cdr = d;
-                        },
+                        }
                         _ => {
                             write!(f, " . {}", cdr)?;
-                            break
+                            break;
                         }
                     }
                 }
                 write!(f, ")")
-            },
+            }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
@@ -386,9 +394,11 @@ impl std::cmp::PartialEq for Expression {
             (Float(a), Integer(b)) => *a == (*b as f64),
             (Float(a), Float(b)) => a == b,
             (String(a), String(b)) => a == b,
+            (Symbol(a), Symbol(b)) => a == b,
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
+            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => a_car == b_car && a_cdr == b_cdr,
             _ => false,
         }
     }
