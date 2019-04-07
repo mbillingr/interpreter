@@ -72,6 +72,31 @@ impl Expression {
         Expression::Pair(Box::new(car.into()), Box::new(cdr.into()))
     }
 
+    pub fn append(mut self, last: Expression) -> Result<Self> {
+        let mut start = Expression::Nil;
+        let mut current = &mut start;
+
+        loop {
+            match self {
+                Expression::Nil => break,
+                Expression::Pair(x, y) => {
+                    self = *y;
+                    *current = Expression::cons(*x, Expression::Nil);
+
+                    current = match *current {
+                        Expression::Pair(_, ref mut cdr) => &mut **cdr,
+                        _ => unreachable!(),
+                    };
+                }
+                _ => return Err(ErrorKind::TypeError("not a list".into()))?
+            }
+        }
+
+        *current = last;
+
+        Ok(start)
+    }
+
     pub fn is_true(&self) -> bool {
         match self {
             Expression::False => false,

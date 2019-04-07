@@ -4,7 +4,7 @@ use crate::expression::{Expression, List};
 use crate::lexer::Token;
 
 pub struct Parser {
-    list_stack: Vec<List>,
+    list_stack: Vec<Expression>,
 }
 
 impl Parser {
@@ -22,18 +22,18 @@ impl Parser {
             Token::String(s) => Expression::String(s),
             Token::Symbol(s) => Expression::from_literal(s),
             Token::ListOpen => {
-                self.list_stack.push(List::new());
+                self.list_stack.push(Expression::Nil);
                 return Ok(None);
             }
             Token::ListClose => match self.list_stack.pop() {
-                Some(list) => Expression::from_vec(list),
+                Some(list) => list,
                 None => return Err(ErrorKind::UnexpectedToken(token.into()))?,
             },
         };
 
-        match self.list_stack.last_mut() {
+        match self.list_stack.pop() {
             Some(list) => {
-                list.push(expr);
+                self.list_stack.push(list.append(Expression::cons(expr, Expression::Nil))?);
                 Ok(None)
             }
             None => Ok(Some(expr)),
