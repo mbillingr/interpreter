@@ -69,7 +69,7 @@ macro_rules! scheme {
 
     // Last element is a list expression to append.
     (@list ($($elems:expr,)*) ...$last:expr) => {
-        conslist![$($elems),*].append($last)
+        conslist![$($elems),* , ($last)]
     };
 
     // Next element is an identifier followed by comma.
@@ -131,6 +131,11 @@ macro_rules! conslist {
     };
 
     // parse with trailing comma
+    ($car:expr, ($cdr:expr)) => {
+        $crate::Expression::cons($car, $cdr)
+    };
+
+    // parse with trailing comma
     ($car:expr, $($cdr:tt)*) => {
         $crate::Expression::cons($car, conslist!($($cdr)*))
     };
@@ -188,11 +193,11 @@ mod test {
             ),
             scheme!(1, (2, 3, 4), (5, 6,))
         );
-        assert_eq!(X::cons(1, 2), scheme!(1.2));
-        assert_eq!(v2c(vec![X::cons(1, 2)]), scheme!((1.2),));
+        assert_eq!(X::cons(1, 2), scheme!(1 . 2));
+        assert_eq!(v2c(vec![X::cons(1, 2)]), scheme!((1 . 2),));
         assert_eq!(
             v2c(vec![X::cons(1, 2), X::cons(2, 3)]),
-            scheme!((1.2), (2.3))
+            scheme!((1 . 2), (2 . 3))
         );
         assert_eq!(X::cons(1, X::cons(2, 3)), scheme!((1 . (2 . 3))));
         assert_eq!(
@@ -215,6 +220,6 @@ mod test {
             ),
             scheme!((@a, @a), @b.clone())
         );
-        assert_eq!(v2c(vec![42, 42, 4, 2]), scheme!(@a, @a, ...b).unwrap());
+        assert_eq!(v2c(vec![42, 42, 4, 2]), scheme!(@a, @a, ...b));
     }
 }

@@ -74,7 +74,7 @@ fn transform_define(list: List) -> Result<Expression> {
         let (name, params): (Expression, _) =
             signature.try_into_list().unwrap().tail_destructure()?;
 
-        let lambda = scheme!(lambda, @params, ...Expression::from_vec(body))?;
+        let lambda = scheme!(lambda, @params, ...Expression::from_vec(body));
         let lambda = transform_lambda(lambda.try_into_list().unwrap())?;
 
         Ok(scheme!(define, @name, @lambda))
@@ -152,7 +152,7 @@ fn transform_let(list: List) -> Result<Expression> {
         exps.push(expr);
     }
 
-    let lambda_form = scheme!(lambda, @vars, ...Expression::from_vec(body))?;
+    let lambda_form = scheme!(lambda, @vars, ...Expression::from_vec(body));
     exps.insert(0, lambda_form);
     transform(Expression::from_vec(exps))
 }

@@ -72,14 +72,6 @@ impl Expression {
         Expression::Pair(Box::new(car.into()), Box::new(cdr.into()))
     }
 
-    pub fn append(self, mut cdr: Expression) -> Result<Self> {
-        let tmp = self.try_into_list()?;
-        for x in tmp.into_iter().rev() {
-            cdr = Expression::cons(x, cdr);
-        }
-        Ok(cdr)
-    }
-
     pub fn is_true(&self) -> bool {
         match self {
             Expression::False => false,
