@@ -1,7 +1,6 @@
-use crate::destructure::Destructure;
 use crate::environment::EnvRef;
 use crate::errors::*;
-use crate::expression::{Expression, List, Procedure};
+use crate::expression::{Expression, Procedure};
 
 pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
@@ -18,30 +17,31 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                 return Ok(expr);
             }
             Native(_) => return Ok(expr),
-            Pair(_, _) => {
-                let l = expr.try_into_list()?;
-                match l.first() {
-                    None => return Ok(Nil),
-                    Some(Symbol(s)) if s == "begin" => expr = begin(l, env.clone())?,
-                    Some(Symbol(s)) if s == "cond" => match cond(l, env.clone())? {
+            Pair(car, cdr) => {
+                match *cdr {
+                    Expression::Nil => {}
+                    Expression::Pair(_, _) => {}
+                    _ => return Ok(Expression::Pair(car, cdr))
+                }
+                //let l = expr.try_into_list()?;
+                match *car {
+                    Symbol(ref s) if s == "begin" => expr = begin(*cdr, env.clone())?,
+                    Symbol(ref s) if s == "cond" => match cond(*cdr, env.clone())? {
                         Return::RetVal(ex) => return Ok(ex),
                         Return::TailCall(ex) => expr = ex,
                     },
-                    Some(Symbol(s)) if s == "define" => return define(l, env.clone()),
-                    Some(Symbol(s)) if s == "lambda" => return lambda(l, &env),
-                    Some(Symbol(s)) if s == "if" => expr = if_form(l, env.clone())?,
-                    Some(_) => {
-                        let mut items = l.into_iter();
-                        let proc = eval(items.next().unwrap(), env.clone())?;
-                        let args: Vec<_> = items
-                            .map(|arg| eval(arg, env.clone()))
-                            .collect::<Result<_>>()?;
+                    Symbol(ref s) if s == "define" => return define(*cdr, env.clone()),
+                    Symbol(ref s) if s == "lambda" => return lambda(*cdr, &env),
+                    Symbol(ref s) if s == "if" => expr = if_form(*cdr, env.clone())?,
+                    car => {
+                        let proc = eval(car, env.clone())?;
+                        let args = (*cdr).map(|a| eval(a, env.clone()))?;
                         match proc {
                             Procedure(p) => {
                                 expr = p.body_ex();
                                 env = p.new_local_env(args)?;
                             }
-                            Native(func) => return func(args),
+                            Native(func) => return func(args.try_into_list()?),
                             _ => {
                                 return Err(ErrorKind::TypeError("not callable".to_string()).into());
                             }
@@ -53,27 +53,34 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
     }
 }
 
-fn begin(mut list: List, env: EnvRef) -> Result<Expression> {
-    if list.len() < 2 {
-        return Err(ErrorKind::ArgumentError.into());
+fn begin(mut list: Expression, env: EnvRef) -> Result<Expression> {
+    loop {
+        match list.decons()? {
+            (car, Expression::Nil) => {
+                // we return the last element instead of evaluating it,
+                // so that it can be tail-called
+                return Ok(car)
+            }
+            (car, cdr) => {
+                eval(car, env.clone())?;
+                list = cdr;
+            }
+        }
     }
-    let last = list.pop().unwrap();
-    for expr in list.into_iter().skip(1) {
-        eval(expr, env.clone())?;
-    }
-    Ok(last)
 }
 
-fn define(list: List, env: EnvRef) -> Result<Expression> {
-    let (_, name, val_ex): (Expression, Expression, Expression) = list.destructure()?;
+fn define(mut list: Expression, env: EnvRef) -> Result<Expression> {
+    let name = list.next()?.ok_or(ErrorKind::ArgumentError)?;
+    let val_ex = list.next()?.ok_or(ErrorKind::ArgumentError)?;
     let value = eval(val_ex, env.clone())?;
     env.borrow_mut().insert(name.try_into_symbol()?, value);
     Ok(Expression::Undefined)
 }
 
-fn lambda(list: List, env: &EnvRef) -> Result<Expression> {
-    let (_, signature, body): (Expression, List, Expression) = list.destructure()?;
-    let proc = Procedure::build(signature, body, env)?;
+fn lambda(mut list: Expression, env: &EnvRef) -> Result<Expression> {
+    let signature = list.next()?.ok_or(ErrorKind::ArgumentError)?;
+    let body = list.next()?.ok_or(ErrorKind::ArgumentError)?;
+    let proc = Procedure::build(signature.into(), body, env)?;
     Ok(Expression::Procedure(proc))
 }
 
@@ -82,32 +89,26 @@ enum Return {
     TailCall(Expression),
 }
 
-fn cond(list: List, env: EnvRef) -> Result<Return> {
-    for pair in list.into_iter().skip(1) {
-        let mut row = pair.try_into_list()?;
-        let last = if row.len() > 1 { row.pop() } else { None };
-        let mut row = row.into_iter();
-        let cond = row.next().ok_or(ErrorKind::ArgumentError)?;
-        let result = eval(cond, env.clone())?;
-        if result.is_true() {
-            if last.is_none() {
-                return Ok(Return::RetVal(result));
+fn cond(mut list: Expression, env: EnvRef) -> Result<Return> {
+    while let Some(row) = list.next()? {
+        let (cond, cdr) = row.decons()?;
+        let cond = eval(cond, env.clone())?;
+        if cond.is_true()
+        {
+            if cdr.is_nil() {
+                return Ok(Return::RetVal(cond))
+            } else {
+                return Ok(Return::TailCall(begin(cdr, env)?))
             }
-            for action in row {
-                eval(action, env.clone())?;
-            }
-            return Ok(Return::TailCall(last.unwrap()));
         }
     }
     Ok(Return::RetVal(Expression::Undefined))
 }
 
-fn if_form(list: List, env: EnvRef) -> Result<Expression> {
-    let mut list = list.into_iter().skip(1);
-
-    let cond = list.next().unwrap();
-    let then = list.next().unwrap();
-    let otherwise = list.next().unwrap();
+fn if_form(mut list: Expression, env: EnvRef) -> Result<Expression> {
+    let cond = list.next()?.unwrap();
+    let then = list.next()?.unwrap();
+    let otherwise = list.next()?.unwrap();
 
     if eval(cond, env.clone())?.is_true() {
         Ok(then)

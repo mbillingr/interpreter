@@ -52,14 +52,6 @@ impl Expression {
         Expression::Symbol(s.to_string())
     }
 
-    pub fn flattened(mut list: List) -> Self {
-        if list.len() == 1 {
-            list.pop().unwrap()
-        } else {
-            Expression::from_vec(list)
-        }
-    }
-
     pub fn from_vec(l: List) -> Self {
         let mut list = Expression::Nil;
         for x in l.into_iter().rev() {
@@ -171,6 +163,13 @@ impl Expression {
             }
         }
         Ok(self)
+    }
+
+    pub fn is_nil(&self) -> bool {
+        match self {
+            Expression::Nil => true,
+            _ => false,
+        }
     }
 
     pub fn is_true(&self) -> bool {
@@ -396,12 +395,6 @@ impl From<bool> for Expression {
     }
 }
 
-impl From<List> for Expression {
-    fn from(list: List) -> Self {
-        Expression::from_vec(list)
-    }
-}
-
 impl std::ops::Add for Expression {
     type Output = Result<Expression>;
     fn add(self, other: Self) -> Self::Output {
@@ -507,7 +500,7 @@ impl std::cmp::PartialEq for Expression {
 #[derive(Debug, Clone)]
 pub struct Procedure {
     pub body: Box<Expression>,
-    pub params: List,
+    pub params: Box<Expression>,
     pub env: EnvRef,
 }
 /*
@@ -530,10 +523,10 @@ impl Clone for Procedure {
 }*/
 
 impl Procedure {
-    pub fn build(signature: List, body: Expression, env: &EnvRef) -> Result<Self> {
+    pub fn build(signature: Expression, body: Expression, env: &EnvRef) -> Result<Self> {
         Ok(Procedure {
             body: Box::new(body),
-            params: signature,
+            params: Box::new(signature),
             env: env.clone(),
         })
     }
@@ -544,9 +537,9 @@ impl Procedure {
         //.expect("method's environment has been dropped")
     }
 
-    pub fn new_local_env(&self, args: Vec<Expression>) -> Result<EnvRef> {
+    pub fn new_local_env(&self, args: Expression) -> Result<EnvRef> {
         let mut env = Environment::new_child(self.env());
-        env.set_vars(self.params.as_slice(), args)?;
+        env.set_vars(self.params_ex(), args)?;
         Ok(env.into())
     }
 
@@ -555,7 +548,7 @@ impl Procedure {
     }
 
     pub fn params_ex(&self) -> Expression {
-        Expression::from_vec(self.params.clone())
+        (*self.params).clone()
     }
 }
 
@@ -565,7 +558,7 @@ impl Procedure {
 #[derive(Debug, Clone)]
 pub struct WeakProcedure {
     pub body: Box<Expression>,
-    pub params: List,
+    pub params: Box<Expression>,
     pub env: EnvWeak,
 }
 

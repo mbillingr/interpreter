@@ -74,16 +74,17 @@ impl Environment {
         self.map.insert(key.into(), entry);
     }
 
-    pub fn set_vars(&mut self, names: &[Expression], args: Vec<Expression>) -> Result<()> {
-        if names.len() < args.len() {
-            return Err(ErrorKind::ArgumentError.into());
-        }
+    pub fn set_vars(&mut self, mut names: Expression, mut args: Expression) -> Result<()> {
+        loop {
+            let name = names.next()?;
+            let arg = args.next()?;
 
-        for (n, a) in names.iter().zip(args) {
-            self.insert(n.try_as_symbol()?.clone(), a);
+            match (name, arg) {
+                (None, None) => return Ok(()),
+                (Some(n), Some(a)) => self.insert(n.try_as_symbol()?.clone(), a),
+                _ => return Err(ErrorKind::ArgumentError)?
+            }
         }
-
-        Ok(())
     }
 
     pub fn all_keys(&self) -> impl Iterator<Item = Symbol> {
@@ -222,7 +223,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "newline",
-            X::Procedure(Procedure::build(vec![], scheme!((display, "\n")), &defenv).unwrap()),
+            X::Procedure(Procedure::build(X::Nil, scheme!((display, "\n")), &defenv).unwrap()),
         );
     }
 
