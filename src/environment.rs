@@ -141,6 +141,12 @@ pub fn default_env() -> EnvRef {
             }),
         );
 
+        // list operations
+
+        env.insert("list", X::Native(|args| {
+            Ok(args)
+        }));
+
         // numerical operations
 
         env.insert("+", X::Native(|args| native_fold(args, X::zero(), X::add)));
