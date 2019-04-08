@@ -2,8 +2,8 @@ use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
 use std::rc::Rc;
 
-pub type List = Vec<Expression>;
-pub type Args = List;
+pub type List = Expression;
+pub type Args = Expression;
 pub type Symbol = String;
 
 #[derive(Clone)]
@@ -22,7 +22,7 @@ pub enum Expression {
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
     // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
     //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),
-    Error(List),
+    Error(Box<List>),
 }
 
 impl Expression {
@@ -52,7 +52,7 @@ impl Expression {
         Expression::Symbol(s.to_string())
     }
 
-    pub fn from_vec(l: List) -> Self {
+    pub fn from_vec(l: Vec<Expression>) -> Self {
         let mut list = Expression::Nil;
         for x in l.into_iter().rev() {
             list = Expression::cons(x, list);
@@ -67,49 +67,49 @@ impl Expression {
     pub fn decons(self) -> Result<(Expression, Expression)> {
         match self {
             Expression::Pair(car, cdr) => Ok((*car, *cdr)),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn try_into_car(self) -> Result<Expression> {
         match self {
             Expression::Pair(car, _) => Ok(*car),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn try_into_cdr(self) -> Result<Expression> {
         match self {
             Expression::Pair(_, cdr) => Ok(*cdr),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn car(&self) -> Result<&Expression> {
         match self {
             Expression::Pair(car, _) => Ok(&**car),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn cdr(&self) -> Result<&Expression> {
         match self {
             Expression::Pair(_, cdr) => Ok(&**cdr),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn car_mut(&mut self) -> Result<&mut Expression> {
         match self {
             Expression::Pair(car, _) => Ok(&mut **car),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
         match self {
             Expression::Pair(_, cdr) => Ok(&mut **cdr),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
@@ -159,7 +159,7 @@ impl Expression {
                     **car = func((**car).clone())?;
                     current = &mut **cdr;
                 }
-                _ => return Err(ErrorKind::TypeError("not a list".into()))?
+                _ => return Err(ErrorKind::TypeError("not a list".into()))?,
             }
         }
         Ok(self)
@@ -223,7 +223,7 @@ impl Expression {
         }
     }
 
-    pub fn try_into_list(self) -> Result<List> {
+    pub fn try_into_vec(self) -> Result<Vec<Expression>> {
         match self {
             Expression::Nil => Ok(vec![]),
             Expression::Pair(car, mut cdr) => {
@@ -308,7 +308,11 @@ impl std::fmt::Debug for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = l.iter().skip(1).map(|item| format!("{:?}", item)).collect();
+                let tmp: Vec<_> = l
+                    .clone()
+                    .skip(1)
+                    .map(|item| format!("{:?}", item.unwrap()))
+                    .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
             }
         }
@@ -347,7 +351,11 @@ impl std::fmt::Display for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = l.iter().map(|item| format!("{}", item)).collect();
+                let tmp: Vec<_> = l
+                    .clone()
+                    .skip(1)
+                    .map(|item| format!("{}", item.unwrap()))
+                    .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
             }
         }

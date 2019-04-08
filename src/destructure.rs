@@ -1,4 +1,4 @@
-use crate::errors::*;
+/*use crate::errors::*;
 use crate::expression::{Expression as X, List};
 
 pub trait Destructure<T> {
@@ -206,3 +206,4 @@ impl Destructure<(List, List, List)> for List {
         Ok((front, tail))
     }
 }
+*/

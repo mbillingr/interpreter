@@ -32,7 +32,8 @@ impl Parser {
 
         match self.list_stack.pop() {
             Some(list) => {
-                self.list_stack.push(list.append(Expression::cons(expr, Expression::Nil))?);
+                self.list_stack
+                    .push(list.append(Expression::cons(expr, Expression::Nil))?);
                 Ok(None)
             }
             None => Ok(Some(expr)),
@@ -44,16 +45,14 @@ impl Parser {
 fn transform(expr: Expression) -> Result<Expression> {
     use Expression::*;
     match expr {
-        Pair(ref car, _) => {
-            match **car {
-                Symbol(ref s) if s == "cond" => transform_cond(expr),
-                Symbol(ref s) if s == "define" => transform_define(expr),
-                Symbol(ref s) if s == "if" => transform_if(expr),
-                Symbol(ref s) if s == "lambda" => transform_lambda(expr),
-                Symbol(ref s) if s == "let" => transform_let(expr),
-                _ => expr.map(transform)
-            }
-        }
+        Pair(ref car, _) => match **car {
+            Symbol(ref s) if s == "cond" => transform_cond(expr),
+            Symbol(ref s) if s == "define" => transform_define(expr),
+            Symbol(ref s) if s == "if" => transform_if(expr),
+            Symbol(ref s) if s == "lambda" => transform_lambda(expr),
+            Symbol(ref s) if s == "let" => transform_let(expr),
+            _ => expr.map(transform),
+        },
         _ => Ok(expr),
     }
 }
@@ -65,7 +64,7 @@ fn transform_define(mut list: Expression) -> Result<Expression> {
 
     if signature.is_symbol() {
         if *body.cdr()? != Expression::Nil {
-            return Err(ErrorKind::ArgumentError)?
+            return Err(ErrorKind::ArgumentError)?;
         }
         let value = body.try_into_car()?;
         Ok(scheme!(define, @signature, @transform(value)?))
@@ -96,10 +95,9 @@ fn transform_lambda(mut list: Expression) -> Result<Expression> {
 
 fn transform_cond(mut list: Expression) -> Result<Expression> {
     assert_eq!(Some(scheme!(cond)), list.next()?);
-    
+
     let mut result = scheme!(cond,);
     let mut current = result.cdr_mut().unwrap();
-
 
     while let Some(mut item) = list.next()? {
         if let Expression::Symbol(s) = item.car_mut()? {

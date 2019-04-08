@@ -1,4 +1,3 @@
-use crate::destructure::Destructure;
 use crate::errors::*;
 use crate::expression::{Args, Expression, Procedure, Symbol, WeakProcedure};
 use rand::Rng;
@@ -82,7 +81,7 @@ impl Environment {
             match (name, arg) {
                 (None, None) => return Ok(()),
                 (Some(n), Some(a)) => self.insert(n.try_as_symbol()?.clone(), a),
-                _ => return Err(ErrorKind::ArgumentError)?
+                _ => return Err(ErrorKind::ArgumentError)?,
             }
         }
     }
@@ -110,31 +109,32 @@ pub fn default_env() -> EnvRef {
 
         env.insert("display", X::Native(native_display));
 
-        env.insert("error", X::Native(|args| Ok(X::Error(args))));
+        env.insert("error", X::Native(|args| Ok(X::Error(Box::new(args)))));
 
         // pair operations
 
         env.insert(
             "cons",
-            X::Native(|args| {
-                let (car, cdr): (Expression, Expression) = args.destructure()?;
+            X::Native(|mut args| {
+                let car = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+                let cdr = args.next()?.ok_or(ErrorKind::ArgumentError)?;
                 Ok(Expression::cons(car, cdr))
             }),
         );
 
         env.insert(
             "car",
-            X::Native(|args| {
-                let pair: Expression = args.destructure()?;
-                Ok(pair.try_into_pair()?.0)
+            X::Native(|mut args| {
+                let pair = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+                Ok(pair.try_into_car()?)
             }),
         );
 
         env.insert(
             "cdr",
-            X::Native(|args| {
-                let pair: Expression = args.destructure()?;
-                Ok(pair.try_into_pair()?.1)
+            X::Native(|mut args| {
+                let pair = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+                Ok(pair.try_into_cdr()?)
             }),
         );
 
@@ -170,27 +170,33 @@ pub fn default_env() -> EnvRef {
         );
         env.insert(
             "not",
-            X::Native(|args| {
-                if args.len() != 1 {
-                    Err(ErrorKind::ArgumentError.into())
-                } else {
-                    Ok((!args[0].is_true()).into())
-                }
+            X::Native(|mut args| {
+                let x = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+                Ok((!x.is_true()).into())
             }),
         );
 
         // comparison
 
-        env.insert("=", X::Native(|args| native_compare(args, <X as PartialEq>::eq)));
-        env.insert("<", X::Native(|args| native_compare(args, <X as PartialOrd>::lt)));
-        env.insert(">", X::Native(|args| native_compare(args, <X as PartialOrd>::gt)));
+        env.insert(
+            "=",
+            X::Native(|args| native_compare(args, <X as PartialEq>::eq)),
+        );
+        env.insert(
+            "<",
+            X::Native(|args| native_compare(args, <X as PartialOrd>::lt)),
+        );
+        env.insert(
+            ">",
+            X::Native(|args| native_compare(args, <X as PartialOrd>::gt)),
+        );
 
         // advanced math stuff
 
         env.insert(
             "log",
-            X::Native(|args| {
-                let x: Expression = args.destructure()?;
+            X::Native(|mut args| {
+                let x = args.next()?.ok_or(ErrorKind::ArgumentError)?;
                 Ok(x.try_as_float()?.ln().into())
             }),
         );
@@ -210,10 +216,9 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "random",
-            X::Native(|args| {
+            X::Native(|mut args| {
                 let n = args
-                    .into_iter()
-                    .next()
+                    .next()?
                     .ok_or(ErrorKind::ArgumentError)?
                     .try_as_integer()?;
                 let r = rand::thread_rng().gen_range(0, n);
@@ -230,11 +235,8 @@ pub fn default_env() -> EnvRef {
     defenv
 }
 
-fn native_display(args: Args) -> Result<Expression> {
-    print!(
-        "{}",
-        args.into_iter().next().ok_or(ErrorKind::ArgumentError)?
-    );
+fn native_display(mut args: Args) -> Result<Expression> {
+    print!("{}", args.next()?.ok_or(ErrorKind::ArgumentError)?);
     Ok(Expression::Undefined)
 }
 
@@ -245,7 +247,7 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     func: F,
 ) -> Result<Expression> {
     for b in args {
-        acc = func(acc, b)?;
+        acc = func(acc, b?)?;
     }
     Ok(acc)
 }
@@ -256,26 +258,25 @@ fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     func: F,
 ) -> Result<Expression> {
-    let (mut acc, tail) = args.tail_destructure()?;
+    let (mut acc, tail) = args.decons()?;
     for b in tail {
-        acc = func(acc, b)?;
+        acc = func(acc, b?)?;
     }
     Ok(acc)
 }
 
-/// apply a bivariate function to all arguments in sequence
+/// apply a bivariate comparison function to all arguments in sequence
 fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
-    args: Args,
+    mut args: Args,
     pred: F,
 ) -> Result<Expression> {
-    let mut args = args.into_iter();
-
-    let mut a = match args.next() {
+    let mut a = match args.next()? {
         None => return Ok(Expression::True),
         Some(x) => x,
     };
 
     for b in args {
+        let b = b?;
         if pred(&a, &b) {
             a = b
         } else {
@@ -289,21 +290,19 @@ fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
 /// apply a bivariate function to all arguments in sequence, but handle a single argument as
 /// special case. For example: (- 5 2) -> 3  but (- 5) -> -5
 fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
-    args: Args,
+    mut args: Args,
     mut acc: Expression,
     func: F,
 ) -> Result<Expression> {
-    let mut args = args.into_iter();
+    let first = args.next()?.ok_or(ErrorKind::ArgumentError)?;
 
-    let first = args.next().ok_or(ErrorKind::ArgumentError)?;
-
-    match args.next() {
+    match args.next()? {
         None => return func(acc, first),
         Some(second) => acc = func(first, second)?,
     }
 
     for b in args {
-        acc = func(acc, b)?;
+        acc = func(acc, b?)?;
     }
     Ok(acc)
 }

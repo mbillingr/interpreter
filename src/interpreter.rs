@@ -21,7 +21,7 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                 match *cdr {
                     Expression::Nil => {}
                     Expression::Pair(_, _) => {}
-                    _ => return Ok(Expression::Pair(car, cdr))
+                    _ => return Ok(Expression::Pair(car, cdr)),
                 }
                 //let l = expr.try_into_list()?;
                 match *car {
@@ -41,7 +41,7 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                                 expr = p.body_ex();
                                 env = p.new_local_env(args)?;
                             }
-                            Native(func) => return func(args.try_into_list()?),
+                            Native(func) => return func(args),
                             _ => {
                                 return Err(ErrorKind::TypeError("not callable".to_string()).into());
                             }
@@ -59,7 +59,7 @@ fn begin(mut list: Expression, env: EnvRef) -> Result<Expression> {
             (car, Expression::Nil) => {
                 // we return the last element instead of evaluating it,
                 // so that it can be tail-called
-                return Ok(car)
+                return Ok(car);
             }
             (car, cdr) => {
                 eval(car, env.clone())?;
@@ -80,7 +80,7 @@ fn define(mut list: Expression, env: EnvRef) -> Result<Expression> {
 fn lambda(mut list: Expression, env: &EnvRef) -> Result<Expression> {
     let signature = list.next()?.ok_or(ErrorKind::ArgumentError)?;
     let body = list.next()?.ok_or(ErrorKind::ArgumentError)?;
-    let proc = Procedure::build(signature.into(), body, env)?;
+    let proc = Procedure::build(signature, body, env)?;
     Ok(Expression::Procedure(proc))
 }
 
@@ -93,12 +93,11 @@ fn cond(mut list: Expression, env: EnvRef) -> Result<Return> {
     while let Some(row) = list.next()? {
         let (cond, cdr) = row.decons()?;
         let cond = eval(cond, env.clone())?;
-        if cond.is_true()
-        {
+        if cond.is_true() {
             if cdr.is_nil() {
-                return Ok(Return::RetVal(cond))
+                return Ok(Return::RetVal(cond));
             } else {
-                return Ok(Return::TailCall(begin(cdr, env)?))
+                return Ok(Return::TailCall(begin(cdr, env)?));
             }
         }
     }
