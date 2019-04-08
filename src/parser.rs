@@ -59,52 +59,56 @@ fn transform(expr: &Expression) -> Result<Expression> {
 }
 
 fn transform_define(list: &Expression) -> Result<Expression> {
-    assert_eq!(scheme!(define), list.car()?);
-    let(signature, body) = list.cdr()?.decons().map_err(|_|ErrorKind::ArgumentError)?;
+    assert_eq!(&scheme!(define), list.car()?);
+    let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
     if signature.is_symbol() {
-        if body.cdr()? != Expression::Nil {
+        if body.cdr()? != &Expression::Nil {
             return Err(ErrorKind::ArgumentError)?;
         }
         let value = body.car()?;
-        Ok(scheme!(define, @signature, @transform(&value)?))
+        Ok(scheme!(define, @signature.clone(), @transform(&value)?))
     } else if signature.is_list() {
-        let (name, signature) = signature.decons().map_err(|_|ErrorKind::ArgumentError)?;
+        let (name, signature) = signature.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
-        let lambda = scheme!(lambda, @signature, ...body.clone());
+        let lambda = scheme!(lambda, @signature.clone(), ...body.clone());
         let lambda = transform_lambda(&lambda)?;
 
-        Ok(scheme!(define, @name, @lambda))
+        Ok(scheme!(define, @name.clone(), @lambda))
     } else {
         Err(ErrorKind::TypeError(format!("invalid signature: {:?}", signature)).into())
     }
 }
 
 fn transform_lambda(list: &Expression) -> Result<Expression> {
-    assert_eq!(scheme!(lambda), list.car()?);
-    let(signature, body) = list.cdr()?.decons().map_err(|_|ErrorKind::ArgumentError)?;
+    assert_eq!(&scheme!(lambda), list.car()?);
+    let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
-    if body.cdr().unwrap() == Expression::Nil {
-        Ok(scheme!(lambda, @signature, @transform(&body.car()?)?))
+    if body.cdr().unwrap() == &Expression::Nil {
+        Ok(scheme!(lambda, @signature.clone(), @transform(body.car()?)?))
     } else {
         let body = Expression::cons(scheme!(begin), body.map_list(|e| transform(&e))?);
-        Ok(scheme!(lambda, @signature, @body))
+        Ok(scheme!(lambda, @signature.clone(), @body))
     }
 }
 
 fn transform_cond(list: &Expression) -> Result<Expression> {
-    assert_eq!(scheme!(cond), list.car()?);
+    assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
-            Expression::Pair(mut car, cdr) => {
-                if let Expression::Symbol(s) = &*car {
+            Expression::Pair(car, cdr) => {
+                let car = if let Expression::Symbol(s) = &**car {
                     if s == "else" {
-                        car = Rc::new(Expression::True);
+                        Rc::new(Expression::True)
+                    } else {
+                        car.clone()
                     }
-                }
-                Expression::Pair(car, cdr)
+                } else {
+                    car.clone()
+                };
+                Expression::Pair(car, cdr.clone())
             }
-            row => row,
+            row => row.clone(),
         };
         transform(&row)
     })?;

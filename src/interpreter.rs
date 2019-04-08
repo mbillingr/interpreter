@@ -1,45 +1,53 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Procedure};
+use std::borrow::Cow;
 
-pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
+pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
+
+    // We use Cow not for copy-on-write but for its ability
+    // to represent optional ownership of a value.
+    let mut expr = Cow::Borrowed(expr);
+
     loop {
-        match expr {
-            Symbol(s) => {
+        match *expr {
+            Symbol(ref s) => {
                 return env
                     .borrow()
                     .lookup(&s)
-                    .ok_or_else(|| ErrorKind::Undefined(s).into());
+                    .ok_or_else(|| ErrorKind::Undefined(s.clone()).into());
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_)
             | Error(_) => {
-                return Ok(expr);
+                return Ok(expr.into_owned());
             }
-            Native(_) => return Ok(expr),
-            Pair(car, cdr) => {
-                match *cdr {
+            Native(_) => return Ok(expr.into_owned()),
+            Pair(ref car, ref cdr) => {
+                match **cdr {
                     Expression::Nil => {}
                     Expression::Pair(_, _) => {}
-                    _ => return Ok(Expression::Pair(car, cdr)),
+                    _ => return Ok(expr.into_owned()),
                 }
                 //let l = expr.try_into_list()?;
-                match &*car {
-                    Symbol(ref s) if s == "begin" => expr = begin((*cdr).clone(), env.clone())?,
-                    Symbol(ref s) if s == "cond" => match cond((*cdr).clone(), env.clone())? {
+                match &**car {
+                    Symbol(ref s) if s == "begin" => expr = Cow::Owned(begin(&cdr, env.clone())?),
+                    Symbol(ref s) if s == "cond" => match cond(&cdr, env.clone())? {
                         Return::RetVal(ex) => return Ok(ex),
-                        Return::TailCall(ex) => expr = ex,
+                        Return::TailCall(ex) => expr = Cow::Owned(ex),
                     },
-                    Symbol(ref s) if s == "define" => return define((*cdr).clone(), env.clone()),
-                    Symbol(ref s) if s == "lambda" => return lambda((*cdr).clone(), &env),
-                    Symbol(ref s) if s == "if" => expr = if_form((*cdr).clone(), env.clone())?,
+                    Symbol(ref s) if s == "define" => return define(&cdr, env.clone()),
+                    Symbol(ref s) if s == "lambda" => return lambda(&cdr, &env),
+                    Symbol(ref s) if s == "if" => {
+                        expr = Cow::Owned(if_form(&cdr, env.clone())?.clone())
+                    }
                     car => {
-                        let proc = eval(car.clone(), env.clone())?;
-                        let args = (*cdr).map_list(|a| eval(a.clone(), env.clone()))?;
+                        let proc = eval(car, env.clone())?;
+                        let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
                         match proc {
                             Procedure(p) => {
-                                expr = p.body_ex();
                                 env = p.new_local_env(args)?;
+                                expr = Cow::Owned(p.body_ex());
                             }
                             Native(func) => return func(args),
                             _ => {
@@ -49,17 +57,17 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                     }
                 }
             }
-        }
+        };
     }
 }
 
-fn begin(mut list: Expression, env: EnvRef) -> Result<Expression> {
+fn begin(mut list: &Expression, env: EnvRef) -> Result<Expression> {
     loop {
         match list.decons()? {
             (car, Expression::Nil) => {
                 // we return the last element instead of evaluating it,
                 // so that it can be tail-called
-                return Ok(car);
+                return Ok(car.clone());
             }
             (car, cdr) => {
                 eval(car, env.clone())?;
@@ -69,18 +77,19 @@ fn begin(mut list: Expression, env: EnvRef) -> Result<Expression> {
     }
 }
 
-fn define(mut list: Expression, env: EnvRef) -> Result<Expression> {
-    let name = list.next()?.ok_or(ErrorKind::ArgumentError)?;
-    let val_ex = list.next()?.ok_or(ErrorKind::ArgumentError)?;
+fn define(list: &Expression, env: EnvRef) -> Result<Expression> {
+    let (name, list) = list.decons()?;
+    let (val_ex, _) = list.decons()?;
     let value = eval(val_ex, env.clone())?;
-    env.borrow_mut().insert(name.try_into_symbol()?, value);
+    env.borrow_mut()
+        .insert(name.try_as_symbol()?.clone(), value);
     Ok(Expression::Undefined)
 }
 
-fn lambda(mut list: Expression, env: &EnvRef) -> Result<Expression> {
-    let signature = list.next()?.ok_or(ErrorKind::ArgumentError)?;
-    let body = list.next()?.ok_or(ErrorKind::ArgumentError)?;
-    let proc = Procedure::build(signature, body, env)?;
+fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
+    let (signature, list) = list.decons_rc()?;
+    let (body, _) = list.decons_rc()?;
+    let proc = Procedure::new(signature.clone(), body.clone(), env.clone());
     Ok(Expression::Procedure(proc))
 }
 
@@ -89,8 +98,11 @@ enum Return {
     TailCall(Expression),
 }
 
-fn cond(mut list: Expression, env: EnvRef) -> Result<Return> {
-    while let Some(row) = list.next()? {
+fn cond(mut list: &Expression, env: EnvRef) -> Result<Return> {
+    while !list.is_nil() {
+        let (row, cdr) = list.decons()?;
+        list = &cdr;
+
         let (cond, cdr) = row.decons()?;
         let cond = eval(cond, env.clone())?;
         if cond.is_true() {
@@ -104,10 +116,10 @@ fn cond(mut list: Expression, env: EnvRef) -> Result<Return> {
     Ok(Return::RetVal(Expression::Undefined))
 }
 
-fn if_form(mut list: Expression, env: EnvRef) -> Result<Expression> {
-    let cond = list.next()?.unwrap();
-    let then = list.next()?.unwrap();
-    let otherwise = list.next()?.unwrap();
+fn if_form(list: &Expression, env: EnvRef) -> Result<&Expression> {
+    let (cond, list) = list.decons()?;
+    let (then, list) = list.decons()?;
+    let (otherwise, _) = list.decons()?;
 
     if eval(cond, env.clone())?.is_true() {
         Ok(then)

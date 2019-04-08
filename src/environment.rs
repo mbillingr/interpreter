@@ -258,8 +258,9 @@ fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     func: F,
 ) -> Result<Expression> {
-    let (mut acc, tail) = args.decons()?;
-    for b in tail {
+    let (acc, tail) = args.decons()?;
+    let mut acc = acc.clone();
+    for b in tail.iter_list()? {
         acc = func(acc, b?.clone())?;
     }
     Ok(acc)

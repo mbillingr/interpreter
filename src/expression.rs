@@ -64,9 +64,16 @@ impl Expression {
         Expression::Pair(Rc::new(car.into()), Rc::new(cdr.into()))
     }
 
-    pub fn decons(self) -> Result<(Expression, Expression)> {
+    pub fn decons(&self) -> Result<(&Expression, &Expression)> {
         match self {
-            Expression::Pair(car, cdr) => Ok(((*car).clone(), (*cdr).clone())),
+            Expression::Pair(car, cdr) => Ok((car, cdr)),
+            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+        }
+    }
+
+    pub fn decons_rc(&self) -> Result<(&Rc<Expression>, &Rc<Expression>)> {
+        match self {
+            Expression::Pair(car, cdr) => Ok((car, cdr)),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
@@ -85,16 +92,16 @@ impl Expression {
         }
     }
 
-    pub fn car(&self) -> Result<Expression> {
+    pub fn car(&self) -> Result<&Expression> {
         match self {
-            Expression::Pair(car, _) => Ok((**car).clone()),
+            Expression::Pair(car, _) => Ok(car),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
-    pub fn cdr(&self) -> Result<Expression> {
+    pub fn cdr(&self) -> Result<&Expression> {
         match self {
-            Expression::Pair(_, cdr) => Ok((**cdr).clone()),
+            Expression::Pair(_, cdr) => Ok(cdr),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
@@ -158,7 +165,10 @@ impl Expression {
         Ok(start)
     }
 
-    pub fn map_list<F: Fn(Expression) -> Result<Expression>>(&self, func: F) -> Result<Expression> {
+    pub fn map_list<F: Fn(&Expression) -> Result<Expression>>(
+        &self,
+        func: F,
+    ) -> Result<Expression> {
         let mut result = Expression::Nil;
         let mut in_cursor = self;
         let mut out_cursor = &mut result;
@@ -167,7 +177,7 @@ impl Expression {
             match in_cursor {
                 Expression::Nil => break,
                 Expression::Pair(car, cdr) => {
-                    let x = func((**car).clone())?;
+                    let x = func(&car)?;
                     in_cursor = &*cdr;
 
                     *out_cursor = Expression::cons(x, Expression::Nil);
@@ -529,6 +539,10 @@ impl Clone for Procedure {
 }*/
 
 impl Procedure {
+    pub fn new(params: Rc<Expression>, body: Rc<Expression>, env: EnvRef) -> Self {
+        Procedure { body, params, env }
+    }
+
     pub fn build(signature: Expression, body: Expression, env: &EnvRef) -> Result<Self> {
         Ok(Procedure {
             body: Rc::new(body),
@@ -603,16 +617,14 @@ pub struct ListIterator<'a> {
 
 impl<'a> ListIterator<'a> {
     pub fn from_expression(expr: &'a Expression) -> Result<Self> {
-        Ok(ListIterator{
-            next_pair: expr,
-        })
+        Ok(ListIterator { next_pair: expr })
     }
 
     pub fn next_expr(&mut self) -> Result<Option<&'a Expression>> {
         self.next().transpose()
     }
 
-    pub fn tail(&self) -> Result<&'a Expression>{
+    pub fn tail(&self) -> Result<&'a Expression> {
         match self.next_pair {
             Expression::Nil => Ok(self.next_pair),
             Expression::Pair(_, cdr) => Ok(&**cdr),
