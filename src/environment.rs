@@ -143,8 +143,11 @@ pub fn default_env() -> EnvRef {
 
         // list operations
 
-        env.insert("list", X::Native(|args| {
-            Ok(args)
+        env.insert("list", X::Native(|args| Ok(args)));
+
+        env.insert("null?", X::Native(|args| {
+            let arg = args.car().map_err(|_| ErrorKind::ArgumentError)?;
+            Ok(arg.is_nil().into())
         }));
 
         // numerical operations
