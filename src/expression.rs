@@ -131,15 +131,9 @@ impl Expression {
         }
     }
 
-    /*pub fn iter_list(&self) -> Result<ListIterator> {
-        let rx = match self {
-            Expression::Nil => Rc::new(Expression::Nil),
-            Expression::Pair(_, _) => Rc::new(self.clone()),
-            _ => Err(ErrorKind::TypeError("not a list".into()))?,
-        };
-
-        Ok(ListIterator{next_pair: rx})
-    }*/
+    pub fn iter_list(&self) -> Result<ListIterator> {
+        ListIterator::from_expression(self)
+    }
 
     pub fn len(&self) -> Result<usize> {
         let mut n = 0;
@@ -603,16 +597,36 @@ impl From<WeakProcedure> for Expression {
     }
 }
 
-struct ListIterator {
-    next_pair: Rc<Expression>,
+pub struct ListIterator<'a> {
+    next_pair: &'a Expression,
 }
 
-impl Iterator for ListIterator {
-    type Item = Result<Expression>;
+impl<'a> ListIterator<'a> {
+    pub fn from_expression(expr: &'a Expression) -> Result<Self> {
+        Ok(ListIterator{
+            next_pair: expr,
+        })
+    }
+
+    pub fn next_expr(&mut self) -> Result<Option<&'a Expression>> {
+        self.next().transpose()
+    }
+
+    pub fn tail(&self) -> Result<&'a Expression>{
+        match self.next_pair {
+            Expression::Nil => Ok(self.next_pair),
+            Expression::Pair(_, cdr) => Ok(&**cdr),
+            _ => Err(ErrorKind::TypeError("not a list".into()))?,
+        }
+    }
+}
+
+impl<'a> Iterator for ListIterator<'a> {
+    type Item = Result<&'a Expression>;
     fn next(&mut self) -> Option<Self::Item> {
-        let (car, cdr) = match &*self.next_pair {
+        let (car, cdr) = match self.next_pair {
             Expression::Nil => return None,
-            Expression::Pair(car, cdr) => ((**car).clone(), cdr.clone()),
+            Expression::Pair(car, cdr) => (&**car, &**cdr),
             _ => return Some(Err(ErrorKind::TypeError("not a list".into()).into())),
         };
 
