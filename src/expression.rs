@@ -16,13 +16,13 @@ pub enum Expression {
     Float(f64),
     True,
     False,
-    Pair(Box<(Expression)>, Box<(Expression)>),
+    Pair(Rc<(Expression)>, Rc<(Expression)>),
     Procedure(Procedure),
     Native(fn(Args) -> Result<Expression>),
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
     // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
     //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),
-    Error(Box<List>),
+    Error(Rc<List>),
 }
 
 impl Expression {
@@ -61,54 +61,58 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Box::new(car.into()), Box::new(cdr.into()))
+        Expression::Pair(Rc::new(car.into()), Rc::new(cdr.into()))
     }
 
     pub fn decons(self) -> Result<(Expression, Expression)> {
         match self {
-            Expression::Pair(car, cdr) => Ok((*car, *cdr)),
+            Expression::Pair(car, cdr) => Ok(((*car).clone(), (*cdr).clone())),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn try_into_car(self) -> Result<Expression> {
         match self {
-            Expression::Pair(car, _) => Ok(*car),
+            Expression::Pair(car, _) => Ok((*car).clone()),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn try_into_cdr(self) -> Result<Expression> {
         match self {
-            Expression::Pair(_, cdr) => Ok(*cdr),
+            Expression::Pair(_, cdr) => Ok((*cdr).clone()),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
-    pub fn car(&self) -> Result<&Expression> {
+    pub fn car(&self) -> Result<Expression> {
         match self {
-            Expression::Pair(car, _) => Ok(&**car),
+            Expression::Pair(car, _) => Ok((**car).clone()),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
-    pub fn cdr(&self) -> Result<&Expression> {
+    pub fn cdr(&self) -> Result<Expression> {
         match self {
-            Expression::Pair(_, cdr) => Ok(&**cdr),
+            Expression::Pair(_, cdr) => Ok((**cdr).clone()),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn car_mut(&mut self) -> Result<&mut Expression> {
         match self {
-            Expression::Pair(car, _) => Ok(&mut **car),
+            Expression::Pair(car, _) => {
+                Ok(Rc::get_mut(car).expect("mutable reference must be unique"))
+            }
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
 
     pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
         match self {
-            Expression::Pair(_, cdr) => Ok(&mut **cdr),
+            Expression::Pair(_, cdr) => {
+                Ok(Rc::get_mut(cdr).expect("mutable reference must be unique"))
+            }
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
@@ -117,8 +121,8 @@ impl Expression {
         match std::mem::replace(self, Expression::Nil) {
             Expression::Nil => Ok(None),
             Expression::Pair(car, cdr) => {
-                *self = *cdr;
-                Ok(Some(*car))
+                *self = (*cdr).clone();
+                Ok(Some((*car).clone()))
             }
             old => {
                 std::mem::replace(self, old);
@@ -126,6 +130,16 @@ impl Expression {
             }
         }
     }
+
+    /*pub fn iter_list(&self) -> Result<ListIterator> {
+        let rx = match self {
+            Expression::Nil => Rc::new(Expression::Nil),
+            Expression::Pair(_, _) => Rc::new(self.clone()),
+            _ => Err(ErrorKind::TypeError("not a list".into()))?,
+        };
+
+        Ok(ListIterator{next_pair: rx})
+    }*/
 
     pub fn len(&self) -> Result<usize> {
         let mut n = 0;
@@ -141,7 +155,7 @@ impl Expression {
         let mut current = &mut start;
 
         while let Some(x) = self.next()? {
-            *current = Expression::cons(x, Expression::Nil);
+            *current = Expression::cons(x.clone(), Expression::Nil);
             current = current.cdr_mut().unwrap();
         }
 
@@ -150,19 +164,26 @@ impl Expression {
         Ok(start)
     }
 
-    pub fn map<F: Fn(Expression) -> Result<Expression>>(mut self, func: F) -> Result<Expression> {
-        let mut current = &mut self;
+    pub fn map_list<F: Fn(Expression) -> Result<Expression>>(&self, func: F) -> Result<Expression> {
+        let mut result = Expression::Nil;
+        let mut in_cursor = self;
+        let mut out_cursor = &mut result;
+
         loop {
-            match current {
+            match in_cursor {
                 Expression::Nil => break,
                 Expression::Pair(car, cdr) => {
-                    **car = func((**car).clone())?;
-                    current = &mut **cdr;
+                    let x = func((**car).clone())?;
+                    in_cursor = &*cdr;
+
+                    *out_cursor = Expression::cons(x, Expression::Nil);
+                    out_cursor = out_cursor.cdr_mut().unwrap();
                 }
                 _ => return Err(ErrorKind::TypeError("not a list".into()))?,
             }
         }
-        Ok(self)
+
+        Ok(result)
     }
 
     pub fn is_nil(&self) -> bool {
@@ -223,30 +244,13 @@ impl Expression {
         }
     }
 
-    pub fn try_into_vec(self) -> Result<Vec<Expression>> {
-        match self {
-            Expression::Nil => Ok(vec![]),
-            Expression::Pair(car, mut cdr) => {
-                let mut list = vec![*car];
-                loop {
-                    match *cdr {
-                        Expression::Nil => break,
-                        Expression::Pair(a, d) => {
-                            list.push(*a);
-                            cdr = d;
-                        }
-                        _ => return Err(ErrorKind::TypeError("not a List.".into()).into()),
-                    }
-                }
-                Ok(list)
-            }
-            _ => Err(ErrorKind::TypeError(format!("{} is not a List.", self)).into()),
-        }
+    pub fn try_to_vec(&self) -> Result<Vec<Expression>> {
+        self.clone().collect()
     }
 
     pub fn try_into_pair(self) -> Result<(Expression, Expression)> {
         match self {
-            Expression::Pair(car, cdr) => Ok((*car, *cdr)),
+            Expression::Pair(car, cdr) => Ok(((*car).clone(), (*cdr).clone())),
             _ => Err(ErrorKind::TypeError(format!("{} is not a pair.", self)).into()),
         }
     }
@@ -308,7 +312,7 @@ impl std::fmt::Debug for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = l
+                let tmp: Vec<_> = (**l)
                     .clone()
                     .skip(1)
                     .map(|item| format!("{:?}", item.unwrap()))
@@ -351,7 +355,7 @@ impl std::fmt::Display for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = l
+                let tmp: Vec<_> = (**l)
                     .clone()
                     .skip(1)
                     .map(|item| format!("{}", item.unwrap()))
@@ -507,8 +511,8 @@ impl std::cmp::PartialEq for Expression {
 
 #[derive(Debug, Clone)]
 pub struct Procedure {
-    pub body: Box<Expression>,
-    pub params: Box<Expression>,
+    pub body: Rc<Expression>,
+    pub params: Rc<Expression>,
     pub env: EnvRef,
 }
 /*
@@ -533,8 +537,8 @@ impl Clone for Procedure {
 impl Procedure {
     pub fn build(signature: Expression, body: Expression, env: &EnvRef) -> Result<Self> {
         Ok(Procedure {
-            body: Box::new(body),
-            params: Box::new(signature),
+            body: Rc::new(body),
+            params: Rc::new(signature),
             env: env.clone(),
         })
     }
@@ -565,8 +569,8 @@ impl Procedure {
 /// Used to store procedures inside environments without Rc cycles.
 #[derive(Debug, Clone)]
 pub struct WeakProcedure {
-    pub body: Box<Expression>,
-    pub params: Box<Expression>,
+    pub body: Rc<Expression>,
+    pub params: Rc<Expression>,
     pub env: EnvWeak,
 }
 
@@ -596,5 +600,23 @@ impl From<WeakProcedure> for Procedure {
 impl From<WeakProcedure> for Expression {
     fn from(proc: WeakProcedure) -> Self {
         Expression::Procedure(proc.into())
+    }
+}
+
+struct ListIterator {
+    next_pair: Rc<Expression>,
+}
+
+impl Iterator for ListIterator {
+    type Item = Result<Expression>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let (car, cdr) = match &*self.next_pair {
+            Expression::Nil => return None,
+            Expression::Pair(car, cdr) => ((**car).clone(), cdr.clone()),
+            _ => return Some(Err(ErrorKind::TypeError("not a list".into()).into())),
+        };
+
+        self.next_pair = cdr;
+        Some(Ok(car))
     }
 }

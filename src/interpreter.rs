@@ -24,18 +24,18 @@ pub fn eval(mut expr: Expression, mut env: EnvRef) -> Result<Expression> {
                     _ => return Ok(Expression::Pair(car, cdr)),
                 }
                 //let l = expr.try_into_list()?;
-                match *car {
-                    Symbol(ref s) if s == "begin" => expr = begin(*cdr, env.clone())?,
-                    Symbol(ref s) if s == "cond" => match cond(*cdr, env.clone())? {
+                match &*car {
+                    Symbol(ref s) if s == "begin" => expr = begin((*cdr).clone(), env.clone())?,
+                    Symbol(ref s) if s == "cond" => match cond((*cdr).clone(), env.clone())? {
                         Return::RetVal(ex) => return Ok(ex),
                         Return::TailCall(ex) => expr = ex,
                     },
-                    Symbol(ref s) if s == "define" => return define(*cdr, env.clone()),
-                    Symbol(ref s) if s == "lambda" => return lambda(*cdr, &env),
-                    Symbol(ref s) if s == "if" => expr = if_form(*cdr, env.clone())?,
+                    Symbol(ref s) if s == "define" => return define((*cdr).clone(), env.clone()),
+                    Symbol(ref s) if s == "lambda" => return lambda((*cdr).clone(), &env),
+                    Symbol(ref s) if s == "if" => expr = if_form((*cdr).clone(), env.clone())?,
                     car => {
-                        let proc = eval(car, env.clone())?;
-                        let args = (*cdr).map(|a| eval(a, env.clone()))?;
+                        let proc = eval(car.clone(), env.clone())?;
+                        let args = (*cdr).map_list(|a| eval(a.clone(), env.clone()))?;
                         match proc {
                             Procedure(p) => {
                                 expr = p.body_ex();

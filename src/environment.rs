@@ -80,7 +80,7 @@ impl Environment {
 
             match (name, arg) {
                 (None, None) => return Ok(()),
-                (Some(n), Some(a)) => self.insert(n.try_as_symbol()?.clone(), a),
+                (Some(n), Some(a)) => self.insert(n.try_as_symbol()?.clone(), a.clone()),
                 _ => return Err(ErrorKind::ArgumentError)?,
             }
         }
@@ -109,7 +109,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert("display", X::Native(native_display));
 
-        env.insert("error", X::Native(|args| Ok(X::Error(Box::new(args)))));
+        env.insert("error", X::Native(|args| Ok(X::Error(Rc::new(args)))));
 
         // pair operations
 
@@ -118,7 +118,7 @@ pub fn default_env() -> EnvRef {
             X::Native(|mut args| {
                 let car = args.next()?.ok_or(ErrorKind::ArgumentError)?;
                 let cdr = args.next()?.ok_or(ErrorKind::ArgumentError)?;
-                Ok(Expression::cons(car, cdr))
+                Ok(Expression::cons(car.clone(), cdr.clone()))
             }),
         );
 
@@ -260,7 +260,7 @@ fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
 ) -> Result<Expression> {
     let (mut acc, tail) = args.decons()?;
     for b in tail {
-        acc = func(acc, b?)?;
+        acc = func(acc, b?.clone())?;
     }
     Ok(acc)
 }
@@ -294,15 +294,15 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
     mut acc: Expression,
     func: F,
 ) -> Result<Expression> {
-    let first = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+    let first = args.next()?.ok_or(ErrorKind::ArgumentError)?.clone();
 
     match args.next()? {
         None => return func(acc, first),
-        Some(second) => acc = func(first, second)?,
+        Some(second) => acc = func(first, second.clone())?,
     }
 
     for b in args {
-        acc = func(acc, b?)?;
+        acc = func(acc, b?.clone())?;
     }
     Ok(acc)
 }

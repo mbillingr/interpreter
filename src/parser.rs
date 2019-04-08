@@ -1,6 +1,7 @@
 use crate::errors::*;
 use crate::expression::Expression;
 use crate::lexer::Token;
+use std::rc::Rc;
 
 pub struct Parser {
     list_stack: Vec<Expression>,
@@ -13,7 +14,7 @@ impl Parser {
 
     pub fn push_token(&mut self, token: Token) -> Result<Option<Expression>> {
         self.parse_expression(token)
-            .and_then(|o| o.map(transform).transpose())
+            .and_then(|o| o.map(|e| transform(e)).transpose())
     }
 
     fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
@@ -51,9 +52,9 @@ fn transform(expr: Expression) -> Result<Expression> {
             Symbol(ref s) if s == "if" => transform_if(expr),
             Symbol(ref s) if s == "lambda" => transform_lambda(expr),
             Symbol(ref s) if s == "let" => transform_let(expr),
-            _ => expr.map(transform),
+            _ => expr.map_list(transform),
         },
-        _ => Ok(expr),
+        _ => Ok(expr.clone()),
     }
 }
 
@@ -63,15 +64,15 @@ fn transform_define(mut list: Expression) -> Result<Expression> {
     let body = list;
 
     if signature.is_symbol() {
-        if *body.cdr()? != Expression::Nil {
+        if body.cdr()? != Expression::Nil {
             return Err(ErrorKind::ArgumentError)?;
         }
-        let value = body.try_into_car()?;
+        let value = body.car()?;
         Ok(scheme!(define, @signature, @transform(value)?))
     } else if signature.is_list() {
         let name = signature.next()?.ok_or(ErrorKind::ArgumentError)?;
 
-        let lambda = scheme!(lambda, @signature, ...body);
+        let lambda = scheme!(lambda, @signature, ...body.clone());
         let lambda = transform_lambda(lambda)?;
 
         Ok(scheme!(define, @name, @lambda))
@@ -85,10 +86,10 @@ fn transform_lambda(mut list: Expression) -> Result<Expression> {
     let signature = list.next()?.ok_or(ErrorKind::ArgumentError)?;
     let body = list;
 
-    if *body.cdr().unwrap() == Expression::Nil {
-        Ok(scheme!(lambda, @signature, @transform(body.try_into_car()?)?))
+    if body.cdr().unwrap() == Expression::Nil {
+        Ok(scheme!(lambda, @signature, @transform(body.car()?)?))
     } else {
-        let body = Expression::cons(scheme!(begin), body.map(transform)?);
+        let body = Expression::cons(scheme!(begin), body.map_list(transform)?);
         Ok(scheme!(lambda, @signature, @body))
     }
 }
@@ -96,21 +97,22 @@ fn transform_lambda(mut list: Expression) -> Result<Expression> {
 fn transform_cond(mut list: Expression) -> Result<Expression> {
     assert_eq!(Some(scheme!(cond)), list.next()?);
 
-    let mut result = scheme!(cond,);
-    let mut current = result.cdr_mut().unwrap();
-
-    while let Some(mut item) = list.next()? {
-        if let Expression::Symbol(s) = item.car_mut()? {
-            if s == "else" {
-                *item.car_mut()? = Expression::True;
+    let body = list.map_list(|row| {
+        let row = match row {
+            Expression::Pair(mut car, cdr) => {
+                if let Expression::Symbol(s) = &*car {
+                    if s == "else" {
+                        car = Rc::new(Expression::True);
+                    }
+                }
+                Expression::Pair(car, cdr)
             }
-        }
+            row => row,
+        };
+        transform(row)
+    })?;
 
-        *current = Expression::cons(transform(item)?, Expression::Nil);
-        current = current.cdr_mut().unwrap();
-    }
-
-    Ok(result)
+    Ok(Expression::cons(scheme!(cond), body))
 }
 
 fn transform_if(mut list: Expression) -> Result<Expression> {
