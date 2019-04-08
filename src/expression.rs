@@ -286,7 +286,6 @@ impl std::fmt::Debug for Expression {
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
                 let tmp: Vec<_> = l.iter_list().unwrap()
-                    .skip(1)
                     .map(|item| format!("{:?}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
@@ -328,7 +327,6 @@ impl std::fmt::Display for Expression {
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
                 let tmp: Vec<_> = l.iter_list().unwrap()
-                    .skip(1)
                     .map(|item| format!("{}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
