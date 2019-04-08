@@ -74,17 +74,35 @@ impl Environment {
     }
 
     pub fn set_vars(&mut self, names: Expression, args: Expression) -> Result<()> {
-        let mut names = names.iter_list()?;
-        let mut args = args.iter_list()?;
+        let mut names = &names;
+        let mut args = &args;
         loop {
-            let name = names.next_expr()?;
-            let arg = args.next_expr()?;
-
-            match (name, arg) {
-                (None, None) => return Ok(()),
-                (Some(n), Some(a)) => self.insert(n.try_as_symbol()?.clone(), a.clone()),
+            let arg;
+            let name;
+            match (names, args) {
+                (Expression::Nil, Expression::Nil) => return Ok(()),
+                (Expression::Symbol(s), a) => {
+                    name = s;
+                    arg = a;
+                    names = &Expression::Nil;
+                    args = &Expression::Nil;
+                }
+                (Expression::Pair(car, cdr), _) if car.is_named_symbol(".") => {
+                    name = cdr.car()?.try_as_symbol()?;
+                    names = cdr.cdr()?;
+                    arg = args;
+                    args = &Expression::Nil;
+                }
+                (Expression::Pair(_, _), Expression::Pair(_, _)) => {
+                    name = names.car()?.try_as_symbol()?;
+                    names = names.cdr()?;
+                    arg = args.car()?;
+                    args = args.cdr()?;
+                }
                 _ => return Err(ErrorKind::ArgumentError)?,
             }
+
+            self.insert(name.clone(), arg.clone());
         }
     }
 
@@ -145,10 +163,13 @@ pub fn default_env() -> EnvRef {
 
         env.insert("list", X::Native(|args| Ok(args)));
 
-        env.insert("null?", X::Native(|args| {
-            let arg = args.car().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(arg.is_nil().into())
-        }));
+        env.insert(
+            "null?",
+            X::Native(|args| {
+                let arg = args.car().map_err(|_| ErrorKind::ArgumentError)?;
+                Ok(arg.is_nil().into())
+            }),
+        );
 
         // numerical operations
 
@@ -229,7 +250,9 @@ pub fn default_env() -> EnvRef {
         env.insert(
             "random",
             X::Native(|args| {
-                let n = args.car().map_err(|_| ErrorKind::ArgumentError)?
+                let n = args
+                    .car()
+                    .map_err(|_| ErrorKind::ArgumentError)?
                     .try_as_integer()?;
                 let r = rand::thread_rng().gen_range(0, n);
                 Ok(Expression::Integer(r))

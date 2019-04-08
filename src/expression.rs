@@ -187,6 +187,13 @@ impl Expression {
         }
     }
 
+    pub fn is_named_symbol(&self, name: &str) -> bool {
+        match self {
+            Expression::Symbol(s) => s == name,
+            _ => false,
+        }
+    }
+
     pub fn is_list(&self) -> bool {
         match self {
             Expression::Nil => true,
@@ -285,7 +292,9 @@ impl std::fmt::Debug for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = l.iter_list().unwrap()
+                let tmp: Vec<_> = l
+                    .iter_list()
+                    .unwrap()
                     .map(|item| format!("{:?}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
@@ -326,7 +335,9 @@ impl std::fmt::Display for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = l.iter_list().unwrap()
+                let tmp: Vec<_> = l
+                    .iter_list()
+                    .unwrap()
                     .map(|item| format!("{}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
