@@ -73,10 +73,12 @@ impl Environment {
         self.map.insert(key.into(), entry);
     }
 
-    pub fn set_vars(&mut self, mut names: Expression, mut args: Expression) -> Result<()> {
+    pub fn set_vars(&mut self, names: Expression, args: Expression) -> Result<()> {
+        let mut names = names.iter_list()?;
+        let mut args = args.iter_list()?;
         loop {
-            let name = names.next()?;
-            let arg = args.next()?;
+            let name = names.next_expr()?;
+            let arg = args.next_expr()?;
 
             match (name, arg) {
                 (None, None) => return Ok(()),
@@ -115,26 +117,27 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "cons",
-            X::Native(|mut args| {
-                let car = args.next()?.ok_or(ErrorKind::ArgumentError)?;
-                let cdr = args.next()?.ok_or(ErrorKind::ArgumentError)?;
-                Ok(Expression::cons(car.clone(), cdr.clone()))
+            X::Native(|args| {
+                let (car, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+                let (cdr, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+
+                Ok(Expression::cons_rc(car.clone(), cdr.clone()))
             }),
         );
 
         env.insert(
             "car",
-            X::Native(|mut args| {
-                let pair = args.next()?.ok_or(ErrorKind::ArgumentError)?;
-                Ok(pair.try_into_car()?)
+            X::Native(|args| {
+                let pair = args.car().map_err(|_| ErrorKind::ArgumentError)?;
+                Ok(pair.car()?.clone())
             }),
         );
 
         env.insert(
             "cdr",
-            X::Native(|mut args| {
-                let pair = args.next()?.ok_or(ErrorKind::ArgumentError)?;
-                Ok(pair.try_into_cdr()?)
+            X::Native(|args| {
+                let pair = args.car().map_err(|_| ErrorKind::ArgumentError)?;
+                Ok(pair.cdr()?.clone())
             }),
         );
 
@@ -170,8 +173,8 @@ pub fn default_env() -> EnvRef {
         );
         env.insert(
             "not",
-            X::Native(|mut args| {
-                let x = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+            X::Native(|args| {
+                let x = args.car().map_err(|_| ErrorKind::ArgumentError)?;
                 Ok((!x.is_true()).into())
             }),
         );
@@ -195,8 +198,8 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "log",
-            X::Native(|mut args| {
-                let x = args.next()?.ok_or(ErrorKind::ArgumentError)?;
+            X::Native(|args| {
+                let x = args.car().map_err(|_| ErrorKind::ArgumentError)?;
                 Ok(x.try_as_float()?.ln().into())
             }),
         );
@@ -216,10 +219,8 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "random",
-            X::Native(|mut args| {
-                let n = args
-                    .next()?
-                    .ok_or(ErrorKind::ArgumentError)?
+            X::Native(|args| {
+                let n = args.car().map_err(|_| ErrorKind::ArgumentError)?
                     .try_as_integer()?;
                 let r = rand::thread_rng().gen_range(0, n);
                 Ok(Expression::Integer(r))
@@ -235,8 +236,8 @@ pub fn default_env() -> EnvRef {
     defenv
 }
 
-fn native_display(mut args: Args) -> Result<Expression> {
-    print!("{}", args.next()?.ok_or(ErrorKind::ArgumentError)?);
+fn native_display(args: Args) -> Result<Expression> {
+    print!("{}", args.car().map_err(|_| ErrorKind::ArgumentError)?);
     Ok(Expression::Undefined)
 }
 
@@ -246,8 +247,8 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     mut acc: Expression,
     func: F,
 ) -> Result<Expression> {
-    for b in args {
-        acc = func(acc, b?)?;
+    for b in args.iter_list()? {
+        acc = func(acc, b?.clone())?;
     }
     Ok(acc)
 }
@@ -268,10 +269,12 @@ fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
 
 /// apply a bivariate comparison function to all arguments in sequence
 fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
-    mut args: Args,
+    args: Args,
     pred: F,
 ) -> Result<Expression> {
-    let mut a = match args.next()? {
+    let mut args = args.iter_list()?;
+
+    let mut a = match args.next_expr()? {
         None => return Ok(Expression::True),
         Some(x) => x,
     };
@@ -291,13 +294,15 @@ fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
 /// apply a bivariate function to all arguments in sequence, but handle a single argument as
 /// special case. For example: (- 5 2) -> 3  but (- 5) -> -5
 fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
-    mut args: Args,
+    args: Args,
     mut acc: Expression,
     func: F,
 ) -> Result<Expression> {
-    let first = args.next()?.ok_or(ErrorKind::ArgumentError)?.clone();
+    let mut args = args.iter_list()?;
 
-    match args.next()? {
+    let first = args.next_expr()?.ok_or(ErrorKind::ArgumentError)?.clone();
+
+    match args.next_expr()? {
         None => return func(acc, first),
         Some(second) => acc = func(first, second.clone())?,
     }

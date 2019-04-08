@@ -138,13 +138,19 @@ fn transform_let(list: &Expression) -> Result<Expression> {
     let mut vars = Expression::Nil;
     let mut exps = Expression::Nil;
 
+    let mut var_cursor = &mut vars;
+    let mut exp_cursor = &mut exps;
+
     for vx in assignments.iter_list()? {
         let mut vx = vx?.iter_list()?;
         let var = vx.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
         let exp = vx.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
 
-        vars = vars.append(Expression::cons(var.clone(), Expression::Nil))?;
-        exps = exps.append(Expression::cons(exp.clone(), Expression::Nil))?;
+        *var_cursor = Expression::cons(var.clone(), Expression::Nil);
+        var_cursor = var_cursor.cdr_mut().unwrap();
+
+        *exp_cursor = Expression::cons(exp.clone(), Expression::Nil);
+        exp_cursor = exp_cursor.cdr_mut().unwrap();
     }
 
     let lambda_form = scheme!(lambda, @vars, ...body.clone());

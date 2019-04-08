@@ -71,23 +71,13 @@ impl Expression {
         }
     }
 
+    pub fn cons_rc(car: Rc<Expression>, cdr: Rc<Expression>) -> Self {
+        Expression::Pair(car, cdr)
+    }
+
     pub fn decons_rc(&self) -> Result<(&Rc<Expression>, &Rc<Expression>)> {
         match self {
             Expression::Pair(car, cdr) => Ok((car, cdr)),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
-        }
-    }
-
-    pub fn try_into_car(self) -> Result<Expression> {
-        match self {
-            Expression::Pair(car, _) => Ok((*car).clone()),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
-        }
-    }
-
-    pub fn try_into_cdr(self) -> Result<Expression> {
-        match self {
-            Expression::Pair(_, cdr) => Ok((*cdr).clone()),
             _ => Err(ErrorKind::TypeError("not a pair".into()))?,
         }
     }
@@ -124,39 +114,25 @@ impl Expression {
         }
     }
 
-    pub fn next(&mut self) -> Result<Option<Expression>> {
-        match std::mem::replace(self, Expression::Nil) {
-            Expression::Nil => Ok(None),
-            Expression::Pair(car, cdr) => {
-                *self = (*cdr).clone();
-                Ok(Some((*car).clone()))
-            }
-            old => {
-                std::mem::replace(self, old);
-                Err(ErrorKind::TypeError("not a list".into()))?
-            }
-        }
-    }
-
     pub fn iter_list(&self) -> Result<ListIterator> {
         ListIterator::from_expression(self)
     }
 
     pub fn len(&self) -> Result<usize> {
         let mut n = 0;
-        for x in self.clone() {
+        for x in self.iter_list()? {
             x?;
             n += 1;
         }
         Ok(n)
     }
 
-    pub fn append(mut self, last: Expression) -> Result<Self> {
+    pub fn append(&self, last: Expression) -> Result<Self> {
         let mut start = Expression::Nil;
         let mut current = &mut start;
 
-        while let Some(x) = self.next()? {
-            *current = Expression::cons(x.clone(), Expression::Nil);
+        for x in self.iter_list()? {
+            *current = Expression::cons(x?.clone(), Expression::Nil);
             current = current.cdr_mut().unwrap();
         }
 
@@ -249,14 +225,7 @@ impl Expression {
     }
 
     pub fn try_to_vec(&self) -> Result<Vec<Expression>> {
-        self.clone().collect()
-    }
-
-    pub fn try_into_pair(self) -> Result<(Expression, Expression)> {
-        match self {
-            Expression::Pair(car, cdr) => Ok(((*car).clone(), (*cdr).clone())),
-            _ => Err(ErrorKind::TypeError(format!("{} is not a pair.", self)).into()),
-        }
+        self.iter_list()?.map(|r| r.map(|x| x.clone())).collect()
     }
 
     pub fn logical_and(self, other: Self) -> Result<Self> {
@@ -316,8 +285,7 @@ impl std::fmt::Debug for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = (**l)
-                    .clone()
+                let tmp: Vec<_> = l.iter_list().unwrap()
                     .skip(1)
                     .map(|item| format!("{:?}", item.unwrap()))
                     .collect();
@@ -359,21 +327,13 @@ impl std::fmt::Display for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Native(_) => write!(f, "<native>"),
             Expression::Error(l) => {
-                let tmp: Vec<_> = (**l)
-                    .clone()
+                let tmp: Vec<_> = l.iter_list().unwrap()
                     .skip(1)
                     .map(|item| format!("{}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
             }
         }
-    }
-}
-
-impl Iterator for Expression {
-    type Item = Result<Expression>;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next().transpose()
     }
 }
 
