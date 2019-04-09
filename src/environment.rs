@@ -117,6 +117,10 @@ impl Environment {
     }
 }
 
+fn car(x: &Expression) -> Result<&Expression> {
+    x.car().map_err(|_| ErrorKind::ArgumentError.into())
+}
+
 pub fn default_env() -> EnvRef {
     use Expression as X;
 
@@ -128,7 +132,6 @@ pub fn default_env() -> EnvRef {
         // simple i/o
 
         env.insert("display", X::Native(native_display));
-
         env.insert("error", X::Native(|args| Ok(X::Error(Rc::new(args)))));
 
         // pair operations
@@ -143,33 +146,13 @@ pub fn default_env() -> EnvRef {
             }),
         );
 
-        env.insert(
-            "car",
-            X::Native(|args| {
-                let pair = args.car().map_err(|_| ErrorKind::ArgumentError)?;
-                Ok(pair.car()?.clone())
-            }),
-        );
-
-        env.insert(
-            "cdr",
-            X::Native(|args| {
-                let pair = args.car().map_err(|_| ErrorKind::ArgumentError)?;
-                Ok(pair.cdr()?.clone())
-            }),
-        );
+        env.insert("car", X::Native(|args| Ok(car(&args)?.car()?.clone())));
+        env.insert("cdr", X::Native(|args| Ok(car(&args)?.cdr()?.clone())));
 
         // list operations
 
         env.insert("list", X::Native(|args| Ok(args)));
-
-        env.insert(
-            "null?",
-            X::Native(|args| {
-                let arg = args.car().map_err(|_| ErrorKind::ArgumentError)?;
-                Ok(arg.is_nil().into())
-            }),
-        );
+        env.insert("null?", X::Native(|args| Ok(car(&args)?.is_nil().into())));
 
         // numerical operations
 
@@ -204,7 +187,7 @@ pub fn default_env() -> EnvRef {
         env.insert(
             "not",
             X::Native(|args| {
-                let x = args.car().map_err(|_| ErrorKind::ArgumentError)?;
+                let x = car(&args)?;
                 Ok((!x.is_true()).into())
             }),
         );
@@ -229,7 +212,7 @@ pub fn default_env() -> EnvRef {
         env.insert(
             "log",
             X::Native(|args| {
-                let x = args.car().map_err(|_| ErrorKind::ArgumentError)?;
+                let x = car(&args)?;
                 Ok(x.try_as_float()?.ln().into())
             }),
         );
@@ -269,7 +252,7 @@ pub fn default_env() -> EnvRef {
 }
 
 fn native_display(args: Args) -> Result<Expression> {
-    print!("{}", args.car().map_err(|_| ErrorKind::ArgumentError)?);
+    print!("{}", car(&args)?);
     Ok(Expression::Undefined)
 }
 
