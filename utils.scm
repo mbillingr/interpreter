@@ -1,4 +1,6 @@
 
+(define nil (list))
+
 (define (timeit f)
   (define (measure f start)
     (f)
