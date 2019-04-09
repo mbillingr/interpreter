@@ -203,6 +203,13 @@ impl Expression {
         }
     }
 
+    pub fn is_pair(&self) -> bool {
+        match self {
+            Expression::Pair(_, _) => true,
+            _ => false,
+        }
+    }
+
     pub fn try_as_integer(&self) -> Result<i64> {
         match self {
             Expression::Integer(i) => Ok(*i),

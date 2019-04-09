@@ -140,12 +140,12 @@ pub fn default_env() -> EnvRef {
 
         // pair operations
 
+        env.insert_native("pair?", |args| Ok(car(&args)?.is_pair().into()));
         env.insert_native("cons", |args| {
             let (car, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
             let (cdr, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
             Ok(Expression::cons_rc(car.clone(), cdr.clone()))
         });
-
         env.insert_native("car", |args| Ok(car(&args)?.car()?.clone()));
         env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone()));
 
