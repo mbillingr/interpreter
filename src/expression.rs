@@ -5,6 +5,7 @@ use std::rc::Rc;
 pub type List = Expression;
 pub type Args = Expression;
 pub type Symbol = String;
+pub type NativeFn = fn(Args) -> Result<Expression>;
 
 #[derive(Clone)]
 pub enum Expression {
@@ -18,7 +19,7 @@ pub enum Expression {
     False,
     Pair(Rc<(Expression)>, Rc<(Expression)>),
     Procedure(Procedure),
-    Native(fn(Args) -> Result<Expression>),
+    Native(NativeFn),
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
     // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
     //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),

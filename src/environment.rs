@@ -1,5 +1,5 @@
 use crate::errors::*;
-use crate::expression::{Args, Expression, Procedure, Symbol, WeakProcedure};
+use crate::expression::{Args, Expression, NativeFn, Procedure, Symbol, WeakProcedure};
 use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -73,6 +73,10 @@ impl Environment {
         self.map.insert(key.into(), entry);
     }
 
+    pub fn insert_native(&mut self, key: &str, func: NativeFn) {
+        self.insert(key, Expression::Native(func));
+    }
+
     pub fn set_vars(&mut self, names: Expression, args: Expression) -> Result<()> {
         let mut names = &names;
         let mut args = &args;
@@ -131,59 +135,39 @@ pub fn default_env() -> EnvRef {
 
         // simple i/o
 
-        env.insert("display", X::Native(native_display));
-        env.insert("error", X::Native(|args| Ok(X::Error(Rc::new(args)))));
+        env.insert_native("display", native_display);
+        env.insert_native("error", |args| Ok(X::Error(Rc::new(args))));
 
         // pair operations
 
-        env.insert(
-            "cons",
-            X::Native(|args| {
-                let (car, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-                let (cdr, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+        env.insert_native("cons", |args| {
+            let (car, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            let (cdr, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            Ok(Expression::cons_rc(car.clone(), cdr.clone()))
+        });
 
-                Ok(Expression::cons_rc(car.clone(), cdr.clone()))
-            }),
-        );
-
-        env.insert("car", X::Native(|args| Ok(car(&args)?.car()?.clone())));
-        env.insert("cdr", X::Native(|args| Ok(car(&args)?.cdr()?.clone())));
+        env.insert_native("car", |args| Ok(car(&args)?.car()?.clone()));
+        env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone()));
 
         // list operations
 
-        env.insert("list", X::Native(|args| Ok(args)));
-        env.insert("null?", X::Native(|args| Ok(car(&args)?.is_nil().into())));
+        env.insert_native("list", |args| Ok(args));
+        env.insert_native("null?", |args| Ok(car(&args)?.is_nil().into()));
 
         // numerical operations
 
-        env.insert("+", X::Native(|args| native_fold(args, X::zero(), X::add)));
-        env.insert("*", X::Native(|args| native_fold(args, X::one(), X::mul)));
-        env.insert(
-            "-",
-            X::Native(|args| native_unifold(args, X::zero(), X::sub)),
-        );
-        env.insert(
-            "/",
-            X::Native(|args| native_unifold(args, X::one(), X::div)),
-        );
-        env.insert(
-            "remainder",
-            X::Native(|args| native_unifold(args, X::one(), X::rem)),
-        );
-        env.insert("min", X::Native(|args| native_fold2(args, X::min)));
-        env.insert("max", X::Native(|args| native_fold2(args, X::max)));
+        env.insert_native("+", |args| native_fold(args, X::zero(), X::add));
+        env.insert_native("*", |args| native_fold(args, X::one(), X::mul));
+        env.insert_native("-", |args| native_unifold(args, X::zero(), X::sub));
+        env.insert_native("/", |args| native_unifold(args, X::one(), X::div));
+        env.insert_native("remainder", |args| native_unifold(args, X::one(), X::rem));
+        env.insert_native("min", |args| native_fold2(args, X::min));
+        env.insert_native("max", |args| native_fold2(args, X::max));
 
         // logical operations
-        //    todo: would it make sense to implement these as special forms to take advantage of short-circuting?
 
-        env.insert(
-            "and",
-            X::Native(|args| native_fold(args, X::True, X::logical_and)),
-        );
-        env.insert(
-            "or",
-            X::Native(|args| native_fold(args, X::False, X::logical_or)),
-        );
+        env.insert_native("and", |args| native_fold(args, X::True, X::logical_and));
+        env.insert_native("or", |args| native_fold(args, X::False, X::logical_or));
         env.insert(
             "not",
             X::Native(|args| {
@@ -194,53 +178,37 @@ pub fn default_env() -> EnvRef {
 
         // comparison
 
-        env.insert(
-            "=",
-            X::Native(|args| native_compare(args, <X as PartialEq>::eq)),
-        );
-        env.insert(
-            "<",
-            X::Native(|args| native_compare(args, <X as PartialOrd>::lt)),
-        );
-        env.insert(
-            ">",
-            X::Native(|args| native_compare(args, <X as PartialOrd>::gt)),
-        );
+        env.insert_native("=", |args| native_compare(args, <X as PartialEq>::eq));
+        env.insert_native("<", |args| native_compare(args, <X as PartialOrd>::lt));
+        env.insert_native(">", |args| native_compare(args, <X as PartialOrd>::gt));
 
         // advanced math stuff
 
-        env.insert(
-            "log",
-            X::Native(|args| {
-                let x = car(&args)?;
-                Ok(x.try_as_float()?.ln().into())
-            }),
-        );
+        env.insert_native("log", |args| {
+            let x = car(&args)?;
+            Ok(x.try_as_float()?.ln().into())
+        });
+
+        env.insert_native("floor", |args| {
+            let x = car(&args)?;
+            Ok(x.try_as_float()?.floor().into())
+        });
 
         // misc
 
-        env.insert(
-            "runtime",
-            X::Native(|_| {
-                let t = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_micros();
-                Ok(Expression::Integer(t as i64))
-            }),
-        );
+        env.insert_native("runtime", |_| {
+            let t = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros();
+            Ok(Expression::Integer(t as i64))
+        });
 
-        env.insert(
-            "random",
-            X::Native(|args| {
-                let n = args
-                    .car()
-                    .map_err(|_| ErrorKind::ArgumentError)?
-                    .try_as_integer()?;
-                let r = rand::thread_rng().gen_range(0, n);
-                Ok(Expression::Integer(r))
-            }),
-        );
+        env.insert_native("random", |args| {
+            let n = car(&args)?.try_as_integer()?;
+            let r = rand::thread_rng().gen_range(0, n);
+            Ok(Expression::Integer(r))
+        });
 
         env.insert(
             "newline",
