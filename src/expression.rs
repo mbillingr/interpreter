@@ -181,6 +181,14 @@ impl Expression {
         }
     }
 
+    pub fn is_number(&self) -> bool {
+        match self {
+            Expression::Integer(_) => true,
+            Expression::Float(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_symbol(&self) -> bool {
         match self {
             Expression::Symbol(_) => true,
