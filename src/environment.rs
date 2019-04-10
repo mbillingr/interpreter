@@ -1,5 +1,6 @@
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Procedure, Symbol, WeakProcedure};
+use crate::expression::{Args, Expression, NativeFn, Procedure, WeakProcedure};
+use crate::symbol::Symbol;
 use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -48,7 +49,7 @@ impl Environment {
         Environment::new(Some(parent))
     }
 
-    pub fn lookup(&self, key: &str) -> Option<Expression> {
+    pub fn lookup(&self, key: &Symbol) -> Option<Expression> {
         let entry = self.map.get(key);
         match entry {
             None => self.parent.clone().and_then(|p| p.borrow().lookup(key)),
@@ -57,7 +58,7 @@ impl Environment {
         }
     }
 
-    pub fn insert<K: Into<String>>(&mut self, key: K, expr: Expression) {
+    pub fn insert<K: Into<Symbol>>(&mut self, key: K, expr: Expression) {
         // avoid Rc loops by storing functions that refer to the
         // environment they live in as weak references.
         let entry = match expr {

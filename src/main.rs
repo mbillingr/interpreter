@@ -12,6 +12,7 @@ mod interpreter;
 mod io;
 mod lexer;
 mod parser;
+mod symbol;
 
 use crate::io::LineReader;
 use environment::{default_env, EnvRef};

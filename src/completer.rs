@@ -46,7 +46,8 @@ impl Completer for EnvHelper {
             let candidates = rc_env
                 .borrow()
                 .all_keys()
-                .filter(|key| key.starts_with(substr))
+                .filter(|key| key.name().starts_with(substr))
+                .map(|key| key.name().to_string())
                 .collect();
 
             Ok((token.start_idx, candidates))

@@ -2,6 +2,8 @@ pub use errors_impl::*;
 
 #[allow(deprecated)]
 mod errors_impl {
+    use crate::symbol::Symbol;
+
     error_chain! {
         links {
         }
@@ -17,8 +19,8 @@ mod errors_impl {
                 display("Error: {}", msg)
             }
 
-            Undefined(symbol: String) {
-                display("Undefined symbol: {}", symbol)
+            Undefined(symbol: Symbol) {
+                display("Undefined symbol: {}", symbol.name())
             }
 
             UnexpectedToken(repr: String) {

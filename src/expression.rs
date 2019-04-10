@@ -1,10 +1,10 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
+use crate::symbol::Symbol;
 use std::rc::Rc;
 
 pub type List = Expression;
 pub type Args = Expression;
-pub type Symbol = String;
 pub type NativeFn = fn(Args) -> Result<Expression>;
 
 #[derive(Clone)]
@@ -50,7 +50,7 @@ impl Expression {
             return Expression::Float(f);
         }
 
-        Expression::Symbol(s.to_string())
+        Expression::Symbol(Symbol::new(s))
     }
 
     pub fn from_vec(l: Vec<Expression>) -> Self {
@@ -198,7 +198,7 @@ impl Expression {
 
     pub fn is_named_symbol(&self, name: &str) -> bool {
         match self {
-            Expression::Symbol(s) => s == name,
+            Expression::Symbol(s) => s.name() == name,
             _ => false,
         }
     }
@@ -281,7 +281,7 @@ impl std::fmt::Debug for Expression {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
-            Expression::Symbol(s) => write!(f, "{}", s),
+            Expression::Symbol(s) => write!(f, "{:?}", s),
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
@@ -324,7 +324,7 @@ impl std::fmt::Display for Expression {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "()"),
-            Expression::Symbol(s) => write!(f, "{}", s),
+            Expression::Symbol(s) => write!(f, "{}", s.name()),
             Expression::String(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
