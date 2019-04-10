@@ -7,10 +7,11 @@ use std::pin::Pin;
 pub static BEGIN: Symbol = Symbol { name: "begin" };
 pub static COND: Symbol = Symbol { name: "cond" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
-pub static LAMBDA: Symbol = Symbol { name: "lambda" };
-pub static IF: Symbol = Symbol { name: "if" };
-pub static LET: Symbol = Symbol { name: "let" };
 pub static ELSE: Symbol = Symbol { name: "else" };
+pub static EVAL: Symbol = Symbol { name: "eval" };
+pub static IF: Symbol = Symbol { name: "if" };
+pub static LAMBDA: Symbol = Symbol { name: "lambda" };
+pub static LET: Symbol = Symbol { name: "let" };
 
 thread_local! {
     static STATIC_NAMES: RefCell<Vec<Pin<Box<String>>>> = RefCell::new(vec![]);
@@ -55,10 +56,11 @@ impl Symbol {
             n if n == BEGIN.name() => BEGIN,
             n if n == COND.name() => COND,
             n if n == DEFINE.name() => DEFINE,
-            n if n == LAMBDA.name() => LAMBDA,
-            n if n == IF.name() => IF,
-            n if n == LET.name() => LET,
             n if n == ELSE.name() => ELSE,
+            n if n == EVAL.name() => EVAL,
+            n if n == IF.name() => IF,
+            n if n == LAMBDA.name() => LAMBDA,
+            n if n == LET.name() => LET,
             _ => Symbol {
                 name: static_name(name),
             },

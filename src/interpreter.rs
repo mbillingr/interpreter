@@ -44,6 +44,9 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     Symbol(s) if *s == symbol::IF => {
                         expr = Cow::Owned(if_form(&cdr, env.clone())?.clone())
                     }
+                    Symbol(s) if *s == symbol::EVAL => {
+                        expr = Cow::Owned(eval(cdr.car()?, env.clone())?);
+                    }
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
