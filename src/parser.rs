@@ -1,6 +1,7 @@
 use crate::errors::*;
 use crate::expression::Expression;
 use crate::lexer::Token;
+use crate::symbol;
 use std::rc::Rc;
 
 pub struct Parser {
@@ -47,11 +48,11 @@ fn transform(expr: &Expression) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(ref car, _) => match **car {
-            Symbol(ref s) if s == "cond" => transform_cond(expr),
-            Symbol(ref s) if s == "define" => transform_define(expr),
-            Symbol(ref s) if s == "if" => transform_if(expr),
-            Symbol(ref s) if s == "lambda" => transform_lambda(expr),
-            Symbol(ref s) if s == "let" => transform_let(expr),
+            Symbol(s) if s == symbol::COND => transform_cond(expr),
+            Symbol(s) if s == symbol::DEFINE => transform_define(expr),
+            Symbol(s) if s == symbol::IF => transform_if(expr),
+            Symbol(s) if s == symbol::LAMBDA => transform_lambda(expr),
+            Symbol(s) if s == symbol::LET => transform_let(expr),
             _ => expr.map_list(|e| transform(&e)),
         },
         _ => Ok(expr.clone()),
@@ -98,7 +99,7 @@ fn transform_cond(list: &Expression) -> Result<Expression> {
         let row = match row {
             Expression::Pair(car, cdr) => {
                 let car = if let Expression::Symbol(s) = &**car {
-                    if s == "else" {
+                    if *s == symbol::ELSE {
                         Rc::new(Expression::True)
                     } else {
                         car.clone()

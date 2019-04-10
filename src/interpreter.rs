@@ -1,6 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Procedure};
+use crate::symbol;
 use std::borrow::Cow;
 
 pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
@@ -16,7 +17,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 return env
                     .borrow()
                     .lookup(&s)
-                    .ok_or_else(|| ErrorKind::Undefined(s.clone()).into());
+                    .ok_or_else(|| ErrorKind::Undefined(*s).into());
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | True | False | Procedure(_)
             | Error(_) => {
@@ -31,14 +32,16 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 }
                 //let l = expr.try_into_list()?;
                 match &**car {
-                    Symbol(ref s) if s == "begin" => expr = Cow::Owned(begin(&cdr, env.clone())?),
-                    Symbol(ref s) if s == "cond" => match cond(&cdr, env.clone())? {
+                    Symbol(s) if *s == symbol::BEGIN => {
+                        expr = Cow::Owned(begin(&cdr, env.clone())?)
+                    }
+                    Symbol(s) if *s == symbol::COND => match cond(&cdr, env.clone())? {
                         Return::RetVal(ex) => return Ok(ex),
                         Return::TailCall(ex) => expr = Cow::Owned(ex),
                     },
-                    Symbol(ref s) if s == "define" => return define(&cdr, env.clone()),
-                    Symbol(ref s) if s == "lambda" => return lambda(&cdr, &env),
-                    Symbol(ref s) if s == "if" => {
+                    Symbol(s) if *s == symbol::DEFINE => return define(&cdr, env.clone()),
+                    Symbol(s) if *s == symbol::LAMBDA => return lambda(&cdr, &env),
+                    Symbol(s) if *s == symbol::IF => {
                         expr = Cow::Owned(if_form(&cdr, env.clone())?.clone())
                     }
                     car => {
