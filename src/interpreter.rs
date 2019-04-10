@@ -47,6 +47,9 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     Symbol(s) if *s == symbol::EVAL => {
                         expr = Cow::Owned(eval(cdr.car()?, env.clone())?);
                     }
+                    Symbol(s) if *s == symbol::QUOTE => {
+                        return Ok(cdr.car()?.clone());
+                    }
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
@@ -57,7 +60,9 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             }
                             Native(func) => return func(args),
                             x => {
-                                return Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into());
+                                return Err(
+                                    ErrorKind::TypeError(format!("not callable: {:?}", x)).into()
+                                );
                             }
                         }
                     }

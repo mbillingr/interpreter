@@ -12,6 +12,7 @@ pub static EVAL: Symbol = Symbol { name: "eval" };
 pub static IF: Symbol = Symbol { name: "if" };
 pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
+pub static QUOTE: Symbol = Symbol { name: "quote" };
 
 thread_local! {
     static STATIC_NAMES: RefCell<Vec<Pin<Box<String>>>> = RefCell::new(vec![]);
@@ -61,6 +62,7 @@ impl Symbol {
             n if n == IF.name() => IF,
             n if n == LAMBDA.name() => LAMBDA,
             n if n == LET.name() => LET,
+            n if n == QUOTE.name() => QUOTE,
             _ => Symbol {
                 name: static_name(name),
             },
