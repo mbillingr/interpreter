@@ -56,8 +56,8 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                                 expr = Cow::Owned(p.body_ex());
                             }
                             Native(func) => return func(args),
-                            _ => {
-                                return Err(ErrorKind::TypeError("not callable".to_string()).into());
+                            x => {
+                                return Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into());
                             }
                         }
                     }
