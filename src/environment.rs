@@ -145,6 +145,10 @@ pub fn default_env() -> EnvRef {
             Ok((a == b).into())
         });
 
+        // types
+
+        env.insert_native("symbol?", |args| Ok(car(&args)?.is_symbol().into()));
+
         // simple i/o
 
         env.insert_native("display", native_display);
