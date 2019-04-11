@@ -22,6 +22,11 @@
                 end))))
   (iter 0 0 0 (+ (runtime) 1e5)))
 
+(define (caar p) (car (car p)))
+(define (cadr p) (car (cdr p)))
+(define (cdar p) (cdr (car p)))
+(define (cddr p) (cdr (cdr p)))
+
 (define (abs x) (if (< x 0) (- x) x))
 (define (inc n) (+ n 1))
 (define (dec n) (- n 1))
