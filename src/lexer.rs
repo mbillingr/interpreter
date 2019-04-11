@@ -7,6 +7,7 @@ pub enum Token {
     ListClose,
     String(String),
     Symbol(String),
+    Quote,
 }
 
 impl Token {
@@ -24,6 +25,7 @@ impl From<char> for Token {
         match ch {
             '(' => Token::ListOpen,
             ')' => Token::ListClose,
+            '\'' => Token::Quote,
             _ => panic!("Invalid token: {}", ch),
         }
     }
@@ -34,6 +36,7 @@ impl From<Token> for String {
         match token {
             Token::ListOpen => "(".to_string(),
             Token::ListClose => ")".to_string(),
+            Token::Quote => "'".to_string(),
             Token::String(s) => format!("{:?}", s),
             Token::Symbol(s) => s,
         }
@@ -111,7 +114,7 @@ impl Lexer {
         chars: &mut Peekable<impl Iterator<Item = CharI>>,
     ) -> Result<Option<PositionalToken>> {
         match chars.peek().unwrap().1 {
-            '(' | ')' => Ok(chars.next().map(PositionalToken::from)),
+            '(' | ')' | '\'' => Ok(chars.next().map(PositionalToken::from)),
             '"' => self.read_string(chars),
             '#' => self.read_hash(chars),
             ';' => self.read_line_comment(chars),
