@@ -94,11 +94,11 @@
 (define (length sequence)
   (accumulate (lambda (x y) (+ y 1)) 0 sequence))
 
-;(define (map op . seqs)
-;  (if null? (car seqs)
-;      nil
-;      (cons (eval (cons op (map1 car seqs)))
-;            (map (cons op (map1 cdr seqs)))))
+(define (map op . seqs)
+  (if (null? (car seqs))
+      nil
+      (cons (apply op (map1 car seqs))
+            (apply map op (map1 cdr seqs)))))
 
 ;; ==========================================
 ;;   useless stuff

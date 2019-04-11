@@ -1,5 +1,6 @@
 use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure, WeakProcedure};
+use crate::interpreter;
 use crate::symbol::Symbol;
 use rand::Rng;
 use std::cell::RefCell;
@@ -133,6 +134,10 @@ pub fn default_env() -> EnvRef {
 
     {
         let mut env = defenv.borrow_mut();
+
+        // interpreter functions
+
+        env.insert_native("apply", apply);
 
         // simple i/o
 
@@ -296,4 +301,34 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
         acc = func(acc, b?.clone())?;
     }
     Ok(acc)
+}
+
+fn apply(list: Expression) -> Result<Expression> {
+    let mut result = Expression::Nil;
+    let mut in_cursor = &list;
+    let mut out_cursor = &mut result;
+
+    loop {
+        match in_cursor {
+            Expression::Nil => break,
+            Expression::Pair(car, cdr) => {
+                //let x = interpreter::eval(&car, env.clone())?;
+                let x = (**car).clone();
+                in_cursor = &*cdr;
+
+                if in_cursor.is_nil() {
+                    *out_cursor = x;
+                    break;
+                } else {
+                    *out_cursor = Expression::cons(x, Expression::Nil);
+                };
+
+                out_cursor = out_cursor.cdr_mut().unwrap();
+            }
+            _ => return Err(ErrorKind::TypeError("not a list".into()))?,
+        }
+    }
+
+    let (proc, args) = result.decons()?;
+    interpreter::call(proc.clone(), args.clone())
 }
