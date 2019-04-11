@@ -368,6 +368,12 @@ impl From<&str> for Expression {
     }
 }
 
+impl From<Symbol> for Expression {
+    fn from(s: Symbol) -> Self {
+        Expression::Symbol(s)
+    }
+}
+
 impl From<String> for Expression {
     fn from(s: String) -> Self {
         Expression::String(s)

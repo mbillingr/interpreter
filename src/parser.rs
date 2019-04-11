@@ -4,8 +4,13 @@ use crate::lexer::Token;
 use crate::symbol;
 use std::rc::Rc;
 
+enum ParserState {
+    List(Expression),
+    Quote,
+}
+
 pub struct Parser {
-    list_stack: Vec<Expression>,
+    list_stack: Vec<ParserState>,
 }
 
 impl Parser {
@@ -19,26 +24,34 @@ impl Parser {
     }
 
     fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
-        let expr = match token {
+        let mut expr = match token {
             Token::String(s) => Expression::String(s),
             Token::Symbol(s) => Expression::from_literal(s),
             Token::ListOpen => {
-                self.list_stack.push(Expression::Nil);
+                self.list_stack.push(ParserState::List(Expression::Nil));
                 return Ok(None);
             }
             Token::ListClose => match self.list_stack.pop() {
-                Some(list) => list,
-                None => return Err(ErrorKind::UnexpectedToken(token.into()))?,
+                Some(ParserState::List(list)) => list,
+                _ => return Err(ErrorKind::UnexpectedToken(token.into()))?,
             },
+            Token::Quote => {
+                self.list_stack.push(ParserState::Quote);
+                return Ok(None);
+            }
         };
 
-        match self.list_stack.pop() {
-            Some(list) => {
-                self.list_stack
-                    .push(list.append(Expression::cons(expr, Expression::Nil))?);
-                Ok(None)
+        loop {
+            match self.list_stack.pop() {
+                Some(ParserState::List(list)) => {
+                    self.list_stack.push(ParserState::List(
+                        list.append(Expression::cons(expr, Expression::Nil))?,
+                    ));
+                    return Ok(None);
+                }
+                Some(ParserState::Quote) => expr = scheme!(quote, @expr),
+                None => return Ok(Some(expr)),
             }
-            None => Ok(Some(expr)),
         }
     }
 }
