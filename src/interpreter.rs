@@ -50,6 +50,9 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     Symbol(s) if *s == symbol::QUOTE => {
                         return Ok(cdr.car()?.clone());
                     }
+                    Symbol(s) if *s == symbol::APPLY => {
+                        expr = Cow::Owned(apply(cdr, &env)?);
+                    }
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
@@ -137,4 +140,32 @@ fn if_form(list: &Expression, env: EnvRef) -> Result<&Expression> {
     } else {
         Ok(otherwise)
     }
+}
+
+fn apply(list: &Expression, env: &EnvRef) -> Result<Expression> {
+    let mut result = Expression::Nil;
+    let mut in_cursor = list;
+    let mut out_cursor = &mut result;
+
+    loop {
+        match in_cursor {
+            Expression::Nil => break,
+            Expression::Pair(car, cdr) => {
+                let x = eval(car, env.clone())?;
+                in_cursor = &*cdr;
+
+                if in_cursor.is_nil() {
+                    *out_cursor = x;
+                    break;
+                } else {
+                    *out_cursor = Expression::cons(x, Expression::Nil);
+                };
+
+                out_cursor = out_cursor.cdr_mut().unwrap();
+            }
+            _ => return Err(ErrorKind::TypeError("not a list".into()))?,
+        }
+    }
+
+    Ok(result)
 }
