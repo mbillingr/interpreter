@@ -157,7 +157,7 @@ pub fn default_env() -> EnvRef {
 
         // list operations
 
-        env.insert_native("list", |args| Ok(args));
+        env.insert_native("list", Ok);
         env.insert_native("null?", |args| Ok(car(&args)?.is_nil().into()));
 
         // numerical operations

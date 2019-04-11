@@ -20,20 +20,19 @@ thread_local! {
 
 fn static_name<T: AsRef<str> + ToString>(name: T) -> &'static str {
     STATIC_NAMES.with(|symbols| {
-        match symbols
+        if let Some(s) = symbols
             .borrow()
             .iter()
             .map(|entry| -> &str { (**entry).as_ref() })
             .find(|&entry| entry == name.as_ref())
         {
-            Some(s) => unsafe {
+            unsafe {
                 // We transmute from &str to &'static str.
                 // This should be safe if
                 //  1. The string data is never moved in memory (hence the pinned box)
                 //  2. The string data is never deallocated. Thus, **never** remove a string from STATIC_NAMES
                 return std::mem::transmute(s);
-            },
-            None => {}
+            }
         }
 
         let entry = Box::pin(name.to_string());

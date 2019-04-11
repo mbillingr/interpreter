@@ -248,7 +248,7 @@ impl Expression {
     }
 
     pub fn try_to_vec(&self) -> Result<Vec<Expression>> {
-        self.iter_list()?.map(|r| r.map(|x| x.clone())).collect()
+        self.iter_list()?.map(|r| r.map(Clone::clone)).collect()
     }
 
     pub fn logical_and(self, other: Self) -> Result<Self> {
