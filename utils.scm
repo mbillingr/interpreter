@@ -29,6 +29,10 @@
 (define (cadr p) (car (cdr p)))
 (define (cdar p) (cdr (car p)))
 (define (cddr p) (cdr (cdr p)))
+(define (caadr p) (car (car (cdr p))))
+(define (caddr p) (car (cdr (cdr p))))
+(define (cdadr p) (cdr (car (cdr p))))
+(define (cdddr p) (cdr (cdr (cdr p))))
 
 (define (abs x) (if (< x 0) (- x) x))
 (define (inc n) (+ n 1))
