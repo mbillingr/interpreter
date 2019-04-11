@@ -1,5 +1,7 @@
 
 (define nil (list))
+(define false #f)
+(define true #t)
 
 (define (timeit f)
   (define (measure f start)
@@ -104,6 +106,11 @@
       nil
       (cons (apply op (map1 car seqs))
             (apply map op (map1 cdr seqs)))))
+
+(define (memq item x)
+  (cond ((null? x) false)
+        ((eq? item (car x)) x)
+        (else (memq item (cdr x)))))
 
 ;; ==========================================
 ;;   useless stuff

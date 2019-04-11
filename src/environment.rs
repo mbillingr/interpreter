@@ -139,6 +139,12 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("apply", apply);
 
+        env.insert_native("eq?", |args| {
+            let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            Ok((a == b).into())
+        });
+
         // simple i/o
 
         env.insert_native("display", native_display);
