@@ -142,9 +142,9 @@ impl Expression {
         Ok(start)
     }
 
-    pub fn map_list<F: Fn(&Expression) -> Result<Expression>>(
+    pub fn map_list<F: FnMut(&Expression) -> Result<Expression>>(
         &self,
-        func: F,
+        mut func: F,
     ) -> Result<Expression> {
         let mut result = Expression::Nil;
         let mut in_cursor = self;

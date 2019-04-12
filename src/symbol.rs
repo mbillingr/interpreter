@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 // Define some static symbols that the interpreter needs in any case.
 // IMPORTANT: When adding a new symbol here, make sure Symbol::new() checks against it.
+pub static AND: Symbol = Symbol { name: "and" };
 pub static BEGIN: Symbol = Symbol { name: "begin" };
 pub static COND: Symbol = Symbol { name: "cond" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
@@ -14,6 +15,7 @@ pub static EVAL: Symbol = Symbol { name: "eval" };
 pub static IF: Symbol = Symbol { name: "if" };
 pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
+pub static OR: Symbol = Symbol { name: "or" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
 
 lazy_static! {
@@ -54,6 +56,7 @@ pub struct Symbol {
 impl Symbol {
     pub fn new<T: AsRef<str> + ToString>(name: T) -> Self {
         match name.as_ref() {
+            n if n == AND.name() => AND,
             n if n == BEGIN.name() => BEGIN,
             n if n == COND.name() => COND,
             n if n == DEFINE.name() => DEFINE,
@@ -62,6 +65,7 @@ impl Symbol {
             n if n == IF.name() => IF,
             n if n == LAMBDA.name() => LAMBDA,
             n if n == LET.name() => LET,
+            n if n == OR.name() => OR,
             n if n == QUOTE.name() => QUOTE,
             _ => Symbol {
                 name: static_name(name),

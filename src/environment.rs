@@ -183,8 +183,6 @@ pub fn default_env() -> EnvRef {
 
         // logical operations
 
-        env.insert_native("and", |args| native_fold(args, X::True, X::logical_and));
-        env.insert_native("or", |args| native_fold(args, X::False, X::logical_or));
         env.insert(
             "not",
             X::Native(|args| {

@@ -61,11 +61,13 @@ fn transform(expr: &Expression) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(ref car, _) => match **car {
+            Symbol(s) if s == symbol::AND => transform_and(expr),
             Symbol(s) if s == symbol::COND => transform_cond(expr),
             Symbol(s) if s == symbol::DEFINE => transform_define(expr),
             Symbol(s) if s == symbol::IF => transform_if(expr),
             Symbol(s) if s == symbol::LAMBDA => transform_lambda(expr),
             Symbol(s) if s == symbol::LET => transform_let(expr),
+            Symbol(s) if s == symbol::OR => transform_or(expr),
             _ => expr.map_list(|e| transform(&e)),
         },
         _ => Ok(expr.clone()),
@@ -170,4 +172,28 @@ fn transform_let(list: &Expression) -> Result<Expression> {
     let lambda_form = scheme!(lambda, @vars, ...body.clone());
     exps = Expression::cons(lambda_form, exps);
     transform(&exps)
+}
+
+fn transform_or(list: &Expression) -> Result<Expression> {
+    let (cmd, args) = list.decons()?;
+    assert_eq!(&scheme!(or), cmd);
+    let mapped = args.map_list(|x| Ok(scheme!((@x.clone()))))?;
+    let mapped = mapped.append(scheme!(((#t, #f))))?;
+    transform_cond(dbg!(&scheme!(cond, ...mapped)))
+}
+
+fn transform_and(list: &Expression) -> Result<Expression> {
+    let (cmd, args) = list.decons()?;
+    assert_eq!(&scheme!(and), cmd);
+
+    match args {
+        Expression::Nil => return Ok(Expression::True),
+        Expression::Pair(car, cdr) if **cdr == Expression::Nil => return Ok((**car).clone()),
+        Expression::Pair(car, cdr) => {
+            return transform_if(
+                &scheme!(if, @(**car).clone(), @transform_and(&scheme!(and, ...(**cdr).clone()))?, #f),
+            );
+        }
+        _ => unreachable!(),
+    }
 }
