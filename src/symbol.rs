@@ -1,6 +1,8 @@
+use lazy_static::lazy_static;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
+use std::sync::Mutex;
 
 // Define some static symbols that the interpreter needs in any case.
 // IMPORTANT: When adding a new symbol here, make sure Symbol::new() checks against it.
@@ -14,35 +16,34 @@ pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
 
-thread_local! {
-    static STATIC_NAMES: RefCell<Vec<Pin<Box<String>>>> = RefCell::new(vec![]);
+lazy_static! {
+    static ref STATIC_NAMES: Mutex<RefCell<Vec<Pin<Box<String>>>>> =
+        Mutex::new(RefCell::new(vec![]));
 }
 
 fn static_name<T: AsRef<str> + ToString>(name: T) -> &'static str {
-    STATIC_NAMES.with(|symbols| {
-        if let Some(s) = symbols
-            .borrow()
-            .iter()
-            .map(|entry| -> &str { (**entry).as_ref() })
-            .find(|&entry| entry == name.as_ref())
-        {
-            unsafe {
-                // We transmute from &str to &'static str.
-                // This should be safe if
-                //  1. The string data is never moved in memory (hence the pinned box)
-                //  2. The string data is never deallocated. Thus, **never** remove a string from STATIC_NAMES
-                return std::mem::transmute(s);
-            }
+    let lock = STATIC_NAMES.lock().unwrap();
+    let mut container = lock.borrow_mut();
+    let s = match container
+        .iter()
+        .map(|entry| entry.as_str())
+        .find(|&entry| entry == name.as_ref())
+    {
+        Some(s) => s,
+        None => {
+            let entry = Box::pin(name.to_string());
+            container.push(entry);
+            container.last().unwrap()
         }
+    };
 
-        let entry = Box::pin(name.to_string());
-        symbols.borrow_mut().push(entry);
-
-        // Recurse. Now the name should be defined.
-        // This is certainly less performant than returning the latest element
-        // but we don't need another unsafe block...
-        static_name(name)
-    })
+    unsafe {
+        // We transmute from &str to &'static str.
+        // This should be safe if
+        //  1. The string data is never moved in memory (hence the pinned box)
+        //  2. The string data is never deallocated. Thus, **never** remove a string from STATIC_NAMES
+        std::mem::transmute(s)
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
