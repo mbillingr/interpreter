@@ -117,6 +117,13 @@
         ((eq? item (car x)) x)
         (else (memq item (cdr x)))))
 
+(define (println . args)
+  (if (null? args)
+      (newline)
+      (begin (display (car args))
+             (display " ")
+             (apply println (cdr args)))))
+
 ;; ==========================================
 ;;   useless stuff
 ;; ==========================================
