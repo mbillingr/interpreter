@@ -179,7 +179,7 @@ fn transform_or(list: &Expression) -> Result<Expression> {
     assert_eq!(&scheme!(or), cmd);
     let mapped = args.map_list(|x| Ok(scheme!((@x.clone()))))?;
     let mapped = mapped.append(scheme!(((#t, #f))))?;
-    transform_cond(dbg!(&scheme!(cond, ...mapped)))
+    transform_cond(&scheme!(cond, ...mapped))
 }
 
 fn transform_and(list: &Expression) -> Result<Expression> {
