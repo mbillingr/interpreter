@@ -142,7 +142,19 @@ pub fn default_env() -> EnvRef {
         env.insert_native("eq?", |args| {
             let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
             let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok((a == b).into())
+            Ok(a.eqv(b).into())
+        });
+
+        env.insert_native("eqv?", |args| {
+            let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            Ok(a.eqv(b).into())
+        });
+
+        env.insert_native("equal?", |args| {
+            let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+            Ok(a.equal(b).into())
         });
 
         // types

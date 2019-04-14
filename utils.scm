@@ -2,7 +2,6 @@
 (define nil (list))
 (define false #f)
 (define true #t)
-(define equal? eq?)
 
 (define (timeit f)
   (define (measure f start)

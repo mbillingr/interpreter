@@ -3,6 +3,9 @@ extern crate error_chain;
 #[macro_use]
 mod scheme;
 
+#[cfg(test)]
+mod tests;
+
 mod completer;
 mod destructure;
 mod environment;

@@ -12,7 +12,7 @@ pub enum Expression {
     Undefined,
     Nil,
     Symbol(Symbol),
-    String(String),
+    String(Rc<String>),
     Char(char),
     Integer(i64),
     Float(f64),
@@ -275,6 +275,44 @@ impl Expression {
     pub fn max(self, other: Self) -> Result<Self> {
         Ok(if self < other { other } else { self })
     }
+
+    pub fn eqv(&self, rhs: &Self) -> bool {
+        use Expression::*;
+        match (self, rhs) {
+            (Integer(a), Integer(b)) => a == b,
+            (Float(a), Float(b)) => a == b,
+            (String(a), String(b)) => Rc::ptr_eq(a, b),
+            (Symbol(a), Symbol(b)) => a == b,
+            (Char(a), Char(b)) => a == b,
+            (True, True) => true,
+            (False, False) => true,
+            (Nil, Nil) => true,
+            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => Rc::ptr_eq(a_car, b_car) && Rc::ptr_eq(a_cdr, b_cdr),
+            (Procedure(a), Procedure(b)) => a.eqv(b),
+            (Native(a), Native(b)) => a == b,
+            _ => false,
+        }
+    }
+
+    pub fn equal(&self, rhs: &Self) -> bool {
+        use Expression::*;
+        match (self, rhs) {
+            (Integer(a), Integer(b)) => a == b,
+            (Integer(a), Float(b)) => (*a as f64) == *b,
+            (Float(a), Integer(b)) => *a == (*b as f64),
+            (Float(a), Float(b)) => a == b,
+            (String(a), String(b)) => a == b,
+            (Symbol(a), Symbol(b)) => a == b,
+            (Char(a), Char(b)) => a == b,
+            (True, True) => true,
+            (False, False) => true,
+            (Nil, Nil) => true,
+            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => a_car == b_car && a_cdr == b_cdr,
+            (Procedure(a), Procedure(b)) => a.equal(b),
+            (Native(a), Native(b)) => a == b,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Debug for Expression {
@@ -367,7 +405,7 @@ impl std::fmt::Display for Expression {
 
 impl From<&str> for Expression {
     fn from(s: &str) -> Self {
-        Expression::String(s.into())
+        Expression::String(Rc::new(s.into()))
     }
 }
 
@@ -379,7 +417,7 @@ impl From<Symbol> for Expression {
 
 impl From<String> for Expression {
     fn from(s: String) -> Self {
-        Expression::String(s)
+        Expression::String(Rc::new(s))
     }
 }
 
@@ -564,6 +602,14 @@ impl Procedure {
 
     pub fn params_ex(&self) -> Expression {
         (*self.params).clone()
+    }
+
+    pub fn eqv(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.body, &other.body)
+    }
+
+    pub fn equal(&self, other: &Self) -> bool {
+        self.body.equal(&other.body) && self.params.equal(&other.params)
     }
 }
 

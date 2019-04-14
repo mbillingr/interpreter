@@ -25,7 +25,7 @@ impl Parser {
 
     fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
         let mut expr = match token {
-            Token::String(s) => Expression::String(s),
+            Token::String(s) => Expression::String(Rc::new(s)),
             Token::Symbol(s) => Expression::from_literal(s),
             Token::ListOpen => {
                 self.list_stack.push(ParserState::List(Expression::Nil));
