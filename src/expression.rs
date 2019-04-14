@@ -68,7 +68,7 @@ impl Expression {
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {
         match self {
             Expression::Pair(car, cdr) => Ok((car, cdr)),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
@@ -79,21 +79,21 @@ impl Expression {
     pub fn decons_rc(&self) -> Result<(&Rc<Expression>, &Rc<Expression>)> {
         match self {
             Expression::Pair(car, cdr) => Ok((car, cdr)),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn car(&self) -> Result<&Expression> {
         match self {
             Expression::Pair(car, _) => Ok(car),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn cdr(&self) -> Result<&Expression> {
         match self {
             Expression::Pair(_, cdr) => Ok(cdr),
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
@@ -102,7 +102,7 @@ impl Expression {
             Expression::Pair(car, _) => {
                 Ok(Rc::get_mut(car).expect("mutable reference must be unique"))
             }
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
@@ -111,7 +111,7 @@ impl Expression {
             Expression::Pair(_, cdr) => {
                 Ok(Rc::get_mut(cdr).expect("mutable reference must be unique"))
             }
-            _ => Err(ErrorKind::TypeError("not a pair".into()))?,
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
