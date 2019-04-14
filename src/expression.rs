@@ -13,6 +13,7 @@ pub enum Expression {
     Nil,
     Symbol(Symbol),
     String(String),
+    Char(char),
     Integer(i64),
     Float(f64),
     True,
@@ -285,6 +286,7 @@ impl std::fmt::Debug for Expression {
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
+            Expression::Char(ch) => write!(f, "{:?}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
             Expression::Pair(ref car, ref cdr) => {
@@ -328,6 +330,7 @@ impl std::fmt::Display for Expression {
             Expression::String(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
+            Expression::Char(ch) => write!(f, "{}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
             Expression::Pair(ref car, ref cdr) => {
@@ -495,6 +498,7 @@ impl std::cmp::PartialEq for Expression {
             (Float(a), Float(b)) => a == b,
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b)) => a == b,
+            (Char(a), Char(b)) => a == b,
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
