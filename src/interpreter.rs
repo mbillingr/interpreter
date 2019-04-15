@@ -33,13 +33,13 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 //let l = expr.try_into_list()?;
                 match &**car {
                     Symbol(s) if *s == symbol::BEGIN => {
-                        expr = Cow::Owned(begin(&cdr, env.clone())?)
+                        expr = Cow::Owned(begin(&cdr, &env)?)
                     }
-                    Symbol(s) if *s == symbol::COND => match cond(&cdr, env.clone())? {
+                    Symbol(s) if *s == symbol::COND => match cond(&cdr, &env)? {
                         Return::RetVal(ex) => return Ok(ex),
                         Return::TailCall(ex) => expr = Cow::Owned(ex),
                     },
-                    Symbol(s) if *s == symbol::DEFINE => return define(&cdr, env.clone()),
+                    Symbol(s) if *s == symbol::DEFINE => return define(&cdr, &env),
                     Symbol(s) if *s == symbol::LAMBDA => return lambda(&cdr, &env),
                     Symbol(s) if *s == symbol::IF => {
                         expr = Cow::Owned(if_form(&cdr, env.clone())?.clone())
@@ -81,7 +81,7 @@ pub fn call(proc: Expression, args: Expression) -> Result<Expression> {
     }
 }
 
-fn begin(mut list: &Expression, env: EnvRef) -> Result<Expression> {
+fn begin(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
     loop {
         match list.decons()? {
             (car, Expression::Nil) => {
@@ -97,7 +97,7 @@ fn begin(mut list: &Expression, env: EnvRef) -> Result<Expression> {
     }
 }
 
-fn define(list: &Expression, env: EnvRef) -> Result<Expression> {
+fn define(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let (name, list) = list.decons()?;
     let (val_ex, _) = list.decons()?;
     let value = eval(val_ex, env.clone())?;
@@ -131,7 +131,7 @@ enum Return {
     TailCall(Expression),
 }
 
-fn cond(mut list: &Expression, env: EnvRef) -> Result<Return> {
+fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
     while !list.is_nil() {
         let (row, cdr) = list.decons()?;
         list = &cdr;
@@ -154,7 +154,7 @@ fn if_form(list: &Expression, env: EnvRef) -> Result<&Expression> {
     let (then, list) = list.decons()?;
     let (otherwise, _) = list.decons()?;
 
-    if eval(cond, env.clone())?.is_true() {
+    if eval(cond, env)?.is_true() {
         Ok(then)
     } else {
         Ok(otherwise)
