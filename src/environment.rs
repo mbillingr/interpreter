@@ -53,7 +53,7 @@ impl Environment {
     pub fn lookup(&self, key: &Symbol) -> Option<Expression> {
         let entry = self.map.get(key);
         match entry {
-            None => self.parent.clone().and_then(|p| p.borrow().lookup(key)),
+            None => self.parent.as_ref().and_then(|p| p.borrow().lookup(key)),
             Some(Entry::Value(expr)) => Some(expr.clone()),
             Some(Entry::Procedure(proc)) => Some(proc.clone().into()),
         }
