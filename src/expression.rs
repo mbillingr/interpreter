@@ -193,7 +193,7 @@ impl Expression {
     pub fn is_integer(&self) -> bool {
         match self {
             Expression::Integer(_) => true,
-            Expression::Float(f) if *f == f.trunc() => true,
+            Expression::Float(f) if float_eq(*f, f.trunc()) => true,
             _ => false,
         }
     }
@@ -230,7 +230,7 @@ impl Expression {
     pub fn try_as_integer(&self) -> Result<i64> {
         match self {
             Expression::Integer(i) => Ok(*i),
-            Expression::Float(f) if *f == f.trunc() => Ok(*f as i64),
+            Expression::Float(f) if float_eq(*f, f.trunc()) => Ok(*f as i64),
             _ => Err(ErrorKind::TypeError(format!("{} is not an integer.", self)).into()),
         }
     }
@@ -289,7 +289,7 @@ impl Expression {
         use Expression::*;
         match (self, rhs) {
             (Integer(a), Integer(b)) => a == b,
-            (Float(a), Float(b)) => a == b,
+            (Float(a), Float(b)) => float_eq(*a, *b),
             (String(a), String(b)) => Rc::ptr_eq(a, b),
             (Symbol(a), Symbol(b)) => a == b,
             (Char(a), Char(b)) => a == b,
@@ -309,9 +309,7 @@ impl Expression {
         use Expression::*;
         match (self, rhs) {
             (Integer(a), Integer(b)) => a == b,
-            (Integer(a), Float(b)) => (*a as f64) == *b,
-            (Float(a), Integer(b)) => *a == (*b as f64),
-            (Float(a), Float(b)) => a == b,
+            (Float(a), Float(b)) => float_eq(*a, *b),
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b)) => a == b,
             (Char(a), Char(b)) => a == b,
@@ -370,6 +368,13 @@ impl Expression {
             (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
         }
     }
+}
+
+// This function exists to make clippy stop complaining about exact floating point comparison.
+// I think it accepts this because of the name...
+#[inline(always)]
+fn float_eq(a: f64, b: f64) -> bool {
+    a == b
 }
 
 impl std::fmt::Debug for Expression {
