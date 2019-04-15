@@ -32,6 +32,7 @@
 (define (caddr p) (car (cdr (cdr p))))
 (define (cdadr p) (cdr (car (cdr p))))
 (define (cdddr p) (cdr (cdr (cdr p))))
+(define (cadddr p) (car (cdr (cdr (cdr p)))))
 
 (define (abs x) (if (< x 0) (- x) x))
 (define (inc n) (+ n 1))
