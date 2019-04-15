@@ -1,5 +1,5 @@
-pub use errors_impl::*;
 use crate::expression::Expression;
+pub use errors_impl::*;
 
 pub trait IntoResultExpression {
     fn into_result(self) -> Result<Expression>;

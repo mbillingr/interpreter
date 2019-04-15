@@ -296,7 +296,9 @@ impl Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => Rc::ptr_eq(a_car, b_car) && Rc::ptr_eq(a_cdr, b_cdr),
+            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => {
+                Rc::ptr_eq(a_car, b_car) && Rc::ptr_eq(a_cdr, b_cdr)
+            }
             (Procedure(a), Procedure(b)) => a.eqv(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -333,14 +335,14 @@ impl Expression {
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
                 }
-            },
+            }
             (Float(a), Integer(b)) => {
                 if self.is_integer() {
                     Ok(Float(a / *b as f64))
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
                 }
-            },
+            }
             (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a / b)),
             (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
         }
@@ -356,14 +358,14 @@ impl Expression {
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
                 }
-            },
+            }
             (Float(a), Integer(b)) => {
                 if self.is_integer() {
                     Ok(Float(a % *b as f64))
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
                 }
-            },
+            }
             (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a % b)),
             (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
         }

@@ -187,12 +187,12 @@ fn transform_and(list: &Expression) -> Result<Expression> {
     assert_eq!(&scheme!(and), cmd);
 
     match args {
-        Expression::Nil => return Ok(Expression::True),
-        Expression::Pair(car, cdr) if **cdr == Expression::Nil => return Ok((**car).clone()),
+        Expression::Nil => Ok(Expression::True),
+        Expression::Pair(car, cdr) if **cdr == Expression::Nil => Ok((**car).clone()),
         Expression::Pair(car, cdr) => {
-            return transform_if(
+            transform_if(
                 &scheme!(if, @(**car).clone(), @transform_and(&scheme!(and, ...(**cdr).clone()))?, #f),
-            );
+            )
         }
         _ => unreachable!(),
     }
