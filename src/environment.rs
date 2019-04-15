@@ -59,20 +59,34 @@ impl Environment {
         }
     }
 
+    pub fn set_value(&mut self, key: &Symbol, value: Expression) -> Option<()> {
+        if self.map.contains_key(key) {
+            *self.map.get_mut(key).unwrap() = self.expr_to_entry(value);
+            Some(())
+        } else {
+            self.parent
+                .as_mut()
+                .and_then(|p| p.borrow_mut().set_value(key, value))
+        }
+    }
+
     pub fn insert<K: Into<Symbol>>(&mut self, key: K, expr: Expression) {
+        self.map.insert(key.into(), self.expr_to_entry(expr));
+    }
+
+    fn expr_to_entry(&self, expr: Expression) -> Entry {
         // avoid Rc loops by storing functions that refer to the
         // environment they live in as weak references.
-        let entry = match expr {
+        match expr {
             Expression::Procedure(proc) => {
-                if proc.env.as_ptr() == self {
+                if proc.env.as_ptr() as *const _ == self {
                     Entry::Procedure(proc.into())
                 } else {
                     Entry::Value(Expression::Procedure(proc))
                 }
             }
             expr => Entry::Value(expr),
-        };
-        self.map.insert(key.into(), entry);
+        }
     }
 
     pub fn insert_native(&mut self, key: &str, func: NativeFn) {
@@ -151,7 +165,9 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("display", native_display);
         // todo: find a way to put Expressions into Errors (Problem: Errors must be Send but expressions are not)
-        env.insert_native("error", |args| Err(ErrorKind::GenericError(format!("{}", args)))?);
+        env.insert_native("error", |args| {
+            Err(ErrorKind::GenericError(format!("{}", args)))?
+        });
 
         // pair operations
 

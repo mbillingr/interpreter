@@ -189,11 +189,9 @@ fn transform_and(list: &Expression) -> Result<Expression> {
     match args {
         Expression::Nil => Ok(Expression::True),
         Expression::Pair(car, cdr) if **cdr == Expression::Nil => Ok((**car).clone()),
-        Expression::Pair(car, cdr) => {
-            transform_if(
-                &scheme!(if, @(**car).clone(), @transform_and(&scheme!(and, ...(**cdr).clone()))?, #f),
-            )
-        }
+        Expression::Pair(car, cdr) => transform_if(
+            &scheme!(if, @(**car).clone(), @transform_and(&scheme!(and, ...(**cdr).clone()))?, #f),
+        ),
         _ => unreachable!(),
     }
 }

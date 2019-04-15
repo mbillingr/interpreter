@@ -50,6 +50,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     Symbol(s) if *s == symbol::QUOTE => {
                         return Ok(cdr.car()?.clone());
                     }
+                    Symbol(s) if *s == symbol::SETVAR => return set_var(&cdr, &env),
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
@@ -102,6 +103,19 @@ fn define(list: &Expression, env: EnvRef) -> Result<Expression> {
     let value = eval(val_ex, env.clone())?;
     env.borrow_mut()
         .insert(name.try_as_symbol()?.clone(), value);
+    Ok(Expression::Undefined)
+}
+
+fn set_var(list: &Expression, env: &EnvRef) -> Result<Expression> {
+    let (name, list) = list.decons()?;
+    let (val_ex, _) = list.decons()?;
+    let value = eval(val_ex, env.clone())?;
+
+    let symbol = name.try_as_symbol()?;
+
+    env.borrow_mut()
+        .set_value(symbol, value)
+        .ok_or_else(|| ErrorKind::Undefined(*symbol))?;
     Ok(Expression::Undefined)
 }
 

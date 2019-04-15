@@ -17,6 +17,7 @@ pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
 pub static OR: Symbol = Symbol { name: "or" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
+pub static SETVAR: Symbol = Symbol { name: "set!" };
 
 lazy_static! {
     static ref STATIC_NAMES: Mutex<RefCell<Vec<Pin<Box<String>>>>> =
@@ -67,6 +68,7 @@ impl Symbol {
             n if n == LET.name() => LET,
             n if n == OR.name() => OR,
             n if n == QUOTE.name() => QUOTE,
+            n if n == SETVAR.name() => SETVAR,
             _ => Symbol {
                 name: static_name(name),
             },
