@@ -150,7 +150,8 @@ pub fn default_env() -> EnvRef {
         // simple i/o
 
         env.insert_native("display", native_display);
-        env.insert_native("error", |args| Ok(X::Error(Rc::new(args))));
+        // todo: find a way to put Expressions into Errors (Problem: Errors must be Send but expressions are not)
+        env.insert_native("error", |args| Err(ErrorKind::GenericError(format!("{}", args)))?);
 
         // pair operations
 
