@@ -1,4 +1,21 @@
 pub use errors_impl::*;
+use crate::expression::Expression;
+
+pub trait IntoResultExpression {
+    fn into_result(self) -> Result<Expression>;
+}
+
+impl<T: Into<Expression>> IntoResultExpression for T {
+    fn into_result(self) -> Result<Expression> {
+        Ok(self.into())
+    }
+}
+
+impl IntoResultExpression for Result<Expression> {
+    fn into_result(self) -> Result<Expression> {
+        self
+    }
+}
 
 #[allow(deprecated)]
 mod errors_impl {

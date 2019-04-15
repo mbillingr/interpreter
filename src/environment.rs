@@ -5,7 +5,7 @@ use crate::symbol::Symbol;
 use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 use std::rc::{Rc, Weak};
 use std::time::SystemTime;
 
@@ -139,23 +139,9 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("apply", apply);
 
-        env.insert_native("eq?", |args| {
-            let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(a.eqv(b).into())
-        });
-
-        env.insert_native("eqv?", |args| {
-            let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(a.eqv(b).into())
-        });
-
-        env.insert_native("equal?", |args| {
-            let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(a.equal(b).into())
-        });
+        env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
+        env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));
+        env.insert_native("equal?", |args| native_binary(args, Expression::equal));
 
         // types
 
@@ -189,9 +175,10 @@ pub fn default_env() -> EnvRef {
         env.insert_native("*", |args| native_fold(args, X::one(), X::mul));
         env.insert_native("-", |args| native_unifold(args, X::zero(), X::sub));
         env.insert_native("/", |args| native_unifold(args, X::one(), X::div));
-        env.insert_native("remainder", |args| native_unifold(args, X::one(), X::rem));
         env.insert_native("min", |args| native_fold2(args, X::min));
         env.insert_native("max", |args| native_fold2(args, X::max));
+        env.insert_native("remainder", |args| native_binary(args, X::truncate_remainder));
+        env.insert_native("quotient", |args| native_binary(args, X::truncate_quotient));
 
         // logical operations
 
@@ -244,6 +231,16 @@ pub fn default_env() -> EnvRef {
     }
 
     defenv
+}
+
+fn native_binary<R, F>(args: Args, op: F) -> Result<Expression>
+where
+    R: IntoResultExpression,
+    F: Fn(&Expression, &Expression) -> R,
+{
+    let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+    let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+    op(a, b).into_result()
 }
 
 fn native_display(args: Args) -> Result<Expression> {

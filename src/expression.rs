@@ -190,6 +190,14 @@ impl Expression {
         }
     }
 
+    pub fn is_integer(&self) -> bool {
+        match self {
+            Expression::Integer(_) => true,
+            Expression::Float(f) if *f == f.trunc() => true,
+            _ => false,
+        }
+    }
+
     pub fn is_symbol(&self) -> bool {
         match self {
             Expression::Symbol(_) => true,
@@ -222,6 +230,7 @@ impl Expression {
     pub fn try_as_integer(&self) -> Result<i64> {
         match self {
             Expression::Integer(i) => Ok(*i),
+            Expression::Float(f) if *f == f.trunc() => Ok(*f as i64),
             _ => Err(ErrorKind::TypeError(format!("{} is not an integer.", self)).into()),
         }
     }
@@ -311,6 +320,52 @@ impl Expression {
             (Procedure(a), Procedure(b)) => a.equal(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
+        }
+    }
+
+    pub fn truncate_quotient(&self, other: &Self) -> Result<Self> {
+        use Expression::*;
+        match (self, other) {
+            (Integer(a), Integer(b)) => Ok(Integer(a / b)),
+            (Integer(a), Float(b)) => {
+                if other.is_integer() {
+                    Ok(Float(*a as f64 / b))
+                } else {
+                    Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
+                }
+            },
+            (Float(a), Integer(b)) => {
+                if self.is_integer() {
+                    Ok(Float(a / *b as f64))
+                } else {
+                    Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
+                }
+            },
+            (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a / b)),
+            (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
+        }
+    }
+
+    pub fn truncate_remainder(&self, other: &Self) -> Result<Self> {
+        use Expression::*;
+        match (self, other) {
+            (Integer(a), Integer(b)) => Ok(Integer(a % b)),
+            (Integer(a), Float(b)) => {
+                if other.is_integer() {
+                    Ok(Float(*a as f64 % b))
+                } else {
+                    Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
+                }
+            },
+            (Float(a), Integer(b)) => {
+                if self.is_integer() {
+                    Ok(Float(a % *b as f64))
+                } else {
+                    Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
+                }
+            },
+            (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a % b)),
+            (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
         }
     }
 }
