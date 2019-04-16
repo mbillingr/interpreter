@@ -217,14 +217,24 @@ pub fn default_env() -> EnvRef {
 
         // advanced math stuff
 
+        env.insert_native("floor", |args| {
+            let x = car(&args)?;
+            Ok(x.try_as_float()?.floor().into())
+        });
+
         env.insert_native("log", |args| {
             let x = car(&args)?;
             Ok(x.try_as_float()?.ln().into())
         });
 
-        env.insert_native("floor", |args| {
+        env.insert_native("sin", |args| {
             let x = car(&args)?;
-            Ok(x.try_as_float()?.floor().into())
+            Ok(x.try_as_float()?.sin().into())
+        });
+
+        env.insert_native("cos", |args| {
+            let x = car(&args)?;
+            Ok(x.try_as_float()?.cos().into())
         });
 
         // misc
