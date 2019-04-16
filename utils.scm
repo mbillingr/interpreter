@@ -22,7 +22,7 @@
                 (+ sum time)
                 (+ sqsum (sqr time))
                 end))))
-  (iter 0 0 0 (+ (runtime) 1e5)))
+  (iter 0 0 0 (+ (runtime) 1e6)))
 
 (define (caar p) (car (car p)))
 (define (cadr p) (car (cdr p)))
