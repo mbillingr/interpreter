@@ -1,6 +1,7 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
 use crate::symbol::{self, Symbol};
+use crate::tracer::trace_procedure_call;
 use std::rc::Rc;
 
 pub type List = Expression;
@@ -367,6 +368,42 @@ impl Expression {
             (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
         }
     }
+
+    pub fn short_repr(&self) -> String {
+        match self {
+            Expression::Undefined => "#<unspecified>".into(),
+            Expression::Nil => "'()".into(),
+            Expression::Symbol(s) => format!("{}", s),
+            Expression::String(s) => format!("{:?}", s),
+            Expression::Integer(i) => format!("{}", i),
+            Expression::Float(i) => format!("{}", i),
+            Expression::Char(ch) => format!("{:?}", ch),
+            Expression::True => "#t".into(),
+            Expression::False => "#f".into(),
+            Expression::Pair(ref car, ref cdr) => {
+                let mut s = format!("({}", car.short_repr());
+                let mut cdr = cdr;
+                loop {
+                    match **cdr {
+                        Expression::Nil => break,
+                        Expression::Pair(ref a, ref d) => {
+                            s += &format!(" {}", a.short_repr());
+                            cdr = d;
+                        }
+                        _ => {
+                            s += &format!(" . {}", cdr.short_repr());
+                            break;
+                        }
+                    }
+                }
+                s.push(')');
+                s
+            }
+            Expression::Procedure(p) => format!("{}", p.name()),
+            Expression::Native(_) | Expression::NativeIntrusive(_) => "λ".into(),
+            Expression::Error(_) => "<ERROR>".into(),
+        }
+    }
 }
 
 // This function exists to make clippy stop complaining about exact floating point comparison.
@@ -380,7 +417,7 @@ impl std::fmt::Debug for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
-            Expression::Nil => write!(f, "()"),
+            Expression::Nil => write!(f, "'()"),
             Expression::Symbol(s) => write!(f, "{:?}", s),
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
@@ -424,7 +461,7 @@ impl std::fmt::Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Expression::Undefined => write!(f, "#<unspecified>"),
-            Expression::Nil => write!(f, "()"),
+            Expression::Nil => write!(f, "'()"),
             Expression::Symbol(s) => write!(f, "{}", s.name()),
             Expression::String(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
@@ -615,6 +652,21 @@ pub struct Procedure<E> {
     name: Symbol,
 }
 
+impl<E> Procedure<E> {
+    pub fn name(&self) -> Symbol {
+        self.name
+    }
+
+    pub fn rename(mut self, name: Symbol) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn env(&self) -> &E {
+        &self.env
+    }
+}
+
 impl Procedure<EnvRef> {
     pub fn new(params: Rc<Expression>, body: Rc<Expression>, env: EnvRef) -> Self {
         Procedure {
@@ -631,15 +683,6 @@ impl Procedure<EnvRef> {
             Rc::new(body),
             env.clone(),
         ))
-    }
-
-    pub fn rename(mut self, name: Symbol) -> Self {
-        self.name = name;
-        self
-    }
-
-    pub fn env(&self) -> &EnvRef {
-        &self.env
     }
 
     pub fn new_local_env(&self, args: Expression) -> Result<EnvRef> {
@@ -664,7 +707,8 @@ impl Procedure<EnvRef> {
         self.body.equal(&other.body) && self.params.equal(&other.params)
     }
 
-    pub fn notify_call(&self, _called_env: &EnvRef, _calling_env: Option<&EnvRef>) {
+    pub fn notify_call(&self, called_env: &EnvRef, calling_env: &EnvRef) {
+        trace_procedure_call(self, called_env, calling_env);
         /*print!("calling {} ", self.name);
         match calling_env {
             Some(pe) => match pe.borrow().current_procedure() {

@@ -21,8 +21,7 @@ pub static SETVAR: Symbol = Symbol { name: "set!" };
 pub static GREEK_LAMBDA: Symbol = Symbol { name: "\u{03BB}" };
 
 lazy_static! {
-    static ref STATIC_NAMES: Mutex<Vec<Pin<Box<String>>>> =
-        Mutex::new(vec![]);
+    static ref STATIC_NAMES: Mutex<Vec<Pin<Box<String>>>> = Mutex::new(vec![]);
 }
 
 fn static_name<T: AsRef<str> + ToString>(name: T) -> &'static str {

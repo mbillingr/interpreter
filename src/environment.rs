@@ -52,6 +52,10 @@ impl Environment {
         self.parent.as_ref()
     }
 
+    pub fn is_root(&self) -> bool {
+        self.parent.is_none()
+    }
+
     pub fn current_procedure(&self) -> Option<&Procedure<EnvWeak>> {
         self.current_procedure.as_ref()
     }
@@ -141,6 +145,28 @@ impl Environment {
                 .flat_map(|parent| parent.borrow().all_keys()),
         );
         keys.into_iter()
+    }
+
+    pub fn get_scope(&self) -> Vec<Symbol> {
+        let mut result = vec![];
+
+        let mut parent = self.parent.clone();
+        while let Some(env) = parent {
+            parent = env.borrow().parent.clone();
+
+            if env.borrow().is_root() {
+                break;
+            }
+
+            result.push(
+                env.borrow()
+                    .current_procedure()
+                    .map(|p| p.name())
+                    .unwrap_or("???".into()),
+            );
+        }
+
+        result
     }
 }
 

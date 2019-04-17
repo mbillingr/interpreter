@@ -57,7 +57,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                                 let parent = env;
                                 env = p.new_local_env(args)?;
                                 expr = Cow::Owned(p.body_ex());
-                                p.notify_call(&env, Some(&parent));
+                                p.notify_call(&env, &parent);
                             }
                             Native(func) => return func(args),
                             NativeIntrusive(func) => return func(args, &env),
@@ -78,7 +78,7 @@ pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<
     match proc {
         Expression::Procedure(p) => {
             let env = p.new_local_env(args)?;
-            p.notify_call(&env, Some(calling_env));
+            p.notify_call(&env, calling_env);
             eval(&p.body_ex(), env)
         }
         Expression::Native(func) => func(args),
