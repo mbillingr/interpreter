@@ -61,7 +61,7 @@ impl Environment {
 
     pub fn set_value(&mut self, key: &Symbol, value: Expression) -> Option<()> {
         if self.map.contains_key(key) {
-            *self.map.get_mut(key).unwrap() = self.expr_to_entry(value);
+            *self.map.get_mut(key).unwrap() = self.expr_to_entry(*key, value);
             Some(())
         } else {
             self.parent
@@ -71,16 +71,17 @@ impl Environment {
     }
 
     pub fn insert<K: Into<Symbol>>(&mut self, key: K, expr: Expression) {
-        self.map.insert(key.into(), self.expr_to_entry(expr));
+        let key = key.into();
+        self.map.insert(key, self.expr_to_entry(key, expr));
     }
 
-    fn expr_to_entry(&self, expr: Expression) -> Entry {
+    fn expr_to_entry(&self, key: Symbol, expr: Expression) -> Entry {
         // avoid Rc loops by storing functions that refer to the
         // environment they live in as weak references.
         match expr {
             Expression::Procedure(proc) => {
-                if proc.env.as_ptr() as *const _ == self {
-                    Entry::Procedure(proc.into())
+                if proc.env().as_ptr() as *const _ == self {
+                    Entry::Procedure(proc.rename(key).into())
                 } else {
                     Entry::Value(Expression::Procedure(proc))
                 }

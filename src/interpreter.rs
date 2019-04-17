@@ -56,6 +56,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             Procedure(p) => {
                                 env = p.new_local_env(args)?;
                                 expr = Cow::Owned(p.body_ex());
+                                p.notify_call(&env);
                             }
                             Native(func) => return func(args),
                             x => {
@@ -73,7 +74,11 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
 
 pub fn call(proc: Expression, args: Expression) -> Result<Expression> {
     match proc {
-        Expression::Procedure(p) => eval(&p.body_ex(), p.new_local_env(args)?),
+        Expression::Procedure(p) => {
+            let env = p.new_local_env(args)?;
+            p.notify_call(&env);
+            eval(&p.body_ex(), env)
+        }
         Expression::Native(func) => func(args),
         x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into()),
     }

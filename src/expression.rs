@@ -1,6 +1,6 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
-use crate::symbol::Symbol;
+use crate::symbol::{self, Symbol};
 use std::rc::Rc;
 
 pub type List = Expression;
@@ -610,32 +610,37 @@ impl std::cmp::PartialEq for Expression {
 
 #[derive(Debug, Clone)]
 pub struct Procedure<E> {
-    pub body: Rc<Expression>,
-    pub params: Rc<Expression>,
-    pub env: E,
+    body: Rc<Expression>,
+    params: Rc<Expression>,
+    env: E,
+    name: Symbol,
 }
 
 impl Procedure<EnvRef> {
     pub fn new(params: Rc<Expression>, body: Rc<Expression>, env: EnvRef) -> Self {
-        Procedure { body, params, env }
+        Procedure {
+            body,
+            params,
+            env,
+            name: symbol::GREEK_LAMBDA,
+        }
     }
 
     pub fn build(signature: Expression, body: Expression, env: &EnvRef) -> Result<Self> {
-        Ok(Procedure {
-            body: Rc::new(body),
-            params: Rc::new(signature),
-            env: env.clone(),
-        })
+        Ok(Procedure::new(Rc::new(signature), Rc::new(body), env.clone()))
     }
 
-    pub fn env(&self) -> EnvRef {
-        self.env.clone()
-        //.upgrade()
-        //.expect("method's environment has been dropped")
+    pub fn rename(mut self, name: Symbol) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn env(&self) -> &EnvRef {
+        &self.env
     }
 
     pub fn new_local_env(&self, args: Expression) -> Result<EnvRef> {
-        let mut env = Environment::new_child(self.env());
+        let mut env = Environment::new_child(self.env.clone());
         env.set_vars(self.params_ex(), args)?;
         Ok(env.into())
     }
@@ -655,6 +660,10 @@ impl Procedure<EnvRef> {
     pub fn equal(&self, other: &Self) -> bool {
         self.body.equal(&other.body) && self.params.equal(&other.params)
     }
+
+    pub fn notify_call(&self, _env: &EnvRef) {
+        println!("calling function {}", self.name)
+    }
 }
 
 impl From<Procedure<EnvRef>> for Procedure<EnvWeak> {
@@ -663,6 +672,7 @@ impl From<Procedure<EnvRef>> for Procedure<EnvWeak> {
             body: proc.body,
             params: proc.params,
             env: Rc::downgrade(&proc.env),
+            name: proc.name,
         }
     }
 }
@@ -676,6 +686,7 @@ impl From<Procedure<EnvWeak>> for Procedure<EnvRef> {
                 .unwrap_or_else(|| panic!("procedure's environment has been dropped")),
             body: proc.body,
             params: proc.params,
+            name: proc.name,
         }
     }
 }

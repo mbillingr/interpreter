@@ -19,6 +19,8 @@ pub static OR: Symbol = Symbol { name: "or" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
 pub static SETVAR: Symbol = Symbol { name: "set!" };
 
+pub static GREEK_LAMBDA: Symbol = Symbol { name: "\u{03BB}" };
+
 lazy_static! {
     static ref STATIC_NAMES: Mutex<RefCell<Vec<Pin<Box<String>>>>> =
         Mutex::new(RefCell::new(vec![]));
@@ -98,5 +100,11 @@ impl Hash for Symbol {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let id = self.name as *const _ as *const u8 as usize;
         id.hash(state);
+    }
+}
+
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
