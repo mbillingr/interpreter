@@ -28,26 +28,24 @@ enum Entry {
 pub struct Environment {
     map: HashMap<Symbol, Entry>,
     parent: Option<EnvRef>,
+    current_procedure: Option<Procedure<EnvWeak>>,
 }
-
-/*impl Drop for Environment {
-    fn drop(&mut self) {
-        println!("Dropping env {}", self.id);
-        NEXT_ID.with(|n| {
-            n.set(n.get() - 1);
-        });
-    }
-}*/
 
 impl Environment {
     pub fn new(parent: Option<EnvRef>) -> Environment {
         Environment {
             map: Default::default(),
             parent,
+            current_procedure: None,
         }
     }
-    pub fn new_child(parent: EnvRef) -> Environment {
-        Environment::new(Some(parent))
+
+    pub fn new_child<T: Into<Procedure<EnvWeak>>>(parent: EnvRef, proc: T) -> Environment {
+        Environment {
+            map: Default::default(),
+            parent: Some(parent),
+            current_procedure: Some(proc.into()),
+        }
     }
 
     pub fn lookup(&self, key: &Symbol) -> Option<Expression> {

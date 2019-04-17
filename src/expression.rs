@@ -627,7 +627,11 @@ impl Procedure<EnvRef> {
     }
 
     pub fn build(signature: Expression, body: Expression, env: &EnvRef) -> Result<Self> {
-        Ok(Procedure::new(Rc::new(signature), Rc::new(body), env.clone()))
+        Ok(Procedure::new(
+            Rc::new(signature),
+            Rc::new(body),
+            env.clone(),
+        ))
     }
 
     pub fn rename(mut self, name: Symbol) -> Self {
@@ -640,7 +644,7 @@ impl Procedure<EnvRef> {
     }
 
     pub fn new_local_env(&self, args: Expression) -> Result<EnvRef> {
-        let mut env = Environment::new_child(self.env.clone());
+        let mut env = Environment::new_child(self.env.clone(), self.clone());
         env.set_vars(self.params_ex(), args)?;
         Ok(env.into())
     }
@@ -662,7 +666,7 @@ impl Procedure<EnvRef> {
     }
 
     pub fn notify_call(&self, _env: &EnvRef) {
-        println!("calling function {}", self.name)
+        //println!("calling function {}", self.name)
     }
 }
 
