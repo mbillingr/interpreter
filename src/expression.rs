@@ -665,8 +665,15 @@ impl Procedure<EnvRef> {
         self.body.equal(&other.body) && self.params.equal(&other.params)
     }
 
-    pub fn notify_call(&self, _env: &EnvRef) {
-        //println!("calling function {}", self.name)
+    pub fn notify_call(&self, _called_env: &EnvRef, _calling_env: Option<&EnvRef>) {
+        /*print!("calling function {} ", self.name);
+        match calling_env {
+            Some(pe) => match pe.borrow().current_procedure() {
+                Some(proc) => println!("from {}", proc.name),
+                None => println!("from the root"),
+            }
+            None => println!("from an unknown location"),
+        }*/
     }
 }
 

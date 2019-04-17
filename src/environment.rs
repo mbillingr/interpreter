@@ -48,6 +48,14 @@ impl Environment {
         }
     }
 
+    pub fn parent(&self) -> Option<&EnvRef> {
+        self.parent.as_ref()
+    }
+
+    pub fn current_procedure(&self) -> Option<&Procedure<EnvWeak>> {
+        self.current_procedure.as_ref()
+    }
+
     pub fn lookup(&self, key: &Symbol) -> Option<Expression> {
         let entry = self.map.get(key);
         match entry {

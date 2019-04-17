@@ -54,9 +54,10 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
                         match proc {
                             Procedure(p) => {
+                                let parent = env;
                                 env = p.new_local_env(args)?;
                                 expr = Cow::Owned(p.body_ex());
-                                p.notify_call(&env);
+                                p.notify_call(&env, Some(&parent));
                             }
                             Native(func) => return func(args),
                             x => {
@@ -76,7 +77,7 @@ pub fn call(proc: Expression, args: Expression) -> Result<Expression> {
     match proc {
         Expression::Procedure(p) => {
             let env = p.new_local_env(args)?;
-            p.notify_call(&env);
+            p.notify_call(&env, None);
             eval(&p.body_ex(), env)
         }
         Expression::Native(func) => func(args),
