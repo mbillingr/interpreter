@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::pin::Pin;
 use std::sync::Mutex;
@@ -22,13 +21,12 @@ pub static SETVAR: Symbol = Symbol { name: "set!" };
 pub static GREEK_LAMBDA: Symbol = Symbol { name: "\u{03BB}" };
 
 lazy_static! {
-    static ref STATIC_NAMES: Mutex<RefCell<Vec<Pin<Box<String>>>>> =
-        Mutex::new(RefCell::new(vec![]));
+    static ref STATIC_NAMES: Mutex<Vec<Pin<Box<String>>>> =
+        Mutex::new(vec![]);
 }
 
 fn static_name<T: AsRef<str> + ToString>(name: T) -> &'static str {
-    let lock = STATIC_NAMES.lock().unwrap();
-    let mut container = lock.borrow_mut();
+    let mut container = STATIC_NAMES.lock().unwrap();
     let s = match container
         .iter()
         .map(|entry| entry.as_str())
