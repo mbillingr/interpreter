@@ -1,5 +1,5 @@
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Procedure, WeakProcedure};
+use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter;
 use crate::symbol::Symbol;
 use rand::Rng;
@@ -21,7 +21,7 @@ impl From<Environment> for EnvRef {
 #[derive(Debug)]
 enum Entry {
     Value(Expression),
-    Procedure(WeakProcedure),
+    Procedure(Procedure<EnvWeak>),
 }
 
 #[derive(Debug)]

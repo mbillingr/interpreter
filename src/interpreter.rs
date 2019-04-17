@@ -32,9 +32,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 }
                 //let l = expr.try_into_list()?;
                 match &**car {
-                    Symbol(s) if *s == symbol::BEGIN => {
-                        expr = Cow::Owned(begin(&cdr, &env)?)
-                    }
+                    Symbol(s) if *s == symbol::BEGIN => expr = Cow::Owned(begin(&cdr, &env)?),
                     Symbol(s) if *s == symbol::COND => match cond(&cdr, &env)? {
                         Return::RetVal(ex) => return Ok(ex),
                         Return::TailCall(ex) => expr = Cow::Owned(ex),

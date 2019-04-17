@@ -19,7 +19,7 @@ pub enum Expression {
     True,
     False,
     Pair(Rc<(Expression)>, Rc<(Expression)>),
-    Procedure(Procedure),
+    Procedure(Procedure<EnvRef>),
     Native(NativeFn),
     // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
     // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
@@ -609,31 +609,13 @@ impl std::cmp::PartialEq for Expression {
 }
 
 #[derive(Debug, Clone)]
-pub struct Procedure {
+pub struct Procedure<E> {
     pub body: Rc<Expression>,
     pub params: Rc<Expression>,
-    pub env: EnvRef,
-}
-/*
-impl Drop for Procedure {
-    fn drop(&mut self) {
-        println!("Dropping proceduce {:?}", self.name);
-    }
+    pub env: E,
 }
 
-impl Clone for Procedure {
-    fn clone(&self) -> Self {
-        println!("Cloning proceduce {:?}", self.name);
-        Procedure {
-            name: self.name.clone(),
-            body: self.body.clone(),
-            params: self.params.clone(),
-            env: self.env.clone(),
-        }
-    }
-}*/
-
-impl Procedure {
+impl Procedure<EnvRef> {
     pub fn new(params: Rc<Expression>, body: Rc<Expression>, env: EnvRef) -> Self {
         Procedure { body, params, env }
     }
@@ -675,19 +657,9 @@ impl Procedure {
     }
 }
 
-/// A procedure that stores only a weak reference to it's environment
-///
-/// Used to store procedures inside environments without Rc cycles.
-#[derive(Debug, Clone)]
-pub struct WeakProcedure {
-    pub body: Rc<Expression>,
-    pub params: Rc<Expression>,
-    pub env: EnvWeak,
-}
-
-impl From<Procedure> for WeakProcedure {
-    fn from(proc: Procedure) -> Self {
-        WeakProcedure {
+impl From<Procedure<EnvRef>> for Procedure<EnvWeak> {
+    fn from(proc: Procedure<EnvRef>) -> Self {
+        Procedure {
             body: proc.body,
             params: proc.params,
             env: Rc::downgrade(&proc.env),
@@ -695,8 +667,8 @@ impl From<Procedure> for WeakProcedure {
     }
 }
 
-impl From<WeakProcedure> for Procedure {
-    fn from(proc: WeakProcedure) -> Self {
+impl From<Procedure<EnvWeak>> for Procedure<EnvRef> {
+    fn from(proc: Procedure<EnvWeak>) -> Self {
         Procedure {
             env: proc
                 .env
@@ -708,8 +680,8 @@ impl From<WeakProcedure> for Procedure {
     }
 }
 
-impl From<WeakProcedure> for Expression {
-    fn from(proc: WeakProcedure) -> Self {
+impl From<Procedure<EnvWeak>> for Expression {
+    fn from(proc: Procedure<EnvWeak>) -> Self {
         Expression::Procedure(proc.into())
     }
 }
