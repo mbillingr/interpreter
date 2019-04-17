@@ -3,6 +3,7 @@ use crate::errors::*;
 use crate::symbol::{self, Symbol};
 use crate::tracer::trace_procedure_call;
 
+use std::hash::{Hash, Hasher};
 pub use std::rc::{Rc as Ref, Weak};
 
 pub type List = Expression;
@@ -645,12 +646,23 @@ impl std::cmp::PartialEq for Expression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Procedure<E> {
     body: Ref<Expression>,
     params: Ref<Expression>,
     env: E,
     name: Symbol,
+}
+
+impl<E: Default> Default for Procedure<E> {
+    fn default() -> Self {
+        Procedure {
+            body: Ref::new(Expression::Nil),
+            params: Ref::new(Expression::Nil),
+            env: Default::default(),
+            name: "()".into(),
+        }
+    }
 }
 
 impl<E> Procedure<E> {
@@ -665,6 +677,14 @@ impl<E> Procedure<E> {
 
     pub fn env(&self) -> &E {
         &self.env
+    }
+
+    pub fn eqv(&self, other: &Self) -> bool {
+        Ref::ptr_eq(&self.body, &other.body)
+    }
+
+    pub fn equal(&self, other: &Self) -> bool {
+        self.body.equal(&other.body) && self.params.equal(&other.params)
     }
 }
 
@@ -700,14 +720,6 @@ impl Procedure<EnvRef> {
         (*self.params).clone()
     }
 
-    pub fn eqv(&self, other: &Self) -> bool {
-        Ref::ptr_eq(&self.body, &other.body)
-    }
-
-    pub fn equal(&self, other: &Self) -> bool {
-        self.body.equal(&other.body) && self.params.equal(&other.params)
-    }
-
     pub fn notify_call(&self, called_env: &EnvRef, calling_env: &EnvRef) {
         trace_procedure_call(self, called_env, calling_env);
         /*print!("calling {} ", self.name);
@@ -718,6 +730,20 @@ impl Procedure<EnvRef> {
             }
             None => println!("from an unknown location"),
         }*/
+    }
+}
+
+impl<T> Hash for Procedure<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let id = Ref::as_ref(&self.body) as *const _ as *const u8;
+        id.hash(state);
+    }
+}
+
+impl<T> Eq for Procedure<T> {}
+impl<T> PartialEq for Procedure<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.eqv(other)
     }
 }
 
@@ -749,6 +775,16 @@ impl From<Procedure<EnvWeak>> for Procedure<EnvRef> {
 impl From<Procedure<EnvWeak>> for Expression {
     fn from(proc: Procedure<EnvWeak>) -> Self {
         Expression::Procedure(proc.into())
+    }
+}
+
+impl<T> std::fmt::Debug for Procedure<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            Expression::cons_rc(Ref::new(self.name.into()), self.params.clone())
+        )
     }
 }
 

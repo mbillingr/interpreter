@@ -17,6 +17,7 @@ pub static LET: Symbol = Symbol { name: "let" };
 pub static OR: Symbol = Symbol { name: "or" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
 pub static SETVAR: Symbol = Symbol { name: "set!" };
+pub static TRACE: Symbol = Symbol { name: "trace" };
 
 pub static GREEK_LAMBDA: Symbol = Symbol { name: "\u{03BB}" };
 
@@ -48,7 +49,7 @@ fn static_name<T: AsRef<str> + ToString>(name: T) -> &'static str {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Symbol {
     name: &'static str,
 }
@@ -68,6 +69,7 @@ impl Symbol {
             n if n == OR.name() => OR,
             n if n == QUOTE.name() => QUOTE,
             n if n == SETVAR.name() => SETVAR,
+            n if n == TRACE.name() => TRACE,
             _ => Symbol {
                 name: static_name(name),
             },
@@ -101,6 +103,12 @@ impl Hash for Symbol {
 }
 
 impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+impl std::fmt::Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }

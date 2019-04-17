@@ -1,9 +1,9 @@
 use crate::environment::{EnvRef, EnvWeak};
 use crate::expression::{Expression, Procedure};
 use crate::symbol::Symbol;
-use lazy_static::lazy_static;
-use std::cell::RefCell;
-use std::sync::Mutex;
+use std::any::Any;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 
 pub trait Tracer {
     fn trace_procedure_call(
@@ -12,28 +12,57 @@ pub trait Tracer {
         inner_env: &EnvRef,
         outer_env: &EnvRef,
     );
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 thread_local! {
-    pub static TRACERS: RefCell<Vec<Box<dyn Tracer>>> = RefCell::new(vec![CallGraph::new()]);
+    static TRACERS: RefCell<HashMap<usize, Box<dyn Tracer>>> = RefCell::new(HashMap::new());
+    static NEXT_ID: Cell<usize> = Cell::new(0);
+}
+
+#[derive(Eq, PartialEq, Hash)]
+pub struct TracerId(usize);
+
+fn next_id() -> usize {
+    NEXT_ID.with(|id| id.replace(id.get() + 1))
 }
 
 pub fn trace_procedure_call(proc: &Procedure<EnvRef>, inner_env: &EnvRef, outer_env: &EnvRef) {
     TRACERS.with(|tracers| {
-        for tracer in tracers.borrow_mut().iter_mut() {
+        for tracer in tracers.borrow_mut().values_mut() {
             tracer.trace_procedure_call(proc, inner_env, outer_env);
         }
     });
 }
 
+pub fn install_tracer<T: Tracer + 'static>(tracer: T) -> TracerId {
+    TRACERS.with(|tracers| {
+        let mut tracers = tracers.borrow_mut();
+        let id = next_id();
+        tracers.insert(id, Box::new(tracer));
+        TracerId(id)
+    })
+}
+
+pub fn remove_tracer(id: TracerId) -> Box<dyn Tracer> {
+    TRACERS.with(|tracers| {
+        let mut tracers = tracers.borrow_mut();
+        tracers.remove(&id.0).unwrap()
+    })
+}
+
+#[derive(Debug)]
 struct Call {
-    caller: Option<Procedure<EnvWeak>>,
+    caller: Procedure<EnvWeak>,
     callee: Procedure<EnvWeak>,
     params: Vec<(Symbol, Expression)>,
 }
 
-struct CallGraph {
+#[derive(Debug)]
+pub struct CallGraph {
     call_history: Vec<Call>,
+    call_counts: HashMap<Procedure<EnvWeak>, HashMap<Procedure<EnvWeak>, usize>>,
 }
 
 impl Tracer for CallGraph {
@@ -43,9 +72,9 @@ impl Tracer for CallGraph {
         inner_env: &EnvRef,
         outer_env: &EnvRef,
     ) {
-        let caller = outer_env.borrow().current_procedure().cloned();
+        let caller = outer_env.borrow().current_procedure().clone();
         let mut caller_scope = outer_env.borrow().get_scope();
-        caller_scope.extend(caller.as_ref().map(|p| p.name()));
+        caller_scope.push(caller.name());
         let caller_string = caller_scope
             .into_iter()
             .map(|s| format!("{}", s))
@@ -75,19 +104,31 @@ impl Tracer for CallGraph {
         println!("{} -> {}", caller_string, callee_string);
 
         let call = Call {
-            caller: caller,
+            caller: caller.clone(),
             callee: callee.clone().into(),
             params,
         };
 
         self.call_history.push(call);
+
+        *self
+            .call_counts
+            .entry(caller)
+            .or_default()
+            .entry(callee.clone().into())
+            .or_insert(0) += 1;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
 impl CallGraph {
-    fn new() -> Box<Self> {
-        Box::new(CallGraph {
+    pub fn new() -> Self {
+        CallGraph {
             call_history: Vec::new(),
-        })
+            call_counts: HashMap::new(),
+        }
     }
 }

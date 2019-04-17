@@ -27,7 +27,7 @@ enum Entry {
 pub struct Environment {
     map: HashMap<Symbol, Entry>,
     parent: Option<EnvRef>,
-    current_procedure: Option<Procedure<EnvWeak>>,
+    current_procedure: Procedure<EnvWeak>,
 }
 
 impl Environment {
@@ -35,7 +35,7 @@ impl Environment {
         Environment {
             map: Default::default(),
             parent,
-            current_procedure: None,
+            current_procedure: Default::default(),
         }
     }
 
@@ -43,7 +43,7 @@ impl Environment {
         Environment {
             map: Default::default(),
             parent: Some(parent),
-            current_procedure: Some(proc.into()),
+            current_procedure: proc.into(),
         }
     }
 
@@ -55,8 +55,8 @@ impl Environment {
         self.parent.is_none()
     }
 
-    pub fn current_procedure(&self) -> Option<&Procedure<EnvWeak>> {
-        self.current_procedure.as_ref()
+    pub fn current_procedure(&self) -> &Procedure<EnvWeak> {
+        &self.current_procedure
     }
 
     pub fn lookup(&self, key: &Symbol) -> Option<Expression> {
@@ -157,12 +157,7 @@ impl Environment {
                 break;
             }
 
-            result.push(
-                env.borrow()
-                    .current_procedure()
-                    .map(|p| p.name())
-                    .unwrap_or("???".into()),
-            );
+            result.push(env.borrow().current_procedure().name());
         }
 
         result

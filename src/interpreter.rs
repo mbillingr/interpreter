@@ -2,6 +2,7 @@ use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Procedure};
 use crate::symbol;
+use crate::tracer::{install_tracer, remove_tracer, CallGraph};
 use std::borrow::Cow;
 
 pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
@@ -49,6 +50,16 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         return Ok(cdr.car()?.clone());
                     }
                     Symbol(s) if *s == symbol::SETVAR => return set_var(&cdr, &env),
+                    Symbol(s) if *s == symbol::TRACE => {
+                        let x = cdr.car()?;
+                        let tracer_id = install_tracer(CallGraph::new());
+                        let result = eval(x, env.clone());
+                        let trace = remove_tracer(tracer_id);
+                        let trace = trace.as_any().downcast_ref::<CallGraph>().unwrap();
+                        println!("{:#?}", trace);
+                        // todo: do something useful with the trace
+                        expr = Cow::Owned(result?);
+                    }
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
