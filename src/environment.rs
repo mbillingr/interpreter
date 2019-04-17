@@ -158,7 +158,7 @@ pub fn default_env() -> EnvRef {
 
         // interpreter functions
 
-        env.insert_native("apply", apply);
+        env.insert("apply", Expression::NativeIntrusive(apply));
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
         env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));
@@ -356,7 +356,7 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
     Ok(acc)
 }
 
-fn apply(list: Expression) -> Result<Expression> {
+fn apply(list: Expression, env: &EnvRef) -> Result<Expression> {
     let mut result = Expression::Nil;
     let mut in_cursor = &list;
     let mut out_cursor = &mut result;
@@ -383,5 +383,5 @@ fn apply(list: Expression) -> Result<Expression> {
     }
 
     let (proc, args) = result.decons()?;
-    interpreter::call(proc.clone(), args.clone())
+    interpreter::call(proc.clone(), args.clone(), env)
 }

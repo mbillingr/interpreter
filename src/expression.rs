@@ -6,6 +6,7 @@ use std::rc::Rc;
 pub type List = Expression;
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Expression>;
+pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
 
 #[derive(Clone)]
 pub enum Expression {
@@ -21,9 +22,7 @@ pub enum Expression {
     Pair(Rc<(Expression)>, Rc<(Expression)>),
     Procedure(Procedure<EnvRef>),
     Native(NativeFn),
-    // Yes, it's possible to make functions take arguments is iterators, but this introduces considerable complexity
-    // Also, the scheme standard expects all arguments to be evaluated before execution anyway...
-    //Native(fn(&mut dyn Iterator<Item=Result<Expression>>) -> Result<Expression>),
+    NativeIntrusive(NativeIntrusiveFn),
     Error(Rc<List>),
 }
 
@@ -408,7 +407,7 @@ impl std::fmt::Debug for Expression {
                 write!(f, ")")
             }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
-            Expression::Native(_) => write!(f, "<native>"),
+            Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
@@ -452,7 +451,7 @@ impl std::fmt::Display for Expression {
                 write!(f, ")")
             }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
-            Expression::Native(_) => write!(f, "<native>"),
+            Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
@@ -666,7 +665,7 @@ impl Procedure<EnvRef> {
     }
 
     pub fn notify_call(&self, _called_env: &EnvRef, _calling_env: Option<&EnvRef>) {
-        /*print!("calling function {} ", self.name);
+        /*print!("calling {} ", self.name);
         match calling_env {
             Some(pe) => match pe.borrow().current_procedure() {
                 Some(proc) => println!("from {}", proc.name),

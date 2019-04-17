@@ -23,7 +23,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
             | Procedure(_) | Error(_) => {
                 return Ok(expr.into_owned());
             }
-            Native(_) => return Ok(expr.into_owned()),
+            Native(_) | NativeIntrusive(_) => return Ok(expr.into_owned()),
             Pair(ref car, ref cdr) => {
                 match **cdr {
                     Expression::Nil => {}
@@ -60,6 +60,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                                 p.notify_call(&env, Some(&parent));
                             }
                             Native(func) => return func(args),
+                            NativeIntrusive(func) => return func(args, &env),
                             x => {
                                 return Err(
                                     ErrorKind::TypeError(format!("not callable: {:?}", x)).into()
@@ -73,11 +74,11 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     }
 }
 
-pub fn call(proc: Expression, args: Expression) -> Result<Expression> {
+pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<Expression> {
     match proc {
         Expression::Procedure(p) => {
             let env = p.new_local_env(args)?;
-            p.notify_call(&env, None);
+            p.notify_call(&env, Some(calling_env));
             eval(&p.body_ex(), env)
         }
         Expression::Native(func) => func(args),
