@@ -1,8 +1,7 @@
 use crate::errors::*;
-use crate::expression::Expression;
+use crate::expression::{Expression, Ref};
 use crate::lexer::Token;
 use crate::symbol;
-use std::rc::Rc;
 
 enum ParserState {
     List(Expression),
@@ -25,7 +24,7 @@ impl Parser {
 
     fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
         let mut expr = match token {
-            Token::String(s) => Expression::String(Rc::new(s)),
+            Token::String(s) => Expression::String(Ref::new(s)),
             Token::Symbol(s) => Expression::from_literal(s),
             Token::ListOpen => {
                 self.list_stack.push(ParserState::List(Expression::Nil));
@@ -115,7 +114,7 @@ fn transform_cond(list: &Expression) -> Result<Expression> {
             Expression::Pair(car, cdr) => {
                 let car = if let Expression::Symbol(s) = &**car {
                     if *s == symbol::ELSE {
-                        Rc::new(Expression::True)
+                        Ref::new(Expression::True)
                     } else {
                         car.clone()
                     }

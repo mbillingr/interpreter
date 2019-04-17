@@ -2,7 +2,8 @@ use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
 use crate::symbol::{self, Symbol};
 use crate::tracer::trace_procedure_call;
-use std::rc::Rc;
+
+pub use std::rc::{Rc as Ref, Weak};
 
 pub type List = Expression;
 pub type Args = Expression;
@@ -14,17 +15,17 @@ pub enum Expression {
     Undefined,
     Nil,
     Symbol(Symbol),
-    String(Rc<String>),
+    String(Ref<String>),
     Char(char),
     Integer(i64),
     Float(f64),
     True,
     False,
-    Pair(Rc<(Expression)>, Rc<(Expression)>),
+    Pair(Ref<(Expression)>, Ref<(Expression)>),
     Procedure(Procedure<EnvRef>),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
-    Error(Rc<List>),
+    Error(Ref<List>),
 }
 
 impl Expression {
@@ -63,7 +64,7 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Rc::new(car.into()), Rc::new(cdr.into()))
+        Expression::Pair(Ref::new(car.into()), Ref::new(cdr.into()))
     }
 
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {
@@ -73,11 +74,11 @@ impl Expression {
         }
     }
 
-    pub fn cons_rc(car: Rc<Expression>, cdr: Rc<Expression>) -> Self {
+    pub fn cons_rc(car: Ref<Expression>, cdr: Ref<Expression>) -> Self {
         Expression::Pair(car, cdr)
     }
 
-    pub fn decons_rc(&self) -> Result<(&Rc<Expression>, &Rc<Expression>)> {
+    pub fn decons_rc(&self) -> Result<(&Ref<Expression>, &Ref<Expression>)> {
         match self {
             Expression::Pair(car, cdr) => Ok((car, cdr)),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
@@ -101,7 +102,7 @@ impl Expression {
     pub fn car_mut(&mut self) -> Result<&mut Expression> {
         match self {
             Expression::Pair(car, _) => {
-                Ok(Rc::get_mut(car).expect("mutable reference must be unique"))
+                Ok(Ref::get_mut(car).expect("mutable reference must be unique"))
             }
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
@@ -110,7 +111,7 @@ impl Expression {
     pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
         match self {
             Expression::Pair(_, cdr) => {
-                Ok(Rc::get_mut(cdr).expect("mutable reference must be unique"))
+                Ok(Ref::get_mut(cdr).expect("mutable reference must be unique"))
             }
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
@@ -290,14 +291,14 @@ impl Expression {
         match (self, rhs) {
             (Integer(a), Integer(b)) => a == b,
             (Float(a), Float(b)) => float_eq(*a, *b),
-            (String(a), String(b)) => Rc::ptr_eq(a, b),
+            (String(a), String(b)) => Ref::ptr_eq(a, b),
             (Symbol(a), Symbol(b)) => a == b,
             (Char(a), Char(b)) => a == b,
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
             (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => {
-                Rc::ptr_eq(a_car, b_car) && Rc::ptr_eq(a_cdr, b_cdr)
+                Ref::ptr_eq(a_car, b_car) && Ref::ptr_eq(a_cdr, b_cdr)
             }
             (Procedure(a), Procedure(b)) => a.eqv(b),
             (Native(a), Native(b)) => a == b,
@@ -503,7 +504,7 @@ impl std::fmt::Display for Expression {
 
 impl From<&str> for Expression {
     fn from(s: &str) -> Self {
-        Expression::String(Rc::new(s.into()))
+        Expression::String(Ref::new(s.into()))
     }
 }
 
@@ -515,7 +516,7 @@ impl From<Symbol> for Expression {
 
 impl From<String> for Expression {
     fn from(s: String) -> Self {
-        Expression::String(Rc::new(s))
+        Expression::String(Ref::new(s))
     }
 }
 
@@ -646,8 +647,8 @@ impl std::cmp::PartialEq for Expression {
 
 #[derive(Debug, Clone)]
 pub struct Procedure<E> {
-    body: Rc<Expression>,
-    params: Rc<Expression>,
+    body: Ref<Expression>,
+    params: Ref<Expression>,
     env: E,
     name: Symbol,
 }
@@ -668,7 +669,7 @@ impl<E> Procedure<E> {
 }
 
 impl Procedure<EnvRef> {
-    pub fn new(params: Rc<Expression>, body: Rc<Expression>, env: EnvRef) -> Self {
+    pub fn new(params: Ref<Expression>, body: Ref<Expression>, env: EnvRef) -> Self {
         Procedure {
             body,
             params,
@@ -679,8 +680,8 @@ impl Procedure<EnvRef> {
 
     pub fn build(signature: Expression, body: Expression, env: &EnvRef) -> Result<Self> {
         Ok(Procedure::new(
-            Rc::new(signature),
-            Rc::new(body),
+            Ref::new(signature),
+            Ref::new(body),
             env.clone(),
         ))
     }
@@ -700,7 +701,7 @@ impl Procedure<EnvRef> {
     }
 
     pub fn eqv(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.body, &other.body)
+        Ref::ptr_eq(&self.body, &other.body)
     }
 
     pub fn equal(&self, other: &Self) -> bool {
@@ -725,7 +726,7 @@ impl From<Procedure<EnvRef>> for Procedure<EnvWeak> {
         Procedure {
             body: proc.body,
             params: proc.params,
-            env: Rc::downgrade(&proc.env),
+            env: Ref::downgrade(&proc.env),
             name: proc.name,
         }
     }

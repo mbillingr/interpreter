@@ -1,20 +1,19 @@
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Procedure};
+use crate::expression::{Args, Expression, NativeFn, Procedure, Ref, Weak};
 use crate::interpreter;
 use crate::symbol::Symbol;
 use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
-use std::rc::{Rc, Weak};
 use std::time::SystemTime;
 
-pub type EnvRef = Rc<RefCell<Environment>>;
+pub type EnvRef = Ref<RefCell<Environment>>;
 pub type EnvWeak = Weak<RefCell<Environment>>;
 
 impl From<Environment> for EnvRef {
     fn from(env: Environment) -> Self {
-        Rc::new(RefCell::new(env))
+        Ref::new(RefCell::new(env))
     }
 }
 

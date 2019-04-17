@@ -1,9 +1,11 @@
-use crate::environment::EnvRef;
-use crate::expression::Procedure;
+use crate::environment::{EnvRef, EnvWeak};
+use crate::expression::{Expression, Procedure};
+use crate::symbol::Symbol;
 use lazy_static::lazy_static;
+use std::cell::RefCell;
 use std::sync::Mutex;
 
-pub trait Tracer: Send {
+pub trait Tracer {
     fn trace_procedure_call(
         &mut self,
         proc: &Procedure<EnvRef>,
@@ -12,17 +14,27 @@ pub trait Tracer: Send {
     );
 }
 
-lazy_static! {
-    static ref TRACERS: Mutex<Vec<Box<dyn Tracer>>> = Mutex::new(vec![CallGraph::new()]);
+thread_local! {
+    pub static TRACERS: RefCell<Vec<Box<dyn Tracer>>> = RefCell::new(vec![CallGraph::new()]);
 }
 
 pub fn trace_procedure_call(proc: &Procedure<EnvRef>, inner_env: &EnvRef, outer_env: &EnvRef) {
-    for tracer in TRACERS.lock().unwrap().iter_mut() {
-        tracer.trace_procedure_call(proc, inner_env, outer_env);
-    }
+    TRACERS.with(|tracers| {
+        for tracer in tracers.borrow_mut().iter_mut() {
+            tracer.trace_procedure_call(proc, inner_env, outer_env);
+        }
+    });
 }
 
-struct CallGraph {}
+struct Call {
+    caller: Option<Procedure<EnvWeak>>,
+    callee: Procedure<EnvWeak>,
+    params: Vec<(Symbol, Expression)>,
+}
+
+struct CallGraph {
+    call_history: Vec<Call>,
+}
 
 impl Tracer for CallGraph {
     fn trace_procedure_call(
@@ -31,8 +43,9 @@ impl Tracer for CallGraph {
         inner_env: &EnvRef,
         outer_env: &EnvRef,
     ) {
+        let caller = outer_env.borrow().current_procedure().cloned();
         let mut caller_scope = outer_env.borrow().get_scope();
-        caller_scope.extend(outer_env.borrow().current_procedure().map(|p| p.name()));
+        caller_scope.extend(caller.as_ref().map(|p| p.name()));
         let caller_string = caller_scope
             .into_iter()
             .map(|s| format!("{}", s))
@@ -53,25 +66,28 @@ impl Tracer for CallGraph {
             .unwrap()
             .into_iter()
             .map(|a| {
-                let val = inner_env
-                    .borrow()
-                    .lookup(a.try_as_symbol().unwrap())
-                    .unwrap();
-                format!("{}: {}", a, val.short_repr())
+                let param = a.try_as_symbol().unwrap();
+                let arg = inner_env.borrow().lookup(param).unwrap();
+                (*param, arg)
             })
             .collect();
 
-        println!(
-            "{} -> {}({})",
-            caller_string,
-            callee_string,
-            params.join(", ")
-        );
+        println!("{} -> {}", caller_string, callee_string);
+
+        let call = Call {
+            caller: caller,
+            callee: callee.clone().into(),
+            params,
+        };
+
+        self.call_history.push(call);
     }
 }
 
 impl CallGraph {
     fn new() -> Box<Self> {
-        Box::new(CallGraph {})
+        Box::new(CallGraph {
+            call_history: Vec::new(),
+        })
     }
 }

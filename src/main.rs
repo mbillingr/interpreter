@@ -22,12 +22,11 @@ use crate::io::LineReader;
 use environment::{default_env, EnvRef};
 use error_chain::ChainedError;
 use errors::*;
-use expression::Expression;
+use expression::{Expression, Ref};
 use interpreter::eval;
 use lexer::Lexer;
 use parser::Parser;
 use std::env;
-use std::rc::Rc;
 
 const LINE_PROMPT: &str = ">> ";
 const MULTI_PROMPT: &str = " ... ";
@@ -82,7 +81,7 @@ fn main() {
     }
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
-    input.set_env(Rc::downgrade(&global));
+    input.set_env(Ref::downgrade(&global));
 
     loop {
         input.set_prompt(LINE_PROMPT);
