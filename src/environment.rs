@@ -234,6 +234,8 @@ pub fn default_env() -> EnvRef {
         // numerical operations
 
         env.insert_native("number?", |args| Ok(car(&args)?.is_number().into()));
+        env.insert_native("exact?", |args| Ok(car(&args)?.is_exact().into()));
+        env.insert_native("integer?", |args| Ok(car(&args)?.is_integer().into()));
         env.insert_native("+", |args| native_fold(args, X::zero(), X::add));
         env.insert_native("*", |args| native_fold(args, X::one(), X::mul));
         env.insert_native("-", |args| native_unifold(args, X::zero(), X::sub));
