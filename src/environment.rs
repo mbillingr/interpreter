@@ -242,6 +242,7 @@ pub fn default_env() -> EnvRef {
         env.insert_native("/", |args| native_unifold(args, X::one(), X::div));
         env.insert_native("min", |args| native_fold2(args, X::min));
         env.insert_native("max", |args| native_fold2(args, X::max));
+        env.insert_native("round", |args| car(&args)?.round());
         env.insert_native("remainder", |args| {
             native_binary(args, X::truncate_remainder)
         });

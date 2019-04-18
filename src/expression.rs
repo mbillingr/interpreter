@@ -332,6 +332,14 @@ impl Expression {
         }
     }
 
+    pub fn round(&self) -> Result<Self> {
+        match self {
+            Expression::Integer(i) => Ok(Expression::Integer(*i)),
+            Expression::Float(f) => Ok(Expression::Integer(f.round() as i64)),
+            _ => Err(ErrorKind::TypeError(format!("not a number: {}", self)).into()),
+        }
+    }
+
     pub fn truncate_quotient(&self, other: &Self) -> Result<Self> {
         use Expression::*;
         match (self, other) {
