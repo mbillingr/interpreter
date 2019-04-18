@@ -1,7 +1,7 @@
 use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure, Ref, Weak};
 use crate::interpreter;
-use crate::symbol::Symbol;
+use crate::symbol::{self, Symbol};
 use rand::Rng;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -23,7 +23,6 @@ enum Entry {
     Procedure(Procedure<EnvWeak>),
 }
 
-#[derive(Debug)]
 pub struct Environment {
     map: HashMap<Symbol, Entry>,
     parent: Option<EnvRef>,
@@ -57,6 +56,10 @@ impl Environment {
 
     pub fn current_procedure(&self) -> &Procedure<EnvWeak> {
         &self.current_procedure
+    }
+
+    pub fn name(&self) -> Symbol {
+        self.current_procedure.name()
     }
 
     pub fn lookup(&self, key: &Symbol) -> Option<Expression> {
@@ -117,7 +120,7 @@ impl Environment {
                     names = &Expression::Nil;
                     args = &Expression::Nil;
                 }
-                (Expression::Pair(car, cdr), _) if car.is_named_symbol(".") => {
+                (Expression::Pair(car, cdr), _) if car.is_named_symbol(symbol::DOT) => {
                     name = cdr.car()?.try_as_symbol()?;
                     names = cdr.cdr()?;
                     arg = args;
@@ -161,6 +164,22 @@ impl Environment {
         }
 
         result
+    }
+}
+
+impl std::fmt::Debug for Environment {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Environment {}: {{", self.name())?;
+        for (i, (k, v)) in self.map.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            match v {
+                Entry::Value(x) => write!(f, "{}: {}", k, x)?,
+                Entry::Procedure(p) => write!(f, "{}: {:?}", k, p)?,
+            }
+        }
+        write!(f, "}}")
     }
 }
 

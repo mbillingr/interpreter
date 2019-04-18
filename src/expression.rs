@@ -207,9 +207,9 @@ impl Expression {
         }
     }
 
-    pub fn is_named_symbol(&self, name: &str) -> bool {
+    pub fn is_named_symbol<T: AsRef<str>>(&self, name: T) -> bool {
         match self {
-            Expression::Symbol(s) => s.name() == name,
+            Expression::Symbol(s) => s.name() == name.as_ref(),
             _ => false,
         }
     }
@@ -708,16 +708,16 @@ impl Procedure<EnvRef> {
 
     pub fn new_local_env(&self, args: Expression) -> Result<EnvRef> {
         let mut env = Environment::new_child(self.env.clone(), self.clone());
-        env.set_vars(self.params_ex(), args)?;
+        env.set_vars(self.params_ex().clone(), args)?;
         Ok(env.into())
     }
 
-    pub fn body_ex(&self) -> Expression {
-        (*self.body).clone()
+    pub fn body_ex(&self) -> &Expression {
+        &self.body
     }
 
-    pub fn params_ex(&self) -> Expression {
-        (*self.params).clone()
+    pub fn params_ex(&self) -> &Expression {
+        &self.params
     }
 
     pub fn notify_call(&self, called_env: &EnvRef, calling_env: &EnvRef) {

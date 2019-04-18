@@ -9,6 +9,7 @@ pub static AND: Symbol = Symbol { name: "and" };
 pub static BEGIN: Symbol = Symbol { name: "begin" };
 pub static COND: Symbol = Symbol { name: "cond" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
+pub static DOT: Symbol = Symbol { name: "." };
 pub static ELSE: Symbol = Symbol { name: "else" };
 pub static EVAL: Symbol = Symbol { name: "eval" };
 pub static IF: Symbol = Symbol { name: "if" };
@@ -61,6 +62,7 @@ impl Symbol {
             n if n == BEGIN.name() => BEGIN,
             n if n == COND.name() => COND,
             n if n == DEFINE.name() => DEFINE,
+            n if n == DOT.name() => DOT,
             n if n == ELSE.name() => ELSE,
             n if n == EVAL.name() => EVAL,
             n if n == IF.name() => IF,
@@ -70,6 +72,7 @@ impl Symbol {
             n if n == QUOTE.name() => QUOTE,
             n if n == SETVAR.name() => SETVAR,
             n if n == TRACE.name() => TRACE,
+            n if n == GREEK_LAMBDA.name() => GREEK_LAMBDA,
             _ => Symbol {
                 name: static_name(name),
             },
@@ -84,6 +87,12 @@ impl Symbol {
 impl From<&str> for Symbol {
     fn from(s: &str) -> Self {
         Symbol::new(s)
+    }
+}
+
+impl AsRef<str> for Symbol {
+    fn as_ref(&self) -> &str {
+        self.name
     }
 }
 

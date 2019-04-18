@@ -67,7 +67,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             Procedure(p) => {
                                 let parent = env;
                                 env = p.new_local_env(args)?;
-                                expr = Cow::Owned(p.body_ex());
+                                expr = Cow::Owned(p.body_ex().clone());
                                 p.notify_call(&env, &parent);
                             }
                             Native(func) => return func(args),

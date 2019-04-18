@@ -1,6 +1,6 @@
 use crate::environment::{EnvRef, EnvWeak};
 use crate::expression::{Expression, Procedure};
-use crate::symbol::Symbol;
+use crate::symbol::{self, Symbol};
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -89,17 +89,27 @@ impl Tracer for CallGraph {
             .collect::<Vec<_>>()
             .join(".");
 
-        let params: Vec<_> = callee
-            .params_ex()
-            .try_to_vec()
-            .unwrap()
-            .into_iter()
-            .map(|a| {
-                let param = a.try_as_symbol().unwrap();
-                let arg = inner_env.borrow().lookup(param).unwrap();
-                (*param, arg)
-            })
-            .collect();
+        println!("{:?}", callee.params_ex());
+        println!("{:?}", inner_env.borrow());
+
+        let mut params = vec![];
+        let mut param = callee.params_ex();
+        loop {
+            let p = match param {
+                Expression::Nil => break,
+                Expression::Symbol(s) => s,
+                Expression::Pair(car, cdr) if car.is_symbol() => {
+                    param = cdr;
+                    car.try_as_symbol().unwrap()
+                }
+                _ => unreachable!(), // there should never be any other type than symbols in the parameter list
+            };
+
+            if *p != symbol::DOT {
+                let arg = inner_env.borrow().lookup(dbg!(p)).unwrap();
+                params.push((*p, arg));
+            }
+        }
 
         println!("{} -> {}", caller_string, callee_string);
 
