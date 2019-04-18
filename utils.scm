@@ -130,7 +130,7 @@
 ;;   (this is a very crude implementation using unordered lists)
 ;; ==========================================
 
-(define (impl-put-get)
+(define (impl-table)
   (define dispatch-table '())
 
   (define (make-record key value) (cons key value))
@@ -183,9 +183,15 @@
 
 (define put '())
 (define get '())
-(let ((put_get (impl-put-get)))
+(let ((put_get (impl-table)))
   (set! put (car put_get))
   (set! get (cadr put_get)))
+
+(define put-coercion '())
+(define get-coercion '())
+(let ((put_get (impl-table)))
+  (set! put-coercion (car put_get))
+  (set! get-coercion (cadr put_get)))
 
 
 ;; ==========================================
