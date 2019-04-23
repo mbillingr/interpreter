@@ -9,15 +9,21 @@ pub static AND: Symbol = Symbol { name: "and" };
 pub static BEGIN: Symbol = Symbol { name: "begin" };
 pub static COND: Symbol = Symbol { name: "cond" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
+pub static DEFINE_LIBRARY: Symbol = Symbol {
+    name: "define-library",
+};
 pub static DOT: Symbol = Symbol { name: "." };
 pub static ELSE: Symbol = Symbol { name: "else" };
 pub static EVAL: Symbol = Symbol { name: "eval" };
+pub static EXPORT: Symbol = Symbol { name: "export" };
 pub static IF: Symbol = Symbol { name: "if" };
+pub static IMPORT: Symbol = Symbol { name: "import" };
 pub static INCLUDE: Symbol = Symbol { name: "include" };
 pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
 pub static OR: Symbol = Symbol { name: "or" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
+pub static RENAME: Symbol = Symbol { name: "rename" };
 pub static SETVAR: Symbol = Symbol { name: "set!" };
 pub static TRACE: Symbol = Symbol { name: "trace" };
 
@@ -63,15 +69,19 @@ impl Symbol {
             n if n == BEGIN.name() => BEGIN,
             n if n == COND.name() => COND,
             n if n == DEFINE.name() => DEFINE,
+            n if n == DEFINE_LIBRARY.name() => DEFINE_LIBRARY,
             n if n == DOT.name() => DOT,
             n if n == ELSE.name() => ELSE,
             n if n == EVAL.name() => EVAL,
+            n if n == EXPORT.name() => EXPORT,
             n if n == IF.name() => IF,
+            n if n == IMPORT.name() => IMPORT,
             n if n == INCLUDE.name() => INCLUDE,
             n if n == LAMBDA.name() => LAMBDA,
             n if n == LET.name() => LET,
             n if n == OR.name() => OR,
             n if n == QUOTE.name() => QUOTE,
+            n if n == RENAME.name() => RENAME,
             n if n == SETVAR.name() => SETVAR,
             n if n == TRACE.name() => TRACE,
             n if n == GREEK_LAMBDA.name() => GREEK_LAMBDA,

@@ -152,7 +152,7 @@ fn transform_cond(list: &Expression) -> Result<Expression> {
 }
 
 fn transform_if(list: &Expression) -> Result<Expression> {
-    let mut list = list.iter_list()?;
+    let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(if)), list.next_expr()?);
     let cond = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
@@ -163,7 +163,7 @@ fn transform_if(list: &Expression) -> Result<Expression> {
 }
 
 fn transform_let(list: &Expression) -> Result<Expression> {
-    let mut list = list.iter_list()?;
+    let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(let)), list.next_expr()?);
 
@@ -177,8 +177,8 @@ fn transform_let(list: &Expression) -> Result<Expression> {
     let mut var_cursor = &mut vars;
     let mut exp_cursor = &mut exps;
 
-    for vx in assignments.iter_list()? {
-        let mut vx = vx?.iter_list()?;
+    for vx in assignments.iter_list() {
+        let mut vx = vx?.iter_list();
         let var = vx.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
         let exp = vx.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
 
@@ -217,7 +217,7 @@ fn transform_and(list: &Expression) -> Result<Expression> {
 }
 
 fn transform_include(list: &Expression) -> Result<Expression> {
-    let mut list = list.iter_list()?;
+    let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
 
     let mut result = scheme!((begin));

@@ -14,11 +14,14 @@ mod expression;
 mod interpreter;
 mod io;
 mod lexer;
+mod libraries;
 mod parser;
 mod symbol;
 mod tracer;
 
+use crate::environment::Environment;
 use crate::io::LineReader;
+use crate::libraries::import_library;
 use environment::{default_env, EnvRef};
 use error_chain::ChainedError;
 use errors::*;
@@ -66,7 +69,7 @@ fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
 }
 
 fn main() {
-    let global = default_env();
+    let global: EnvRef = Environment::new(None).into();
 
     for arg in env::args().skip(1) {
         match arg {
@@ -79,6 +82,9 @@ fn main() {
             }
         }
     }
+
+    // make the core library available to the repl
+    import_library(&scheme! {((builtin, core))}, &global).unwrap();
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
     input.set_env(Ref::downgrade(&global));

@@ -1,6 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Procedure};
+use crate::libraries::{define_library, import_library, store_library};
 use crate::symbol;
 use crate::tracer::{install_tracer, remove_tracer, CallGraph};
 use std::borrow::Cow;
@@ -39,12 +40,23 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         Return::TailCall(ex) => expr = Cow::Owned(ex),
                     },
                     Symbol(s) if *s == symbol::DEFINE => return define(&cdr, &env),
+                    Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
+                        let name = cdr.car()?;
+                        let declarations = cdr.cdr()?;
+                        let lib = define_library(declarations)?;
+                        store_library(name, lib)?;
+                        return Ok(Expression::Undefined);
+                    }
                     Symbol(s) if *s == symbol::LAMBDA => return lambda(&cdr, &env),
                     Symbol(s) if *s == symbol::IF => {
                         expr = Cow::Owned(if_form(&cdr, env.clone())?.clone())
                     }
                     Symbol(s) if *s == symbol::EVAL => {
                         expr = Cow::Owned(eval(cdr.car()?, env.clone())?);
+                    }
+                    Symbol(s) if *s == symbol::IMPORT => {
+                        import_library(cdr, &env)?;
+                        return Ok(Expression::Undefined);
                     }
                     Symbol(s) if *s == symbol::QUOTE => {
                         return Ok(cdr.car()?.clone());

@@ -1,4 +1,6 @@
 
+(import (builtin core))
+
 (define nil (list))
 (define false #f)
 (define true #t)

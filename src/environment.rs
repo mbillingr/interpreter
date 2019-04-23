@@ -17,8 +17,8 @@ impl From<Environment> for EnvRef {
     }
 }
 
-#[derive(Debug)]
-enum Entry {
+#[derive(Debug, Clone)]
+pub enum Entry {
     Value(Expression),
     Procedure(Procedure<EnvWeak>),
 }
@@ -87,6 +87,10 @@ impl Environment {
         self.map.insert(key, self.expr_to_entry(key, expr));
     }
 
+    pub fn insert_entry<K: Into<Symbol>>(&mut self, key: K, entry: Entry) {
+        self.map.insert(key.into(), entry);
+    }
+
     fn expr_to_entry(&self, key: Symbol, expr: Expression) -> Entry {
         // avoid Rc loops by storing functions that refer to the
         // environment they live in as weak references.
@@ -149,6 +153,17 @@ impl Environment {
         keys.into_iter()
     }
 
+    pub fn items(&self) -> impl Iterator<Item = (&Symbol, &Entry)> {
+        /*let mut keys: Vec<_> = self.map.keys().cloned().collect();
+        keys.extend(
+            self.parent
+                .iter()
+                .flat_map(|parent| parent.borrow().all_keys()),
+        );
+        keys.into_iter()*/
+        self.map.iter()
+    }
+
     pub fn get_scope(&self) -> Vec<Symbol> {
         let mut result = vec![];
 
@@ -164,6 +179,22 @@ impl Environment {
         }
 
         result
+    }
+
+    pub fn export(&self, names: &HashMap<Symbol, Symbol>) -> Environment {
+        Environment {
+            map: self
+                .map
+                .iter()
+                .filter_map(|(name, entry)| {
+                    names
+                        .get(name)
+                        .map(|&export_name| (export_name, (*entry).clone()))
+                })
+                .collect(),
+            parent: self.parent.clone(),
+            current_procedure: self.current_procedure.clone(),
+        }
     }
 }
 
@@ -332,7 +363,7 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     mut acc: Expression,
     func: F,
 ) -> Result<Expression> {
-    for b in args.iter_list()? {
+    for b in args.iter_list() {
         acc = func(acc, b?.clone())?;
     }
     Ok(acc)
@@ -346,7 +377,7 @@ fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
 ) -> Result<Expression> {
     let (acc, tail) = args.decons()?;
     let mut acc = acc.clone();
-    for b in tail.iter_list()? {
+    for b in tail.iter_list() {
         acc = func(acc, b?.clone())?;
     }
     Ok(acc)
@@ -357,7 +388,7 @@ fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
     args: Args,
     pred: F,
 ) -> Result<Expression> {
-    let mut args = args.iter_list()?;
+    let mut args = args.iter_list();
 
     let mut a = match args.next_expr()? {
         None => return Ok(Expression::True),
@@ -383,7 +414,7 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
     mut acc: Expression,
     func: F,
 ) -> Result<Expression> {
-    let mut args = args.iter_list()?;
+    let mut args = args.iter_list();
 
     let first = args.next_expr()?.ok_or(ErrorKind::ArgumentError)?.clone();
 

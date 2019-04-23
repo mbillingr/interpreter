@@ -118,13 +118,13 @@ impl Expression {
         }
     }
 
-    pub fn iter_list(&self) -> Result<ListIterator> {
+    pub fn iter_list(&self) -> ListIterator {
         ListIterator::from_expression(self)
     }
 
     pub fn len(&self) -> Result<usize> {
         let mut n = 0;
-        for x in self.iter_list()? {
+        for x in self.iter_list() {
             x?;
             n += 1;
         }
@@ -135,7 +135,7 @@ impl Expression {
         let mut start = Expression::Nil;
         let mut current = &mut start;
 
-        for x in self.iter_list()? {
+        for x in self.iter_list() {
             *current = Expression::cons(x?.clone(), Expression::Nil);
             current = current.cdr_mut().unwrap();
         }
@@ -274,7 +274,7 @@ impl Expression {
     }
 
     pub fn try_to_vec(&self) -> Result<Vec<Expression>> {
-        self.iter_list()?.map(|r| r.map(Clone::clone)).collect()
+        self.iter_list().map(|r| r.map(Clone::clone)).collect()
     }
 
     pub fn logical_and(self, other: Self) -> Result<Self> {
@@ -472,7 +472,6 @@ impl std::fmt::Debug for Expression {
             Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
-                    .unwrap()
                     .map(|item| format!("{:?}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
@@ -516,7 +515,6 @@ impl std::fmt::Display for Expression {
             Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
-                    .unwrap()
                     .map(|item| format!("{}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
@@ -815,8 +813,8 @@ pub struct ListIterator<'a> {
 }
 
 impl<'a> ListIterator<'a> {
-    pub fn from_expression(expr: &'a Expression) -> Result<Self> {
-        Ok(ListIterator { next_pair: expr })
+    pub fn from_expression(expr: &'a Expression) -> Self {
+        ListIterator { next_pair: expr }
     }
 
     pub fn next_expr(&mut self) -> Result<Option<&'a Expression>> {
