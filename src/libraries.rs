@@ -59,6 +59,7 @@ pub fn import_library(import_sets: &Expression, env: &EnvRef) -> Result<()> {
     for imp in import_sets.iter_list() {
         let imp = imp?;
         match imp.car()? {
+            // todo: only, except, prefix, rename
             _ => get_library(&libname(imp)?)?.import(env),
         }
     }
