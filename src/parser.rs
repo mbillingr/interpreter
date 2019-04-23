@@ -1,7 +1,27 @@
 use crate::errors::*;
 use crate::expression::{Expression, Ref};
+use crate::lexer::Lexer;
 use crate::lexer::Token;
 use crate::symbol;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub fn parse_file(path: impl AsRef<Path>) -> Result<Expression> {
+    let mut lexer = Lexer::new();
+    let mut parser = Parser::new();
+
+    let mut result = Expression::Nil;
+    let mut cursor = &mut result;
+
+    for token in lexer.tokenize(fs::read_to_string(path)?)? {
+        if let Some(expr) = parser.push_token(token.into())? {
+            *cursor = Expression::cons(expr, Expression::Nil);
+            cursor = cursor.cdr_mut()?;
+        }
+    }
+
+    Ok(result)
+}
 
 enum ParserState {
     List(Expression),
@@ -64,6 +84,7 @@ fn transform(expr: &Expression) -> Result<Expression> {
             Symbol(s) if s == symbol::COND => transform_cond(expr),
             Symbol(s) if s == symbol::DEFINE => transform_define(expr),
             Symbol(s) if s == symbol::IF => transform_if(expr),
+            Symbol(s) if s == symbol::INCLUDE => transform_include(expr),
             Symbol(s) if s == symbol::LAMBDA => transform_lambda(expr),
             Symbol(s) if s == symbol::LET => transform_let(expr),
             Symbol(s) if s == symbol::OR => transform_or(expr),
@@ -192,5 +213,31 @@ fn transform_and(list: &Expression) -> Result<Expression> {
             &scheme!(if, @(**car).clone(), @transform_and(&scheme!(and, ...(**cdr).clone()))?, #f),
         ),
         _ => unreachable!(),
+    }
+}
+
+fn transform_include(list: &Expression) -> Result<Expression> {
+    let mut list = list.iter_list()?;
+    assert_eq!(Some(&scheme!(include)), list.next_expr()?);
+
+    let mut result = scheme!((begin));
+
+    for filename in list {
+        let filename = filename?.try_as_str()?;
+        let path =
+            find_file(filename).ok_or_else(|| ErrorKind::FileNotFoundError(filename.to_owned()))?;
+        result = result.append(parse_file(path)?)?;
+    }
+
+    Ok(result)
+}
+
+/// super primitive implementation that does not attempt any search path and file extension magic.
+fn find_file(path: impl AsRef<Path>) -> Option<PathBuf> {
+    let path = path.as_ref();
+    if path.is_file() {
+        Some(path.to_owned())
+    } else {
+        None
     }
 }

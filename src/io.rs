@@ -4,6 +4,7 @@ use crate::errors::Result;
 use rustyline::Editor;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 
 pub trait LineReader {
     fn read_line(&mut self) -> Result<String>;
@@ -55,7 +56,7 @@ pub struct FileInput {
 }
 
 impl FileInput {
-    pub fn new(filename: &str) -> Result<Self> {
+    pub fn new(filename: impl AsRef<Path>) -> Result<Self> {
         Ok(FileInput {
             file: BufReader::new(File::open(filename)?),
             eof: false,

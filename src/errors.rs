@@ -52,6 +52,10 @@ mod errors_impl {
                 display("Expected character '{}' but found '{}'", expected, got)
             }
 
+            FileNotFoundError(filename: String) {
+                display("File not found: {}", filename)
+            }
+
             Utf8Error
         }
 

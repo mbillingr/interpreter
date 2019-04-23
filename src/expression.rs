@@ -259,6 +259,13 @@ impl Expression {
         }
     }
 
+    pub fn try_as_str(&self) -> Result<&str> {
+        match self {
+            Expression::String(s) => Ok(s),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a String.", self)).into()),
+        }
+    }
+
     pub fn try_into_symbol(self) -> Result<Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),

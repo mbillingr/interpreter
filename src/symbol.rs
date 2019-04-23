@@ -13,6 +13,7 @@ pub static DOT: Symbol = Symbol { name: "." };
 pub static ELSE: Symbol = Symbol { name: "else" };
 pub static EVAL: Symbol = Symbol { name: "eval" };
 pub static IF: Symbol = Symbol { name: "if" };
+pub static INCLUDE: Symbol = Symbol { name: "include" };
 pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
 pub static OR: Symbol = Symbol { name: "or" };
@@ -66,6 +67,7 @@ impl Symbol {
             n if n == ELSE.name() => ELSE,
             n if n == EVAL.name() => EVAL,
             n if n == IF.name() => IF,
+            n if n == INCLUDE.name() => INCLUDE,
             n if n == LAMBDA.name() => LAMBDA,
             n if n == LET.name() => LET,
             n if n == OR.name() => OR,
