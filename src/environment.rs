@@ -218,6 +218,10 @@ fn car(x: &Expression) -> Result<&Expression> {
     x.car().map_err(|_| ErrorKind::ArgumentError.into())
 }
 
+fn cdr(x: &Expression) -> Result<&Expression> {
+    x.cdr().map_err(|_| ErrorKind::ArgumentError.into())
+}
+
 pub fn default_env() -> EnvRef {
     use Expression as X;
 
@@ -315,6 +319,16 @@ pub fn default_env() -> EnvRef {
         env.insert_native("cos", |args| {
             let x = car(&args)?;
             Ok(x.try_as_float()?.cos().into())
+        });
+
+        env.insert_native("atan", |args| {
+            let x = car(&args)?.try_as_float()?;
+            let y = cdr(&args)?;
+            if y.is_nil() {
+                Ok(x.atan().into())
+            } else {
+                Ok(x.atan2(car(y)?.try_as_float()?).into())
+            }
         });
 
         // misc
