@@ -15,6 +15,7 @@ mod interpreter;
 mod io;
 mod lexer;
 mod libraries;
+mod macros;
 mod parser;
 mod symbol;
 mod tracer;

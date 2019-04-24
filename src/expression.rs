@@ -1,5 +1,6 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
+use crate::macros::Macro;
 use crate::symbol::{self, Symbol};
 use crate::tracer::trace_procedure_call;
 
@@ -24,6 +25,7 @@ pub enum Expression {
     False,
     Pair(Ref<(Expression)>, Ref<(Expression)>),
     Procedure(Procedure<EnvRef>),
+    Macro(Macro),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
     Error(Ref<List>),
@@ -424,6 +426,7 @@ impl Expression {
                 s
             }
             Expression::Procedure(p) => format!("{}", p.name()),
+            Expression::Macro(m) => format!("{}", m.name()),
             Expression::Native(_) | Expression::NativeIntrusive(_) => "λ".into(),
             Expression::Error(_) => "<ERROR>".into(),
         }
@@ -468,6 +471,7 @@ impl std::fmt::Debug for Expression {
                 write!(f, ")")
             }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
+            Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             Expression::Error(l) => {
                 let tmp: Vec<_> = l
@@ -511,6 +515,7 @@ impl std::fmt::Display for Expression {
                 write!(f, ")")
             }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
+            Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             Expression::Error(l) => {
                 let tmp: Vec<_> = l
