@@ -40,8 +40,8 @@ mod errors_impl {
                 display("Undefined symbol: {}", symbol.name())
             }
 
-            UnexpectedToken(repr: String) {
-                display("Unexpected token: {:?}", repr)
+            UnexpectedToken(repr: String, expected: String) {
+                display("Unexpected token: {:?} ... expected {} instead.", repr, expected)
             }
 
             UnexpectedEof

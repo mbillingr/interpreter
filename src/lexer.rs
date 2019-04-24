@@ -8,6 +8,8 @@ pub enum Token {
     String(String),
     Symbol(String),
     Quote,
+    Dot,
+    EOF,
 }
 
 impl Token {
@@ -26,6 +28,7 @@ impl From<char> for Token {
             '(' => Token::ListOpen,
             ')' => Token::ListClose,
             '\'' => Token::Quote,
+            '.' => Token::Dot,
             _ => panic!("Invalid token: {}", ch),
         }
     }
@@ -37,6 +40,8 @@ impl From<Token> for String {
             Token::ListOpen => "(".to_string(),
             Token::ListClose => ")".to_string(),
             Token::Quote => "'".to_string(),
+            Token::Dot => ".".to_string(),
+            Token::EOF => "<EOF>".to_string(),
             Token::String(s) => format!("{:?}", s),
             Token::Symbol(s) => s,
         }
@@ -76,24 +81,45 @@ type CharI = <std::str::CharIndices<'static> as Iterator>::Item;
 
 pub struct Lexer {
     comment_level: usize,
+    token_stream: Vec<PositionalToken>,
+    list_level: isize,
 }
 
 impl Lexer {
     pub fn new() -> Self {
-        Lexer { comment_level: 0 }
+        Lexer {
+            comment_level: 0,
+            list_level: 0,
+            token_stream: vec![],
+        }
     }
 
-    pub fn tokenize(&mut self, input: String) -> Result<Vec<PositionalToken>> {
-        let mut tokens = vec![];
+    pub fn is_balanced(&self) -> bool {
+        self.list_level == 0
+    }
+
+    pub fn take(&mut self) -> Vec<Token> {
+        std::mem::replace(&mut self.token_stream, vec![])
+            .into_iter()
+            .map(|pt| pt.into())
+            .collect()
+    }
+
+    pub fn take_pos(&mut self) -> Vec<PositionalToken> {
+        std::mem::replace(&mut self.token_stream, vec![])
+    }
+
+    pub fn tokenize(&mut self, input: String) -> Result<&mut Self> {
         let mut chars = input.char_indices().peekable();
         while self.skip_whitespace(&mut chars) {
             if self.comment_level > 0 {
                 self.read_block_comment(&mut chars)?;
             } else {
-                tokens.extend(self.read_token(&mut chars)?);
+                let token = self.read_token(&mut chars)?;
+                self.token_stream.extend(token);
             }
         }
-        Ok(tokens)
+        Ok(self)
     }
 
     /// read whitespace from char iterator and return true if
@@ -114,7 +140,15 @@ impl Lexer {
         chars: &mut Peekable<impl Iterator<Item = CharI>>,
     ) -> Result<Option<PositionalToken>> {
         match chars.peek().unwrap().1 {
-            '(' | ')' | '\'' => Ok(chars.next().map(PositionalToken::from)),
+            '\'' | '.' => Ok(chars.next().map(PositionalToken::from)),
+            '(' => {
+                self.list_level += 1;
+                Ok(chars.next().map(PositionalToken::from))
+            }
+            ')' => {
+                self.list_level -= 1;
+                Ok(chars.next().map(PositionalToken::from))
+            }
             '"' => self.read_string(chars),
             '#' => self.read_hash(chars),
             ';' => self.read_line_comment(chars),
@@ -157,7 +191,7 @@ impl Lexer {
         let mut buf = String::new();
         let (start_idx, _) = *chars
             .peek()
-            .ok_or_else(|| ErrorKind::UnexpectedToken(String::new()))?;
+            .ok_or_else(|| ErrorKind::UnexpectedToken("<EOF>".into(), "<identifier>".into()))?;
         let mut last_idx = start_idx;
         let end_idx = loop {
             match chars.peek() {

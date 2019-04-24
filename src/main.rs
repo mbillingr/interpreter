@@ -29,7 +29,7 @@ use errors::*;
 use expression::{Expression, Ref};
 use interpreter::eval;
 use lexer::Lexer;
-use parser::Parser;
+use parser::parse;
 use std::env;
 
 const LINE_PROMPT: &str = ">> ";
@@ -37,31 +37,35 @@ const MULTI_PROMPT: &str = " ... ";
 
 fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     let mut lexer = Lexer::new();
-    let mut parser = Parser::new();
 
     loop {
-        for token in lexer.tokenize(input.read_line()?)? {
-            if let Some(expr) = parser.push_token(token.into())? {
-                match eval(&expr, env.clone())? {
-                    Expression::Undefined => {}
-                    res => println!("{}", res),
-                }
-                input.set_prompt(LINE_PROMPT);
-            } else {
-                input.set_prompt(MULTI_PROMPT);
+        lexer.tokenize(input.read_line()?)?;
+
+        if lexer.is_balanced() {
+            let mut result = Expression::Undefined;
+            for expr in parse(lexer.take())? {
+                result = eval(&expr, env.clone())?;
             }
+            match result {
+                Expression::Undefined => {}
+                res => println!("{}", res),
+            }
+            input.set_prompt(LINE_PROMPT);
+        } else {
+            input.set_prompt(MULTI_PROMPT);
         }
     }
 }
 
 fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
     let mut lexer = Lexer::new();
-    let mut parser = Parser::new();
 
     while !input.is_eof() {
         let line = input.read_line()?;
-        for token in lexer.tokenize(line)? {
-            if let Some(expr) = parser.push_token(token.into())? {
+        lexer.tokenize(line)?;
+
+        if lexer.is_balanced() {
+            for expr in parse(lexer.take())? {
                 eval(&expr, env.clone())?;
             }
         }

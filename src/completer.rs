@@ -25,7 +25,7 @@ impl Completer for EnvHelper {
         if let Some(rc_env) = self.0.upgrade() {
             let mut lexer = Lexer::new();
             let tokens = match lexer.tokenize(line.to_string()) {
-                Ok(t) => t,
+                Ok(mut l) => l.take_pos(),
                 Err(_) => return Ok((0, vec![])),
             };
 
