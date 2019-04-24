@@ -22,7 +22,7 @@ mod tracer;
 use crate::environment::Environment;
 use crate::io::LineReader;
 use crate::libraries::import_library;
-use environment::{default_env, EnvRef};
+use environment::EnvRef;
 use error_chain::ChainedError;
 use errors::*;
 use expression::{Expression, Ref};

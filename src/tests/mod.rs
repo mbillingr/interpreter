@@ -1,6 +1,6 @@
 mod r7rs_6_2_equivalence_predicates;
 
-use crate::default_env;
+use crate::environment::default_env;
 use crate::errors::Result;
 use crate::eval;
 use crate::Expression;

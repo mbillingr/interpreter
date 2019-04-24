@@ -181,20 +181,21 @@ impl Environment {
         result
     }
 
-    pub fn export(&self, names: &HashMap<Symbol, Symbol>) -> Environment {
-        Environment {
-            map: self
-                .map
+    pub fn export(&self, names: &HashMap<Symbol, Symbol>) -> Result<Environment> {
+        Ok(Environment {
+            map: names
                 .iter()
-                .filter_map(|(name, entry)| {
-                    names
+                .map(|(name, export_name)| {
+                    self.map
                         .get(name)
-                        .map(|&export_name| (export_name, (*entry).clone()))
+                        .cloned()
+                        .map(|entry| (*export_name, entry))
+                        .ok_or_else(|| ErrorKind::UndefinedExport(*name).into())
                 })
-                .collect(),
+                .collect::<Result<_>>()?,
             parent: self.parent.clone(),
             current_procedure: self.current_procedure.clone(),
-        }
+        })
     }
 }
 

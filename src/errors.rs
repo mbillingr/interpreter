@@ -57,6 +57,10 @@ mod errors_impl {
             }
 
             Utf8Error
+
+            UndefinedExport(symbol: Symbol) {
+                display("Undefined export symbol: {}", symbol.name())
+            }
         }
 
         foreign_links {

@@ -105,7 +105,7 @@ pub fn define_library(declarations: &Expression) -> Result<Library> {
         }
     }
 
-    let export_env = private_env.borrow().export(&exports).into();
+    let export_env = private_env.borrow().export(&exports)?.into();
     Ok(Library {
         private_env,
         export_env,
