@@ -73,7 +73,7 @@ fn parse_list_open(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<
             Token::Dot => {
                 expect_token(Token::Dot, input).unwrap();
                 *cursor = parse_expression(input)?;
-                break
+                break;
             }
             _ => {
                 *cursor = Expression::cons(parse_expression(input)?, Expression::Nil);
@@ -170,7 +170,7 @@ fn transform_define(list: &Expression) -> Result<Expression> {
         }
         let value = body.car()?;
         Ok(scheme!(define, @signature.clone(), @transform(&value)?))
-    } else if signature.is_list() {
+    } else if signature.is_pair() {
         let (name, signature) = signature.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
         let lambda = scheme!(lambda, @signature.clone(), ...body.clone());
