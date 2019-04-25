@@ -29,7 +29,7 @@ pub fn parse(input: impl IntoIterator<Item = Token>) -> Result<Vec<Expression>> 
             break;
         }
         let expr = parse_expression(&mut input)?;
-        output.push(transform(&expr)?);
+        output.push(expand(&expr)?);
     }
     Ok(output)
 }
@@ -84,83 +84,28 @@ fn parse_list_open(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<
     expect_token(Token::ListClose, input)?;
     Ok(list)
 }
-/*
-enum ParserState {
-    List(Expression),
-    Quote,
-}
-
-pub struct Parser {
-    list_stack: Vec<ParserState>,
-}
-
-impl Parser {
-    pub fn new() -> Self {
-        Parser { list_stack: vec![] }
-    }
-
-    pub fn push_token(&mut self, token: Token) -> Result<Option<Expression>> {
-        self.parse_expression(token)
-            .and_then(|o| o.map(|e| transform(&e)).transpose())
-    }
-
-    fn parse_expression(&mut self, token: Token) -> Result<Option<Expression>> {
-        let mut expr = match token {
-            Token::String(s) => Expression::String(Ref::new(s)),
-            Token::Symbol(s) => Expression::from_literal(s),
-            Token::ListOpen => {
-                self.list_stack.push(ParserState::List(Expression::Nil));
-                return Ok(None);
-            }
-            Token::ListClose => match self.list_stack.pop() {
-                Some(ParserState::List(list)) => list,
-                _ => return Err(ErrorKind::UnexpectedToken(token.into(), "whatever".into()))?,
-            },
-            Token::Quote => {
-                self.list_stack.push(ParserState::Quote);
-                return Ok(None);
-            }
-            Token::Dot => {return  Ok(None)}
-            Token::EOF => unimplemented!(),
-        };
-
-        loop {
-            match self.list_stack.pop() {
-                Some(ParserState::List(list)) => {
-                    self.list_stack.push(ParserState::List(
-                        list.append(Expression::cons(expr, Expression::Nil))?,
-                    ));
-                    return Ok(None);
-                }
-                Some(ParserState::Quote) => expr = scheme!(quote, @expr),
-                None => return Ok(Some(expr)),
-            }
-        }
-    }
-}
-*/
 
 // convert some syntactic forms, expand macros(?), check errors, ... (mostly to-do)
-fn transform(expr: &Expression) -> Result<Expression> {
+fn expand(expr: &Expression) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(ref car, _) => match **car {
-            Symbol(s) if s == symbol::AND => transform_and(expr),
-            Symbol(s) if s == symbol::COND => transform_cond(expr),
-            Symbol(s) if s == symbol::DEFINE => transform_define(expr),
-            Symbol(s) if s == symbol::IF => transform_if(expr),
-            Symbol(s) if s == symbol::INCLUDE => transform_include(expr),
-            Symbol(s) if s == symbol::LAMBDA => transform_lambda(expr),
-            Symbol(s) if s == symbol::LET => transform_let(expr),
-            Symbol(s) if s == symbol::OR => transform_or(expr),
+            Symbol(s) if s == symbol::AND => expand_and(expr),
+            Symbol(s) if s == symbol::COND => expand_cond(expr),
+            Symbol(s) if s == symbol::DEFINE => expand_define(expr),
+            Symbol(s) if s == symbol::IF => expand_if(expr),
+            Symbol(s) if s == symbol::INCLUDE => expand_include(expr),
+            Symbol(s) if s == symbol::LAMBDA => expand_lambda(expr),
+            Symbol(s) if s == symbol::LET => expand_let(expr),
+            Symbol(s) if s == symbol::OR => expand_or(expr),
             Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
-            _ => expr.map_list(|e| transform(&e)),
+            _ => expr.map_list(|e| expand(&e)),
         },
         _ => Ok(expr.clone()),
     }
 }
 
-fn transform_define(list: &Expression) -> Result<Expression> {
+fn expand_define(list: &Expression) -> Result<Expression> {
     assert_eq!(&scheme!(define), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
@@ -169,12 +114,12 @@ fn transform_define(list: &Expression) -> Result<Expression> {
             return Err(ErrorKind::ArgumentError)?;
         }
         let value = body.car()?;
-        Ok(scheme!(define, @signature.clone(), @transform(&value)?))
+        Ok(scheme!(define, @signature.clone(), @expand(&value)?))
     } else if signature.is_pair() {
         let (name, signature) = signature.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
         let lambda = scheme!(lambda, @signature.clone(), ...body.clone());
-        let lambda = transform_lambda(&lambda)?;
+        let lambda = expand_lambda(&lambda)?;
 
         Ok(scheme!(define, @name.clone(), @lambda))
     } else {
@@ -182,19 +127,19 @@ fn transform_define(list: &Expression) -> Result<Expression> {
     }
 }
 
-fn transform_lambda(list: &Expression) -> Result<Expression> {
+fn expand_lambda(list: &Expression) -> Result<Expression> {
     assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
     if body.cdr().unwrap() == &Expression::Nil {
-        Ok(scheme!(lambda, @signature.clone(), @transform(body.car()?)?))
+        Ok(scheme!(lambda, @signature.clone(), @expand(body.car()?)?))
     } else {
-        let body = Expression::cons(scheme!(begin), body.map_list(|e| transform(&e))?);
+        let body = Expression::cons(scheme!(begin), body.map_list(|e| expand(&e))?);
         Ok(scheme!(lambda, @signature.clone(), @body))
     }
 }
 
-fn transform_cond(list: &Expression) -> Result<Expression> {
+fn expand_cond(list: &Expression) -> Result<Expression> {
     assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
@@ -212,12 +157,12 @@ fn transform_cond(list: &Expression) -> Result<Expression> {
             }
             row => row.clone(),
         };
-        transform(&row)
+        expand(&row)
     })?;
     Ok(Expression::cons(scheme!(cond), body))
 }
 
-fn transform_if(list: &Expression) -> Result<Expression> {
+fn expand_if(list: &Expression) -> Result<Expression> {
     let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(if)), list.next_expr()?);
@@ -225,10 +170,10 @@ fn transform_if(list: &Expression) -> Result<Expression> {
     let if_ = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
     let else_ = list.next_expr()?.unwrap_or(&Expression::Undefined);
 
-    Ok(scheme!(if, @transform(cond)?, @transform(if_)?, @transform(else_)?))
+    Ok(scheme!(if, @expand(cond)?, @expand(if_)?, @expand(else_)?))
 }
 
-fn transform_let(list: &Expression) -> Result<Expression> {
+fn expand_let(list: &Expression) -> Result<Expression> {
     let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(let)), list.next_expr()?);
@@ -257,32 +202,32 @@ fn transform_let(list: &Expression) -> Result<Expression> {
 
     let lambda_form = scheme!(lambda, @vars, ...body.clone());
     exps = Expression::cons(lambda_form, exps);
-    transform(&exps)
+    expand(&exps)
 }
 
-fn transform_or(list: &Expression) -> Result<Expression> {
+fn expand_or(list: &Expression) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(or), cmd);
     let mapped = args.map_list(|x| Ok(scheme!((@x.clone()))))?;
     let mapped = mapped.append(scheme!(((#t, #f))))?;
-    transform_cond(&scheme!(cond, ...mapped))
+    expand_cond(&scheme!(cond, ...mapped))
 }
 
-fn transform_and(list: &Expression) -> Result<Expression> {
+fn expand_and(list: &Expression) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(and), cmd);
 
     match args {
         Expression::Nil => Ok(Expression::True),
         Expression::Pair(car, cdr) if **cdr == Expression::Nil => Ok((**car).clone()),
-        Expression::Pair(car, cdr) => transform_if(
-            &scheme!(if, @(**car).clone(), @transform_and(&scheme!(and, ...(**cdr).clone()))?, #f),
+        Expression::Pair(car, cdr) => expand_if(
+            &scheme!(if, @(**car).clone(), @expand_and(&scheme!(and, ...(**cdr).clone()))?, #f),
         ),
         _ => unreachable!(),
     }
 }
 
-fn transform_include(list: &Expression) -> Result<Expression> {
+fn expand_include(list: &Expression) -> Result<Expression> {
     let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
 
