@@ -119,9 +119,38 @@ impl Pattern {
 }
 
 enum Template {
-    Identifier,
-    Constant,
-    List(Vec<Pattern>),
+    Identifier(Symbol),
+    Constant(Expression),
+    List(Vec<Template>),
+    ImproperList(Vec<Template>, Box<Template>),
+}
+
+impl Template {
+    fn expand(&self, bindings: &HashMap<Symbol, Expression>) -> Expression {
+        match self {
+            Template::Constant(expr) => expr.clone(),
+            Template::Identifier(ident) => match bindings.get(ident) {
+                Some(expr) => expr.clone(),
+                None => (*ident).into(),
+            },
+            Template::List(subs) => {
+                let mut result = Expression::Nil;
+                for sub in subs.iter().rev() {
+                    let expr = sub.expand(bindings);
+                    result = Expression::cons(expr, result);
+                }
+                result
+            }
+            Template::ImproperList(subs, tail) => {
+                let mut result = tail.expand(bindings);
+                for sub in subs.iter().rev() {
+                    let expr = sub.expand(bindings);
+                    result = Expression::cons(expr, result);
+                }
+                result
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -217,6 +246,23 @@ mod test {
                 1,
                 Expression::cons(2, Expression::cons(3, 4))
             ))
+        );
+    }
+
+    #[test]
+    fn expand() {
+        let template = Template::List(vec![
+            Template::Identifier("if".into()),
+            Template::Identifier("cond".into()),
+            Template::Identifier("yes".into()),
+            Template::Identifier("no".into()),
+        ]);
+
+        assert_eq!(
+            scheme!(if, (less, x, 0), (neg, x), x),
+            template.expand(
+                &hashmap! { cond => scheme!(less, x, 0), yes => scheme!(neg, x), no => scheme!(x)}
+            )
         );
     }
 }
