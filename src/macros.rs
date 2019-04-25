@@ -44,6 +44,10 @@ impl Macro {
     pub fn name(&self) -> Symbol {
         self.name
     }
+
+    pub fn expand(&self, expr: &Expression) -> Result<Expression> {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug)]

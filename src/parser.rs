@@ -6,6 +6,7 @@ use crate::symbol;
 use std::fs;
 use std::iter::Peekable;
 use std::path::{Path, PathBuf};
+use crate::environment::EnvRef;
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Expression> {
     let mut lexer = Lexer::new();
@@ -86,20 +87,31 @@ fn parse_list_open(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<
 }
 
 // convert some syntactic forms, expand macros(?), check errors, ... (mostly to-do)
-fn expand(expr: &Expression) -> Result<Expression> {
+fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
     use Expression::*;
     match expr {
-        Pair(ref car, _) => match **car {
-            Symbol(s) if s == symbol::AND => expand_and(expr),
-            Symbol(s) if s == symbol::COND => expand_cond(expr),
-            Symbol(s) if s == symbol::DEFINE => expand_define(expr),
-            Symbol(s) if s == symbol::IF => expand_if(expr),
-            Symbol(s) if s == symbol::INCLUDE => expand_include(expr),
-            Symbol(s) if s == symbol::LAMBDA => expand_lambda(expr),
-            Symbol(s) if s == symbol::LET => expand_let(expr),
-            Symbol(s) if s == symbol::OR => expand_or(expr),
-            Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
-            _ => expr.map_list(|e| expand(&e)),
+        Pair(ref car, _) => {
+            let syntax_macro = if let Symbol(s) = car {
+                match env.borrow().lookup(s) {
+                    Some(Expression::Macro(m)) => Some(m),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            match **car {
+                Symbol(s) if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
+                Symbol(s) if s == symbol::AND => expand_and(expr),
+                Symbol(s) if s == symbol::COND => expand_cond(expr),
+                Symbol(s) if s == symbol::DEFINE => expand_define(expr),
+                Symbol(s) if s == symbol::IF => expand_if(expr),
+                Symbol(s) if s == symbol::INCLUDE => expand_include(expr),
+                Symbol(s) if s == symbol::LAMBDA => expand_lambda(expr),
+                Symbol(s) if s == symbol::LET => expand_let(expr),
+                Symbol(s) if s == symbol::OR => expand_or(expr),
+                Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
+                _ => expr.map_list(|e| expand(&e)),
+            }
         },
         _ => Ok(expr.clone()),
     }
