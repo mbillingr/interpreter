@@ -5,11 +5,30 @@ use rand::distributions::Exp;
 use std::collections::HashMap;
 
 macro_rules! hashmap(
+    { $($key:ident => $value:ident),* } => {
+        {
+            let mut m = ::std::collections::HashMap::<Symbol, Expression>::new();
+            $(
+                m.insert(stringify!($key).into(), Symbol::new(stringify!($value)).into());
+            )*
+            m
+        }
+     };
+    { $($key:ident => $value:expr),* } => {
+        {
+            let mut m = ::std::collections::HashMap::<Symbol, Expression>::new();
+            $(
+                m.insert(stringify!($key).into(), $value.into());
+            )*
+            m
+        }
+     };
+
     { $($key:expr => $value:expr),* } => {
         {
-            let mut m = ::std::collections::HashMap::new();
+            let mut m = ::std::collections::HashMap::<Symbol, Expression>::new();
             $(
-                m.insert($key, $value);
+                m.insert($key.into(), $value.into());
             )*
             m
         }
@@ -103,4 +122,101 @@ enum Template {
     Identifier,
     Constant,
     List(Vec<Pattern>),
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn match_constant() {
+        assert_eq!(
+            Some(hashmap! {}),
+            Pattern::Constant(42.into()).match_expr(&scheme!(42))
+        );
+        assert_eq!(None, Pattern::Constant(5.into()).match_expr(&scheme!(9)));
+    }
+
+    #[test]
+    fn match_literal() {
+        assert_eq!(
+            Some(hashmap! {}),
+            Pattern::Literal(Symbol::new("abc")).match_expr(&scheme!(abc))
+        );
+        assert_eq!(
+            None,
+            Pattern::Literal(Symbol::new("abc")).match_expr(&scheme!(xyz))
+        );
+        assert_eq!(
+            None,
+            Pattern::Literal(Symbol::new("abc")).match_expr(&scheme!(42))
+        );
+    }
+
+    #[test]
+    fn match_identifier() {
+        assert_eq!(
+            Some(hashmap! {abc => 5}),
+            Pattern::Identifier(Symbol::new("abc")).match_expr(&scheme!(5))
+        );
+        assert_eq!(
+            Some(hashmap! {abc => xyz}),
+            Pattern::Identifier(Symbol::new("abc")).match_expr(&scheme!(xyz))
+        );
+        assert_eq!(
+            Some(hashmap! {abc => scheme!(uvw, xyz)}),
+            Pattern::Identifier(Symbol::new("abc")).match_expr(&scheme!(uvw, xyz))
+        );
+    }
+
+    #[test]
+    fn match_list() {
+        let pat = Pattern::List(vec![
+            Pattern::Identifier(Symbol::new("abc")),
+            Pattern::Identifier(Symbol::new("xyz")),
+        ]);
+
+        assert_eq!(
+            Some(hashmap! {abc => 5, xyz => 6}),
+            pat.match_expr(&scheme!(5, 6))
+        );
+        assert_eq!(None, pat.match_expr(&scheme!(5, 6, 7)));
+        assert_eq!(None, pat.match_expr(&scheme!(5)));
+    }
+
+    #[test]
+    fn match_improper() {
+        let pat = Pattern::ImproperList(
+            vec![
+                Pattern::Identifier("a".into()),
+                Pattern::Identifier("b".into()),
+            ],
+            Box::new(Pattern::Identifier("tail".into())),
+        );
+
+        assert_eq!(None, pat.match_expr(&scheme!(1)));
+        assert_eq!(
+            Some(hashmap! {a => 1, b => 2, tail => Expression::Nil}),
+            pat.match_expr(&scheme!(1, 2))
+        );
+        assert_eq!(
+            Some(hashmap! {a => 1, b => 2, tail => scheme!((3))}),
+            pat.match_expr(&scheme!(1, 2, 3))
+        );
+        assert_eq!(
+            Some(hashmap! {a => 1, b => 2, tail => scheme!((3, 4))}),
+            pat.match_expr(&scheme!(1, 2, 3, 4))
+        );
+        assert_eq!(
+            Some(hashmap! {a => 1, b => 2, tail => 3}),
+            pat.match_expr(&Expression::cons(1, Expression::cons(2, 3)))
+        );
+        assert_eq!(
+            Some(hashmap! {a => 1, b => 2, tail => Expression::cons(3, 4)}),
+            pat.match_expr(&Expression::cons(
+                1,
+                Expression::cons(2, Expression::cons(3, 4))
+            ))
+        );
+    }
 }
