@@ -95,7 +95,7 @@ impl Lexer {
     }
 
     pub fn is_balanced(&self) -> bool {
-        self.list_level == 0
+        self.list_level <= 0
     }
 
     pub fn take(&mut self) -> Vec<Token> {

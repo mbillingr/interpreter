@@ -70,6 +70,11 @@ fn parse_list_open(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<
     loop {
         match peek_token(input) {
             Token::ListClose => break,
+            Token::Dot => {
+                expect_token(Token::Dot, input).unwrap();
+                *cursor = parse_expression(input)?;
+                break
+            }
             _ => {
                 *cursor = Expression::cons(parse_expression(input)?, Expression::Nil);
                 cursor = cursor.cdr_mut().unwrap();
@@ -148,6 +153,7 @@ fn transform(expr: &Expression) -> Result<Expression> {
             Symbol(s) if s == symbol::LAMBDA => transform_lambda(expr),
             Symbol(s) if s == symbol::LET => transform_let(expr),
             Symbol(s) if s == symbol::OR => transform_or(expr),
+            Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
             _ => expr.map_list(|e| transform(&e)),
         },
         _ => Ok(expr.clone()),
