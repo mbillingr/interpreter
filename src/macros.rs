@@ -35,7 +35,7 @@ macro_rules! hashmap(
      };
 );
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Macro {
     name: Symbol,
 }
@@ -46,17 +46,60 @@ impl Macro {
     }
 }
 
+#[derive(Debug)]
 struct TransformerSpec {
     literals: Vec<Symbol>,
     ellipsis: Symbol,
     rules: Vec<SyntaxRule>,
 }
 
+impl TransformerSpec {
+    pub fn parse(mut list: &Expression) -> Result<Self> {
+        let mut ellipsis = symbol::ELLIPSIS;
+        let spec = match list.car()? {
+            Expression::Symbol(s) => {
+                ellipsis = *s;
+                list = list.cdr()?;
+                list.car().unwrap()
+            }
+            expr => expr,
+        };
+
+        let literals: Vec<Symbol> = spec
+            .iter_list()
+            .map(|x| x.and_then(Expression::try_as_symbol).map(|s| *s))
+            .collect::<Result<_>>()?;
+
+        let rules: Vec<SyntaxRule> = list
+            .cdr()?
+            .iter_list()
+            .map(|x| x.and_then(|x| SyntaxRule::parse(x, &literals, ellipsis)))
+            .collect::<Result<_>>()?;
+
+        Ok(TransformerSpec {
+            literals,
+            ellipsis,
+            rules,
+        })
+    }
+}
+
+#[derive(Debug)]
 struct SyntaxRule {
     pattern: Pattern,
     template: Template,
 }
 
+impl SyntaxRule {
+    pub fn parse(mut list: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+        Ok(SyntaxRule {
+            pattern: Pattern::parse(list.car()?, literals, ellipsis)?,
+            template: Template::parse(list.cdr()?.car()?, literals, ellipsis)?,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
 enum Pattern {
     Literal(Symbol),
     Identifier(Symbol),
@@ -66,6 +109,37 @@ enum Pattern {
 }
 
 impl Pattern {
+    pub fn parse(mut expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+        match expr {
+            Expression::Symbol(s) => Ok(if literals.contains(s) {
+                Pattern::Literal(*s)
+            } else {
+                Pattern::Identifier(*s)
+            }),
+            Expression::Pair(ref car, ref cdr) => {
+                let (mut car, mut cdr) = (car, cdr);
+                let mut list = vec![];
+                loop {
+                    list.push(Pattern::parse(&*car, literals, ellipsis)?);
+                    match (&**cdr) {
+                        Expression::Nil => return Ok(Pattern::List(list)),
+                        Expression::Pair(a, d) => {
+                            car = a;
+                            cdr = d;
+                        }
+                        _ => {
+                            return Ok(Pattern::ImproperList(
+                                list,
+                                Box::new(Pattern::parse(&*cdr, literals, ellipsis)?),
+                            ))
+                        }
+                    }
+                }
+            }
+            _ => Ok(Pattern::Constant(expr.clone())),
+        }
+    }
+
     fn match_expr(&self, expr: &Expression) -> Option<HashMap<Symbol, Expression>> {
         match self {
             Pattern::Constant(x) if x.equal(expr) => Some(hashmap! {}),
@@ -118,6 +192,7 @@ impl Pattern {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum Template {
     Identifier(Symbol),
     Constant(Expression),
@@ -126,6 +201,33 @@ enum Template {
 }
 
 impl Template {
+    pub fn parse(mut expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+        match expr {
+            Expression::Symbol(s) => Ok(Template::Identifier(*s)),
+            Expression::Pair(ref car, ref cdr) => {
+                let (mut car, mut cdr) = (car, cdr);
+                let mut list = vec![];
+                loop {
+                    list.push(Template::parse(&*car, literals, ellipsis)?);
+                    match (&**cdr) {
+                        Expression::Nil => return Ok(Template::List(list)),
+                        Expression::Pair(a, d) => {
+                            car = a;
+                            cdr = d;
+                        }
+                        _ => {
+                            return Ok(Template::ImproperList(
+                                list,
+                                Box::new(Template::parse(&*cdr, literals, ellipsis)?),
+                            ))
+                        }
+                    }
+                }
+            }
+            _ => Ok(Template::Constant(expr.clone())),
+        }
+    }
+
     fn expand(&self, bindings: &HashMap<Symbol, Expression>) -> Expression {
         match self {
             Template::Constant(expr) => expr.clone(),
@@ -263,6 +365,41 @@ mod test {
             template.expand(
                 &hashmap! { cond => scheme!(less, x, 0), yes => scheme!(neg, x), no => scheme!(x)}
             )
+        );
+    }
+
+    #[test]
+    fn parse_spec() {
+        let expr = scheme!(
+            my_ellipsis,
+            (lit1, lit2),
+            (42, "the answer!"),
+            ((lit1, x, lit2), (x, x))
+        );
+
+        let spec = TransformerSpec::parse(&expr).unwrap();
+
+        assert_eq!(vec![Symbol::new("lit1"), "lit2".into()], spec.literals);
+        assert_eq!(Symbol::new("my_ellipsis"), spec.ellipsis);
+        assert_eq!(Pattern::Constant(42.into()), spec.rules[0].pattern);
+        assert_eq!(
+            Template::Constant("the answer!".into()),
+            spec.rules[0].template
+        );
+        assert_eq!(
+            Pattern::List(vec![
+                Pattern::Literal("lit1".into()),
+                Pattern::Identifier("x".into()),
+                Pattern::Literal("lit2".into())
+            ]),
+            spec.rules[1].pattern
+        );
+        assert_eq!(
+            Template::List(vec![
+                Template::Identifier("x".into()),
+                Template::Identifier("x".into())
+            ]),
+            spec.rules[1].template
         );
     }
 }

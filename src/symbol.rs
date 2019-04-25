@@ -13,6 +13,7 @@ pub static DEFINE_LIBRARY: Symbol = Symbol {
     name: "define-library",
 };
 pub static DOT: Symbol = Symbol { name: "." };
+pub static ELLIPSIS: Symbol = Symbol { name: "..." };
 pub static ELSE: Symbol = Symbol { name: "else" };
 pub static EVAL: Symbol = Symbol { name: "eval" };
 pub static EXPORT: Symbol = Symbol { name: "export" };
@@ -72,6 +73,7 @@ impl Symbol {
             n if n == DEFINE.name() => DEFINE,
             n if n == DEFINE_LIBRARY.name() => DEFINE_LIBRARY,
             n if n == DOT.name() => DOT,
+            n if n == ELLIPSIS.name() => ELLIPSIS,
             n if n == ELSE.name() => ELSE,
             n if n == EVAL.name() => EVAL,
             n if n == EXPORT.name() => EXPORT,
