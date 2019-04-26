@@ -12,6 +12,7 @@
     (put 'sub '(scheme-number scheme-number) (lambda (x y) (tag (- x y))))
     (put 'mul '(scheme-number scheme-number) (lambda (x y) (tag (* x y))))
     (put 'div '(scheme-number scheme-number) (lambda (x y) (tag (/ x y))))
+    (put 'neg '(scheme-number) (lambda (x) (tag (- x))))
     (put 'equ? '(scheme-number scheme-number) =)
     (put '=zero? '(scheme-number) (lambda (x) (= x 0)))
     (put 'make 'scheme-number (lambda (x) (tag x)))
