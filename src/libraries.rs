@@ -42,6 +42,14 @@ fn get_library(name: &[Symbol], outer_env: &EnvRef) -> Result<Library> {
     }
 
     let lib_expr = parse_file(resolve_lib(name))?;
+    // todo: Allow expressions before the library definition
+    //       to make macros available during expansion of the library.
+    //
+    //       Currently they need to be available when the library is imported for the first time.
+    //       This sucks because it's error prone and moves the burden to the library user.
+    //       Instead, it should be possible for a library to define and import the macros it needs.
+    //       This should happen in a closed scope, so that we do not contaminate the environment
+    //       in which the library is imported.
     assert_eq!(Expression::Nil, *lib_expr.cdr()?);
     let lib_expr = expand(&lib_expr, outer_env)?;
     eval(lib_expr.car()?, Environment::new(None).into())?;
