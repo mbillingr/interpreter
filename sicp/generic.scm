@@ -1,10 +1,12 @@
 (define-library (sicp generic)
-  (export apply-generic attach-tag type-tag contents)
+  (export apply-generic attach-tag type-tag contents print)
 
   (import (builtin core)
           (sicp utils))
 
   (begin
+    (define (print x) (apply-generic 'print x))
+
     (define (apply-generic op . args)
       (let ((type-tags (map type-tag args)))
         (let ((proc (get op type-tags)))

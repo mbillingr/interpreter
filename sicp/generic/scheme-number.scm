@@ -15,6 +15,7 @@
     (put 'neg '(scheme-number) (lambda (x) (tag (- x))))
     (put 'equ? '(scheme-number scheme-number) =)
     (put '=zero? '(scheme-number) (lambda (x) (= x 0)))
+    (put 'print '(scheme-number) (lambda (x) (display x)))
     (put 'make 'scheme-number (lambda (x) (tag x)))
 
     (define (make-scheme-number n)
