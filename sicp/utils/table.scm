@@ -1,5 +1,10 @@
+
+;;   this is a very crude implementation of a table
+;;   using unordered association lists
 (define-library (sicp utils table)
   (export make-table insert lookup)
+
+  (import (builtin core))
 
   (begin
     (define (make-record key value) (cons key value))
@@ -7,9 +12,9 @@
     (define (value record) (cdr record))
 
     (define (lookup given-key set-of-records)
-      (cond ((null? set-of-records) false)
+      (cond ((null? set-of-records) #f)
             ((equal? given-key (key (car set-of-records)))
-             (car set-of-records))
+             (lambda () (value (car set-of-records))))
             (else (lookup given-key (cdr set-of-records)))))
 
     (define (adjoin-set x set)

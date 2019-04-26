@@ -2,7 +2,7 @@
   ; TODO: re-export stuff from core
   ; TODO: R7RS compliant base library
   (export
-    * + - ... / < <= = => > >= abs and append apply assoc assq assv begin 
+    * + - ... / < <= = => > >= abs and append apply assoc assq assv begin
     binary-port? boolean=? boolean? bytevector bytevector-append
     bytevector-copy bytevector-copy! bytevector-length bytevector-u8-ref
     bytevector-u8-set! bytevector? caar cadr call-with-current-continuation
