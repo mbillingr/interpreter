@@ -18,12 +18,13 @@ mod libraries;
 mod macros;
 mod parser;
 mod symbol;
+mod syntax;
 mod tracer;
 
 use crate::environment::Environment;
 use crate::io::LineReader;
 use crate::libraries::import_library;
-use crate::parser::expand;
+use crate::syntax::expand;
 use environment::EnvRef;
 use error_chain::ChainedError;
 use errors::*;
