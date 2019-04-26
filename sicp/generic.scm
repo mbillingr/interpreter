@@ -1,5 +1,5 @@
 (define-library (sicp generic)
-  (export apply-generic attach-tag type-tag contents print)
+  (export apply-generic apply-generic-method attach-tag type-tag contents print)
 
   (import (builtin core)
           (sicp utils))
@@ -14,6 +14,13 @@
               (apply proc (map contents args))
               (error "No method for these types: APPLY-GENERIC"
                      (list op type-tags))))))
+
+    (define (apply-generic-method op self . args)
+      (let ((proc (get op (type-tag self))))
+        (if proc
+            (apply proc (contents self) args)
+            (error "No method for these types: APPLY-GENERIC-METHOD"
+                   (list op (type-tag self))))))
 
     (define (attach-tag type-tag contents)
       (cond ((and (eq? type-tag 'scheme-number)
