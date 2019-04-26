@@ -1,10 +1,16 @@
 use crate::errors::*;
 use crate::expression::Expression;
 use crate::symbol::{self, Symbol};
-use rand::distributions::Exp;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 macro_rules! hashmap(
+    { } => {
+        {
+            ::std::collections::HashMap::<Symbol, Expression>::new()
+        }
+     };
+
     { $($key:ident => $value:ident),* } => {
         {
             let mut m = ::std::collections::HashMap::<Symbol, Expression>::new();
@@ -14,6 +20,7 @@ macro_rules! hashmap(
             m
         }
      };
+
     { $($key:ident => $value:expr),* } => {
         {
             let mut m = ::std::collections::HashMap::<Symbol, Expression>::new();
@@ -38,6 +45,7 @@ macro_rules! hashmap(
 #[derive(Debug, Clone)]
 pub struct Macro {
     name: Symbol,
+    spec: Rc<TransformerSpec>,
 }
 
 impl Macro {
@@ -45,8 +53,26 @@ impl Macro {
         self.name
     }
 
+    pub fn parse(expr: &Expression) -> Result<Self> {
+        let (name, rules) = expr.decons()?;
+        let rules = rules.car()?;
+        match rules.car()? {
+            Expression::Symbol(s) if *s != symbol::SYNTAX_RULES => {
+                return Err(ErrorKind::GenericError("expected syntax-rules".into()).into())
+            }
+            _ => {}
+        }
+
+        let spec = TransformerSpec::parse(rules.cdr()?)?;
+
+        Ok(Macro {
+            name: *name.try_as_symbol()?,
+            spec: Rc::new(spec),
+        })
+    }
+
     pub fn expand(&self, expr: &Expression) -> Result<Expression> {
-        unimplemented!()
+        self.spec.expand(expr)
     }
 }
 
@@ -86,6 +112,15 @@ impl TransformerSpec {
             rules,
         })
     }
+
+    pub fn expand(&self, expr: &Expression) -> Result<Expression> {
+        for rule in &self.rules {
+            if let Some(expansion) = rule.match_expand(expr) {
+                return Ok(expansion);
+            }
+        }
+        Err(ErrorKind::GenericError("no pattern matched".into()).into())
+    }
 }
 
 #[derive(Debug)]
@@ -95,11 +130,17 @@ struct SyntaxRule {
 }
 
 impl SyntaxRule {
-    pub fn parse(mut list: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+    pub fn parse(list: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
         Ok(SyntaxRule {
             pattern: Pattern::parse(list.car()?, literals, ellipsis)?,
             template: Template::parse(list.cdr()?.car()?, literals, ellipsis)?,
         })
+    }
+
+    pub fn match_expand(&self, expr: &Expression) -> Option<Expression> {
+        self.pattern
+            .match_expr(expr)
+            .map(|bindings| self.template.expand(&bindings))
     }
 }
 
@@ -113,7 +154,7 @@ enum Pattern {
 }
 
 impl Pattern {
-    pub fn parse(mut expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+    pub fn parse(expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
         match expr {
             Expression::Symbol(s) => Ok(if literals.contains(s) {
                 Pattern::Literal(*s)
@@ -125,7 +166,7 @@ impl Pattern {
                 let mut list = vec![];
                 loop {
                     list.push(Pattern::parse(&*car, literals, ellipsis)?);
-                    match (&**cdr) {
+                    match &**cdr {
                         Expression::Nil => return Ok(Pattern::List(list)),
                         Expression::Pair(a, d) => {
                             car = a;
@@ -205,7 +246,7 @@ enum Template {
 }
 
 impl Template {
-    pub fn parse(mut expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+    pub fn parse(expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
         match expr {
             Expression::Symbol(s) => Ok(Template::Identifier(*s)),
             Expression::Pair(ref car, ref cdr) => {
@@ -213,7 +254,7 @@ impl Template {
                 let mut list = vec![];
                 loop {
                     list.push(Template::parse(&*car, literals, ellipsis)?);
-                    match (&**cdr) {
+                    match &**cdr {
                         Expression::Nil => return Ok(Template::List(list)),
                         Expression::Pair(a, d) => {
                             car = a;

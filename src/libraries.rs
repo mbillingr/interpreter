@@ -2,7 +2,7 @@ use crate::environment::{default_env, EnvRef, Environment};
 use crate::errors::*;
 use crate::expression::Expression;
 use crate::interpreter::eval;
-use crate::parser::parse_file;
+use crate::parser::{expand, parse_file};
 use crate::symbol::{self, Symbol};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 thread_local! {
     static LIBRARIES: RefCell<HashMap<Vec<Symbol>, Library>> = {
         let mut map = HashMap::new();
-        map.insert(vec!["builtin".into(), "core".into()], Library{private_env: Environment::new(None).into(), export_env: default_env().into()});
+        map.insert(vec!["builtin".into(), "core".into()], Library{private_env: Environment::new(None).into(), export_env: default_env()});
         RefCell::new(map)
     };
 }
@@ -34,13 +34,15 @@ impl Library {
 /// Load library from file -- cached.
 ///
 /// This brain-dead implementation simply evals the file, then checks the cache again.
-fn get_library(name: &[Symbol]) -> Result<Library> {
+/// Macros are expanded if they are defined in the outer environment.
+fn get_library(name: &[Symbol], outer_env: &EnvRef) -> Result<Library> {
     if let Some(lib) = LIBRARIES.with(|libs| libs.borrow().get(name).cloned()) {
         return Ok(lib);
     }
 
     let lib_expr = parse_file(resolve_lib(name))?;
     assert_eq!(Expression::Nil, *lib_expr.cdr()?);
+    let lib_expr = expand(&lib_expr, outer_env)?;
     eval(lib_expr.car()?, Environment::new(None).into())?;
 
     LIBRARIES
@@ -60,7 +62,7 @@ pub fn import_library(import_sets: &Expression, env: &EnvRef) -> Result<()> {
         let imp = imp?;
         match imp.car()? {
             // todo: only, except, prefix, rename
-            _ => get_library(&libname(imp)?)?.import(env),
+            _ => get_library(&libname(imp)?, env)?.import(env),
         }
     }
     Ok(())

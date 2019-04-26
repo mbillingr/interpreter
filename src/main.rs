@@ -23,6 +23,7 @@ mod tracer;
 use crate::environment::Environment;
 use crate::io::LineReader;
 use crate::libraries::import_library;
+use crate::parser::expand;
 use environment::EnvRef;
 use error_chain::ChainedError;
 use errors::*;
@@ -44,6 +45,7 @@ fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
         if lexer.is_balanced() {
             let mut result = Expression::Undefined;
             for expr in parse(lexer.take())? {
+                let expr = expand(&expr, &env)?;
                 result = eval(&expr, env.clone())?;
             }
             match result {
@@ -66,6 +68,7 @@ fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
 
         if lexer.is_balanced() {
             for expr in parse(lexer.take())? {
+                let expr = expand(&expr, &env)?;
                 eval(&expr, env.clone())?;
             }
         }

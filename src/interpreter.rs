@@ -2,6 +2,7 @@ use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Procedure};
 use crate::libraries::{define_library, import_library, store_library};
+use crate::macros;
 use crate::symbol;
 use crate::tracer::{install_tracer, remove_tracer, CallGraph};
 use std::borrow::Cow;
@@ -45,6 +46,12 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         let declarations = cdr.cdr()?;
                         let lib = define_library(declarations)?;
                         store_library(name, lib)?;
+                        return Ok(Expression::Undefined);
+                    }
+                    Symbol(s) if *s == symbol::DEFINE_SYNTAX => {
+                        let macro_ = macros::Macro::parse(cdr)?;
+                        env.borrow_mut()
+                            .insert(macro_.name(), Expression::Macro(macro_));
                         return Ok(Expression::Undefined);
                     }
                     Symbol(s) if *s == symbol::LAMBDA => return lambda(&cdr, &env),

@@ -12,6 +12,9 @@ pub static DEFINE: Symbol = Symbol { name: "define" };
 pub static DEFINE_LIBRARY: Symbol = Symbol {
     name: "define-library",
 };
+pub static DEFINE_SYNTAX: Symbol = Symbol {
+    name: "define-syntax",
+};
 pub static DOT: Symbol = Symbol { name: "." };
 pub static ELLIPSIS: Symbol = Symbol { name: "..." };
 pub static ELSE: Symbol = Symbol { name: "else" };
@@ -26,6 +29,9 @@ pub static OR: Symbol = Symbol { name: "or" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
 pub static RENAME: Symbol = Symbol { name: "rename" };
 pub static SETVAR: Symbol = Symbol { name: "set!" };
+pub static SYNTAX_RULES: Symbol = Symbol {
+    name: "syntax-rules",
+};
 pub static TRACE: Symbol = Symbol { name: "trace" };
 pub static UNDERSCORE: Symbol = Symbol { name: "_" };
 
@@ -72,6 +78,7 @@ impl Symbol {
             n if n == COND.name() => COND,
             n if n == DEFINE.name() => DEFINE,
             n if n == DEFINE_LIBRARY.name() => DEFINE_LIBRARY,
+            n if n == DEFINE_SYNTAX.name() => DEFINE_SYNTAX,
             n if n == DOT.name() => DOT,
             n if n == ELLIPSIS.name() => ELLIPSIS,
             n if n == ELSE.name() => ELSE,
@@ -86,6 +93,7 @@ impl Symbol {
             n if n == QUOTE.name() => QUOTE,
             n if n == RENAME.name() => RENAME,
             n if n == SETVAR.name() => SETVAR,
+            n if n == SYNTAX_RULES.name() => SYNTAX_RULES,
             n if n == TRACE.name() => TRACE,
             n if n == UNDERSCORE.name() => UNDERSCORE,
             n if n == GREEK_LAMBDA.name() => GREEK_LAMBDA,

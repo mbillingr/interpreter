@@ -1,3 +1,4 @@
+use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Ref};
 use crate::lexer::Lexer;
@@ -6,7 +7,6 @@ use crate::symbol;
 use std::fs;
 use std::iter::Peekable;
 use std::path::{Path, PathBuf};
-use crate::environment::EnvRef;
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Expression> {
     let mut lexer = Lexer::new();
@@ -30,7 +30,7 @@ pub fn parse(input: impl IntoIterator<Item = Token>) -> Result<Vec<Expression>> 
             break;
         }
         let expr = parse_expression(&mut input)?;
-        output.push(expand(&expr)?);
+        output.push(expr);
     }
     Ok(output)
 }
@@ -60,10 +60,10 @@ fn expect_token(token: Token, input: &mut Peekable<impl Iterator<Item = Token>>)
     }
 }
 
-fn parse_list(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expression> {
+/*fn parse_list(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expression> {
     expect_token(Token::ListOpen, input)?;
     parse_list_open(input)
-}
+}*/
 
 fn parse_list_open(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expression> {
     let mut list = Expression::Nil;
@@ -86,12 +86,12 @@ fn parse_list_open(input: &mut Peekable<impl Iterator<Item = Token>>) -> Result<
     Ok(list)
 }
 
-// convert some syntactic forms, expand macros(?), check errors, ... (mostly to-do)
-fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
+// convert some syntactic forms, expand macros, check errors, ... (mostly to-do)
+pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(ref car, _) => {
-            let syntax_macro = if let Symbol(s) = car {
+            let syntax_macro = if let Symbol(s) = &**car {
                 match env.borrow().lookup(s) {
                     Some(Expression::Macro(m)) => Some(m),
                     _ => None,
@@ -100,24 +100,25 @@ fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
                 None
             };
             match **car {
-                Symbol(s) if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
-                Symbol(s) if s == symbol::AND => expand_and(expr),
-                Symbol(s) if s == symbol::COND => expand_cond(expr),
-                Symbol(s) if s == symbol::DEFINE => expand_define(expr),
-                Symbol(s) if s == symbol::IF => expand_if(expr),
-                Symbol(s) if s == symbol::INCLUDE => expand_include(expr),
-                Symbol(s) if s == symbol::LAMBDA => expand_lambda(expr),
-                Symbol(s) if s == symbol::LET => expand_let(expr),
-                Symbol(s) if s == symbol::OR => expand_or(expr),
+                _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
+                Symbol(s) if s == symbol::AND => expand_and(expr, env),
+                Symbol(s) if s == symbol::COND => expand_cond(expr, env),
+                Symbol(s) if s == symbol::DEFINE => expand_define(expr, env),
+                Symbol(s) if s == symbol::DEFINE_SYNTAX => Ok(expr.clone()),
+                Symbol(s) if s == symbol::IF => expand_if(expr, env),
+                Symbol(s) if s == symbol::INCLUDE => expand_include(expr, env),
+                Symbol(s) if s == symbol::LAMBDA => expand_lambda(expr, env),
+                Symbol(s) if s == symbol::LET => expand_let(expr, env),
+                Symbol(s) if s == symbol::OR => expand_or(expr, env),
                 Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
-                _ => expr.map_list(|e| expand(&e)),
+                _ => expr.map_list(|e| expand(&e, env)),
             }
-        },
+        }
         _ => Ok(expr.clone()),
     }
 }
 
-fn expand_define(list: &Expression) -> Result<Expression> {
+fn expand_define(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(define), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
@@ -126,12 +127,12 @@ fn expand_define(list: &Expression) -> Result<Expression> {
             return Err(ErrorKind::ArgumentError)?;
         }
         let value = body.car()?;
-        Ok(scheme!(define, @signature.clone(), @expand(&value)?))
+        Ok(scheme!(define, @signature.clone(), @expand(&value, env)?))
     } else if signature.is_pair() {
         let (name, signature) = signature.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
         let lambda = scheme!(lambda, @signature.clone(), ...body.clone());
-        let lambda = expand_lambda(&lambda)?;
+        let lambda = expand_lambda(&lambda, env)?;
 
         Ok(scheme!(define, @name.clone(), @lambda))
     } else {
@@ -139,19 +140,19 @@ fn expand_define(list: &Expression) -> Result<Expression> {
     }
 }
 
-fn expand_lambda(list: &Expression) -> Result<Expression> {
+fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
     if body.cdr().unwrap() == &Expression::Nil {
-        Ok(scheme!(lambda, @signature.clone(), @expand(body.car()?)?))
+        Ok(scheme!(lambda, @signature.clone(), @expand(body.car()?, env)?))
     } else {
-        let body = Expression::cons(scheme!(begin), body.map_list(|e| expand(&e))?);
+        let body = Expression::cons(scheme!(begin), body.map_list(|e| expand(&e, env))?);
         Ok(scheme!(lambda, @signature.clone(), @body))
     }
 }
 
-fn expand_cond(list: &Expression) -> Result<Expression> {
+fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
@@ -169,12 +170,12 @@ fn expand_cond(list: &Expression) -> Result<Expression> {
             }
             row => row.clone(),
         };
-        expand(&row)
+        expand(&row, env)
     })?;
     Ok(Expression::cons(scheme!(cond), body))
 }
 
-fn expand_if(list: &Expression) -> Result<Expression> {
+fn expand_if(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(if)), list.next_expr()?);
@@ -182,10 +183,10 @@ fn expand_if(list: &Expression) -> Result<Expression> {
     let if_ = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
     let else_ = list.next_expr()?.unwrap_or(&Expression::Undefined);
 
-    Ok(scheme!(if, @expand(cond)?, @expand(if_)?, @expand(else_)?))
+    Ok(scheme!(if, @expand(cond, env)?, @expand(if_, env)?, @expand(else_, env)?))
 }
 
-fn expand_let(list: &Expression) -> Result<Expression> {
+fn expand_let(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(let)), list.next_expr()?);
@@ -214,18 +215,18 @@ fn expand_let(list: &Expression) -> Result<Expression> {
 
     let lambda_form = scheme!(lambda, @vars, ...body.clone());
     exps = Expression::cons(lambda_form, exps);
-    expand(&exps)
+    expand(&exps, env)
 }
 
-fn expand_or(list: &Expression) -> Result<Expression> {
+fn expand_or(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(or), cmd);
     let mapped = args.map_list(|x| Ok(scheme!((@x.clone()))))?;
     let mapped = mapped.append(scheme!(((#t, #f))))?;
-    expand_cond(&scheme!(cond, ...mapped))
+    expand_cond(&scheme!(cond, ...mapped), env)
 }
 
-fn expand_and(list: &Expression) -> Result<Expression> {
+fn expand_and(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(and), cmd);
 
@@ -233,13 +234,14 @@ fn expand_and(list: &Expression) -> Result<Expression> {
         Expression::Nil => Ok(Expression::True),
         Expression::Pair(car, cdr) if **cdr == Expression::Nil => Ok((**car).clone()),
         Expression::Pair(car, cdr) => expand_if(
-            &scheme!(if, @(**car).clone(), @expand_and(&scheme!(and, ...(**cdr).clone()))?, #f),
+            &scheme!(if, @(**car).clone(), @expand_and(&scheme!(and, ...(**cdr).clone()), env)?, #f),
+            env,
         ),
         _ => unreachable!(),
     }
 }
 
-fn expand_include(list: &Expression) -> Result<Expression> {
+fn expand_include(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
 
@@ -249,7 +251,9 @@ fn expand_include(list: &Expression) -> Result<Expression> {
         let filename = filename?.try_as_str()?;
         let path =
             find_file(filename).ok_or_else(|| ErrorKind::FileNotFoundError(filename.to_owned()))?;
-        result = result.append(parse_file(path)?)?;
+        let expr = parse_file(path)?;
+        let expr = expand(&expr, env)?;
+        result = result.append(expr)?;
     }
 
     Ok(result)

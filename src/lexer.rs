@@ -101,7 +101,7 @@ impl Lexer {
     pub fn take(&mut self) -> Vec<Token> {
         std::mem::replace(&mut self.token_stream, vec![])
             .into_iter()
-            .map(|pt| pt.into())
+            .map(PositionalToken::into)
             .collect()
     }
 
