@@ -646,6 +646,8 @@ impl std::cmp::PartialOrd for Expression {
             (Integer(a), Float(b)) => (*a as f64).partial_cmp(b),
             (Float(a), Integer(b)) => a.partial_cmp(&(*b as f64)),
             (Float(a), Float(b)) => a.partial_cmp(b),
+            (String(a), String(b)) => a.partial_cmp(b),
+            (Symbol(a), Symbol(b)) => a.partial_cmp(b),
             _ => None,
         }
     }

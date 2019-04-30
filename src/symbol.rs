@@ -146,3 +146,9 @@ impl std::fmt::Debug for Symbol {
         write!(f, "{}", self.name)
     }
 }
+
+impl std::cmp::PartialOrd for Symbol {
+    fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
+        self.name.partial_cmp(rhs.name)
+    }
+}
