@@ -8,6 +8,7 @@
     (define (print x) (apply-generic 'print x))
 
     (define (apply-generic op . args)
+      ;(println op args)
       (let ((type-tags (map type-tag args)))
         (let ((proc (get op type-tags)))
           (if proc

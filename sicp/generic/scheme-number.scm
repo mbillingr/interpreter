@@ -7,6 +7,26 @@
           (sicp generic))
 
   (begin
+    (define (make-scheme-number n)
+      ((get 'make 'scheme-number) n))
+
+    (define (exp base exponent)
+      ;(if (< exponent 0)
+    ;      (error "exponent less than zero -- EXP" base exponent)
+      (define (exp-iter a b n)
+        (cond ((= n 0) a)
+              ((even? n) (exp-iter a
+                                   (* b b)
+                                   (/ n 2)))
+              (else (exp-iter (* a b)
+                              b
+                              (- n 1)))))
+      (exp-iter 1 base exponent))
+
+    (define (reduce-integers n d)
+      (let ((g (gcd n d)))
+        (list (/ n g) (/ d g))))
+
     (define (tag x) (attach-tag 'scheme-number x))
     (put 'add '(scheme-number scheme-number) (lambda (x y) (tag (+ x y))))
     (put 'sub '(scheme-number scheme-number) (lambda (x y) (tag (- x y))))
@@ -18,19 +38,6 @@
     (put '=zero? '(scheme-number) (lambda (x) (= x 0)))
     (put 'greatest-common-divisor '(scheme-number scheme-number)
       (lambda (x y) (tag (gcd x y))))
+    (put 'reduce '(scheme-number scheme-number) reduce-integers)  ; I'm cheating here, leaving out tagging the two results which is supposed to be a no-op anyway
     (put 'print '(scheme-number) (lambda (x) (display x)))
-    (put 'make 'scheme-number (lambda (x) (tag x)))
-
-    (define (make-scheme-number n)
-      ((get 'make 'scheme-number) n))
-
-    (define (exp base exponent)
-      (define (exp-iter a b n)
-        (cond ((= n 0) a)
-              ((even? n) (exp-iter a
-                                   (* b b)
-                                   (/ n 2)))
-              (else (exp-iter (* a b)
-                              b
-                              (- n 1)))))
-      (exp-iter 1 base exponent))))
+    (put 'make 'scheme-number (lambda (x) (tag x)))))

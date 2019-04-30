@@ -3,7 +3,7 @@
 
   (export abs accumulate append average
           caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cube
-          dec
+          debug-print dec
           even?
           false fixed-point
           gcd get get-coercion
@@ -148,6 +148,10 @@
           (begin (display (car args))
                  (display " ")
                  (apply println (cdr args)))))
+
+    (define (debug-print x)
+      (println "DEBUG: " x)
+      x)
 
     ;; ==========================================
     ;;   put and get into a global table

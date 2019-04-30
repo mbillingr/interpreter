@@ -1,6 +1,6 @@
 
 (define-library (sicp generic math)
-  (export =zero? add div equ? greatest-common-divisor mul neg sub pow)
+  (export =zero? add div equ? greatest-common-divisor mul neg pow reduce sub)
 
   (import (sicp generic))
 
@@ -16,4 +16,5 @@
     (define (=zero? x) (apply-generic '=zero? x))
 
     (define (greatest-common-divisor a b)
-      (apply-generic 'greatest-common-divisor a b))))
+      (apply-generic 'greatest-common-divisor a b))
+    (define (reduce n d) (apply-generic 'reduce n d))))
