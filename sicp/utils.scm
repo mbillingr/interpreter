@@ -13,7 +13,7 @@
           nil
           println put put-coercion
           timeit true
-          sqr sqrt
+          sqr sqrt symbol<?
           xor)
 
   (import (builtin core)
@@ -70,6 +70,8 @@
             (else r)))
      (fix a b (remainder a b)))
 
+    (define (symbol<? a b)
+      (< a b))
 
     (define (gcd a b)
       (if (= b 0)
