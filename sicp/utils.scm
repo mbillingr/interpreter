@@ -1,7 +1,8 @@
 
 (define-library (sicp utils)
 
-  (export abs accumulate append average
+  (export >=
+          abs accumulate append average
           caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cube
           debug-print dec
           even?
@@ -62,6 +63,7 @@
     (define (dec n) (- n 1))
 
     (define (even? x) (= 0 (modulo x 2)))
+    (define (>= a b) (or (< b a) (= a b)))
 
     (define (modulo a b)
      (define (fix a b r)
