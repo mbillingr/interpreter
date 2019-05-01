@@ -342,10 +342,12 @@ pub fn default_env() -> EnvRef {
             Ok(Expression::Integer(t as i64))
         });
 
-        env.insert_native("random", |args| {
-            let n = car(&args)?.try_as_integer()?;
-            let r = rand::thread_rng().gen_range(0, n);
-            Ok(Expression::Integer(r))
+        env.insert_native("random", |args| match car(&args)? {
+            Expression::Integer(n) => Ok(Expression::Integer(rand::thread_rng().gen_range(0, n))),
+            Expression::Float(n) => Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n))),
+            x => {
+                Err(ErrorKind::TypeError(format!("Invalid upper limit for random: {:?}", x)).into())
+            }
         });
 
         env.insert(

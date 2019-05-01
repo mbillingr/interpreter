@@ -1,8 +1,8 @@
-use crate::expression::{Expression, Ref};
-use crate::symbol;
 use crate::environment::EnvRef;
 use crate::errors::*;
+use crate::expression::{Expression, Ref};
 use crate::parser::parse_file;
+use crate::symbol;
 use std::path::{Path, PathBuf};
 
 // convert some syntactic forms, expand macros, check errors, ... (mostly to-do)
