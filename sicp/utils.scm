@@ -12,7 +12,7 @@
           length
           map map1 memq modulo
           nil
-          println put put-coercion
+          power println put put-coercion
           timeit true
           sqr sqrt symbol<?
           xor)
@@ -89,6 +89,19 @@
       (define (improve guess)
         (average guess (/ x guess)))
       (fixed-point improve 1.0))
+
+    (define (power base exponent)
+      (if (< exponent 0)
+          (error "exponent less than zero -- EXP" base exponent))
+      (define (exp-iter a b n)
+        (cond ((= n 0) a)
+              ((even? n) (exp-iter a
+                                   (* b b)
+                                   (/ n 2)))
+              (else (exp-iter (* a b)
+                              b
+                              (- n 1)))))
+      (exp-iter 1 base exponent))
 
 
     (define (xor a b)

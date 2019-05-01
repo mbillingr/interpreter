@@ -10,19 +10,6 @@
     (define (make-scheme-number n)
       ((get 'make 'scheme-number) n))
 
-    (define (exp base exponent)
-      ;(if (< exponent 0)
-    ;      (error "exponent less than zero -- EXP" base exponent)
-      (define (exp-iter a b n)
-        (cond ((= n 0) a)
-              ((even? n) (exp-iter a
-                                   (* b b)
-                                   (/ n 2)))
-              (else (exp-iter (* a b)
-                              b
-                              (- n 1)))))
-      (exp-iter 1 base exponent))
-
     (define (reduce-integers n d)
       (let ((g (gcd n d)))
         (list (/ n g) (/ d g))))
@@ -33,7 +20,7 @@
     (put 'mul '(scheme-number scheme-number) (lambda (x y) (tag (* x y))))
     (put 'div '(scheme-number scheme-number) (lambda (x y) (tag (/ x y))))
     (put 'neg '(scheme-number) (lambda (x) (tag (- x))))
-    (put 'pow '(scheme-number scheme-number) (lambda (x y) (tag (exp x y))))
+    (put 'pow '(scheme-number scheme-number) (lambda (x y) (tag (power x y))))
     (put 'equ? '(scheme-number scheme-number) =)
     (put '=zero? '(scheme-number) (lambda (x) (= x 0)))
     (put 'greatest-common-divisor '(scheme-number scheme-number)
