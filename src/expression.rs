@@ -126,6 +126,34 @@ impl Expression {
         }
     }
 
+    pub fn set_car(&self, x: Expression) -> Result<()> {
+        match self {
+            Expression::Pair(pair) => {
+                // mutating shared data is unsafe in Rust but expected behavior in Scheme.
+                unsafe {
+                    let car = &pair.0 as *const _ as *mut Ref<Expression>;
+                    *car = Ref::new(x);
+                }
+            }
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
+        }
+        Ok(())
+    }
+
+    pub fn set_cdr(&self, x: Expression) -> Result<()> {
+        match self {
+            Expression::Pair(pair) => {
+                // mutating shared data is unsafe in Rust but expected behavior in Scheme.
+                unsafe {
+                    let car = &pair.1 as *const _ as *mut Ref<Expression>;
+                    *car = Ref::new(x);
+                }
+            }
+            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
+        }
+        Ok(())
+    }
+
     pub fn iter_list(&self) -> ListIterator {
         ListIterator::from_expression(self)
     }

@@ -262,6 +262,20 @@ pub fn default_env() -> EnvRef {
         env.insert_native("car", |args| Ok(car(&args)?.car()?.clone()));
         env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone()));
 
+        env.insert_native("set-car!", |args| {
+            let pair = car(&args)?;
+            let x = car(cdr(&args)?)?;
+            pair.set_car(x.clone())?;
+            Ok(Expression::Undefined)
+        });
+
+        env.insert_native("set-cdr!", |args| {
+            let pair = car(&args)?;
+            let x = car(cdr(&args)?)?;
+            pair.set_cdr(x.clone())?;
+            Ok(Expression::Undefined)
+        });
+
         // list operations
 
         env.insert_native("list", Ok);
