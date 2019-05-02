@@ -167,7 +167,7 @@ impl Pattern {
                 let mut list = vec![];
                 loop {
                     list.push(Pattern::parse(&*car, literals, ellipsis)?);
-                    match &**cdr {
+                    match cdr {
                         Expression::Nil => return Ok(Pattern::List(list)),
                         Expression::Pair(p) => {
                             car = &p.0;
@@ -256,7 +256,7 @@ impl Template {
                 let mut list = vec![];
                 loop {
                     list.push(Template::parse(&*car, literals, ellipsis)?);
-                    match &**cdr {
+                    match cdr {
                         Expression::Nil => return Ok(Template::List(list)),
                         Expression::Pair(p) => {
                             car = &p.0;

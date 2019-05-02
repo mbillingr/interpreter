@@ -1,6 +1,6 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
-use crate::expression::{Expression, Procedure};
+use crate::expression::{Expression, Procedure, Ref};
 use crate::libraries::{define_library, import_library, store_library};
 use crate::macros;
 use crate::symbol;
@@ -29,13 +29,13 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
             Native(_) | NativeIntrusive(_) => return Ok(expr.into_owned()),
             Pair(ref pair) => {
                 let (car, cdr) = &**pair;
-                match **cdr {
+                match cdr {
                     Expression::Nil => {}
                     Expression::Pair(_) => {}
                     _ => return Ok(expr.into_owned()),
                 }
                 //let l = expr.try_into_list()?;
-                match &**car {
+                match car {
                     Symbol(s) if *s == symbol::BEGIN => expr = Cow::Owned(begin(&cdr, &env)?),
                     Symbol(s) if *s == symbol::COND => match cond(&cdr, &env)? {
                         Return::RetVal(ex) => return Ok(ex),
@@ -156,9 +156,13 @@ fn set_var(list: &Expression, env: &EnvRef) -> Result<Expression> {
 }
 
 fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
-    let (signature, list) = list.decons_rc()?;
-    let (body, _) = list.decons_rc()?;
-    let proc = Procedure::new(signature.clone(), body.clone(), env.clone());
+    let (signature, list) = list.decons()?;
+    let (body, _) = list.decons()?;
+    let proc = Procedure::new(
+        Ref::new(signature.clone()),
+        Ref::new(body.clone()),
+        env.clone(),
+    );
     Ok(Expression::Procedure(proc))
 }
 

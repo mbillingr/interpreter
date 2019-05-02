@@ -23,7 +23,7 @@ pub enum Expression {
     Float(f64),
     True,
     False,
-    Pair(Ref<(Ref<(Expression)>, Ref<(Expression)>)>),
+    Pair(Ref<(Expression, Expression)>),
     Procedure(Procedure<EnvRef>),
     Macro(Macro),
     Native(NativeFn),
@@ -67,21 +67,10 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Ref::new((Ref::new(car.into()), Ref::new(cdr.into()))))
+        Expression::Pair(Ref::new((car.into(), cdr.into())))
     }
 
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {
-        match self {
-            Expression::Pair(pair) => Ok((&pair.0, &pair.1)),
-            _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
-        }
-    }
-
-    pub fn cons_ref(car: Ref<Expression>, cdr: Ref<Expression>) -> Self {
-        Expression::Pair(Ref::new((car, cdr)))
-    }
-
-    pub fn decons_rc(&self) -> Result<(&Ref<Expression>, &Ref<Expression>)> {
         match self {
             Expression::Pair(pair) => Ok((&pair.0, &pair.1)),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
@@ -104,24 +93,18 @@ impl Expression {
 
     pub fn car_mut(&mut self) -> Result<&mut Expression> {
         match self {
-            Expression::Pair(pair) => Ok(Ref::get_mut(
-                &mut Ref::get_mut(pair)
-                    .expect("mutable reference must be unique")
-                    .0,
-            )
-            .expect("mutable reference must be unique")),
+            Expression::Pair(pair) => Ok(&mut Ref::get_mut(pair)
+                .expect("mutable reference must be unique")
+                .0),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
         match self {
-            Expression::Pair(pair) => Ok(Ref::get_mut(
-                &mut Ref::get_mut(pair)
-                    .expect("mutable reference must be unique")
-                    .1,
-            )
-            .expect("mutable reference must be unique")),
+            Expression::Pair(pair) => Ok(&mut Ref::get_mut(pair)
+                .expect("mutable reference must be unique")
+                .1),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
@@ -131,8 +114,8 @@ impl Expression {
             Expression::Pair(pair) => {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 unsafe {
-                    let car = &pair.0 as *const _ as *mut Ref<Expression>;
-                    *car = Ref::new(x);
+                    let car = &pair.0 as *const _ as *mut Expression;
+                    *car = x;
                 }
             }
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
@@ -145,8 +128,8 @@ impl Expression {
             Expression::Pair(pair) => {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 unsafe {
-                    let car = &pair.1 as *const _ as *mut Ref<Expression>;
-                    *car = Ref::new(x);
+                    let cdr = &pair.1 as *const _ as *mut Expression;
+                    *cdr = x;
                 }
             }
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
@@ -349,7 +332,7 @@ impl Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a), Pair(b)) => Ref::ptr_eq(&a.0, &b.0) && Ref::ptr_eq(&a.1, &b.1),
+            (Pair(a), Pair(b)) => Ref::ptr_eq(a, b),
             (Procedure(a), Procedure(b)) => a.eqv(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -444,7 +427,7 @@ impl Expression {
                 let mut s = format!("({}", car.short_repr());
                 let mut cdr = cdr;
                 loop {
-                    match **cdr {
+                    match cdr {
                         Expression::Nil => break,
                         Expression::Pair(ref pair) => {
                             s += &format!(" {}", pair.0.short_repr());
@@ -491,7 +474,7 @@ impl std::fmt::Debug for Expression {
                 let mut cdr = &pair.1;
                 write!(f, "({:?}", car)?;
                 loop {
-                    match &**cdr {
+                    match cdr {
                         Expression::Nil => break,
                         Expression::Pair(p) => {
                             write!(f, " {:?}", p.0)?;
@@ -536,7 +519,7 @@ impl std::fmt::Display for Expression {
                 let mut cdr = &pair.1;
                 write!(f, "({}", car)?;
                 loop {
-                    match &**cdr {
+                    match cdr {
                         Expression::Nil => break,
                         Expression::Pair(p) => {
                             write!(f, " {}", p.0)?;
@@ -843,11 +826,7 @@ impl From<Procedure<EnvWeak>> for Expression {
 
 impl<T> std::fmt::Debug for Procedure<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            Expression::cons_ref(Ref::new(self.name.into()), self.params.clone())
-        )
+        write!(f, "{}", Expression::cons(self.name, (*self.params).clone()))
     }
 }
 

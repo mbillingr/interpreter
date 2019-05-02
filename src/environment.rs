@@ -255,9 +255,9 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("pair?", |args| Ok(car(&args)?.is_pair().into()));
         env.insert_native("cons", |args| {
-            let (car, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            let (cdr, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(Expression::cons_ref(car.clone(), cdr.clone()))
+            let (car, args) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
+            let (cdr, _) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
+            Ok(Expression::cons(car.clone(), cdr.clone()))
         });
         env.insert_native("car", |args| Ok(car(&args)?.car()?.clone()));
         env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone()));
@@ -378,8 +378,8 @@ where
     R: IntoResultExpression,
     F: Fn(&Expression, &Expression) -> R,
 {
-    let (a, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-    let (b, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
+    let (a, args) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
+    let (b, _) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
     op(a, b).into_result()
 }
 
@@ -470,15 +470,13 @@ fn apply(list: Expression, env: &EnvRef) -> Result<Expression> {
             Expression::Nil => break,
             Expression::Pair(pair) => {
                 let (car, cdr) = &**pair;
-                //let x = interpreter::eval(&car, env.clone())?;
-                let x = (**car).clone();
                 in_cursor = &*cdr;
 
                 if in_cursor.is_nil() {
-                    *out_cursor = x;
+                    *out_cursor = car.clone();
                     break;
                 } else {
-                    *out_cursor = Expression::cons(x, Expression::Nil);
+                    *out_cursor = Expression::cons(car.clone(), Expression::Nil);
                 };
 
                 out_cursor = out_cursor.cdr_mut().unwrap();

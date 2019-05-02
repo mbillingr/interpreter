@@ -1,6 +1,6 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
-use crate::expression::{Expression, Ref};
+use crate::expression::Expression;
 use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
     match expr {
         Pair(pair) => {
             let car = &pair.0;
-            let syntax_macro = if let Symbol(s) = &**car {
+            let syntax_macro = if let Symbol(s) = car {
                 match env.borrow().lookup(s) {
                     Some(Expression::Macro(m)) => Some(m),
                     _ => None,
@@ -19,7 +19,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
             } else {
                 None
             };
-            match **car {
+            match *car {
                 _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
                 Symbol(s) if s == symbol::AND => expand_and(expr, env),
                 Symbol(s) if s == symbol::COND => expand_cond(expr, env),
@@ -78,16 +78,16 @@ fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
         let row = match row {
             Expression::Pair(pair) => {
                 let (car, cdr) = &**pair;
-                let car = if let Expression::Symbol(s) = &**car {
+                let car = if let Expression::Symbol(s) = car {
                     if *s == symbol::ELSE {
-                        Ref::new(Expression::True)
+                        Expression::True
                     } else {
                         car.clone()
                     }
                 } else {
                     car.clone()
                 };
-                Expression::cons_ref(car, cdr.clone())
+                Expression::cons(car, cdr.clone())
             }
             row => row.clone(),
         };
@@ -153,9 +153,9 @@ fn expand_and(list: &Expression, env: &EnvRef) -> Result<Expression> {
 
     match args {
         Expression::Nil => Ok(Expression::True),
-        Expression::Pair(p) if *p.1 == Expression::Nil => Ok((*p.0).clone()),
+        Expression::Pair(p) if p.1 == Expression::Nil => Ok((p.0).clone()),
         Expression::Pair(p) => expand_if(
-            &scheme!(if, @(*p.0).clone(), @expand_and(&scheme!(and, ...(*p.1).clone()), env)?, #f),
+            &scheme!(if, @(p.0).clone(), @expand_and(&scheme!(and, ...(p.1).clone()), env)?, #f),
             env,
         ),
         _ => unreachable!(),
