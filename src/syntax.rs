@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
     use Expression::*;
     match expr {
-        Pair(ref car, _) => {
+        Pair(pair) => {
+            let car = &pair.0;
             let syntax_macro = if let Symbol(s) = &**car {
                 match env.borrow().lookup(s) {
                     Some(Expression::Macro(m)) => Some(m),
@@ -75,7 +76,8 @@ fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
-            Expression::Pair(car, cdr) => {
+            Expression::Pair(pair) => {
+                let (car, cdr) = &**pair;
                 let car = if let Expression::Symbol(s) = &**car {
                     if *s == symbol::ELSE {
                         Ref::new(Expression::True)
@@ -85,7 +87,7 @@ fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
                 } else {
                     car.clone()
                 };
-                Expression::Pair(car, cdr.clone())
+                Expression::cons_ref(car, cdr.clone())
             }
             row => row.clone(),
         };
@@ -151,9 +153,9 @@ fn expand_and(list: &Expression, env: &EnvRef) -> Result<Expression> {
 
     match args {
         Expression::Nil => Ok(Expression::True),
-        Expression::Pair(car, cdr) if **cdr == Expression::Nil => Ok((**car).clone()),
-        Expression::Pair(car, cdr) => expand_if(
-            &scheme!(if, @(**car).clone(), @expand_and(&scheme!(and, ...(**cdr).clone()), env)?, #f),
+        Expression::Pair(p) if *p.1 == Expression::Nil => Ok((*p.0).clone()),
+        Expression::Pair(p) => expand_if(
+            &scheme!(if, @(*p.0).clone(), @expand_and(&scheme!(and, ...(*p.1).clone()), env)?, #f),
             env,
         ),
         _ => unreachable!(),

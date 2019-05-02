@@ -161,16 +161,17 @@ impl Pattern {
             } else {
                 Pattern::Identifier(*s)
             }),
-            Expression::Pair(ref car, ref cdr) => {
-                let (mut car, mut cdr) = (car, cdr);
+            Expression::Pair(pair) => {
+                let mut car = &pair.0;
+                let mut cdr = &pair.1;
                 let mut list = vec![];
                 loop {
                     list.push(Pattern::parse(&*car, literals, ellipsis)?);
                     match &**cdr {
                         Expression::Nil => return Ok(Pattern::List(list)),
-                        Expression::Pair(a, d) => {
-                            car = a;
-                            cdr = d;
+                        Expression::Pair(p) => {
+                            car = &p.0;
+                            cdr = &p.1;
                         }
                         _ => {
                             return Ok(Pattern::ImproperList(
@@ -249,16 +250,17 @@ impl Template {
     pub fn parse(expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
         match expr {
             Expression::Symbol(s) => Ok(Template::Identifier(*s)),
-            Expression::Pair(ref car, ref cdr) => {
-                let (mut car, mut cdr) = (car, cdr);
+            Expression::Pair(pair) => {
+                let mut car = &pair.0;
+                let mut cdr = &pair.1;
                 let mut list = vec![];
                 loop {
                     list.push(Template::parse(&*car, literals, ellipsis)?);
                     match &**cdr {
                         Expression::Nil => return Ok(Template::List(list)),
-                        Expression::Pair(a, d) => {
-                            car = a;
-                            cdr = d;
+                        Expression::Pair(p) => {
+                            car = &p.0;
+                            cdr = &p.1;
                         }
                         _ => {
                             return Ok(Template::ImproperList(

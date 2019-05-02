@@ -124,13 +124,13 @@ impl Environment {
                     names = &Expression::Nil;
                     args = &Expression::Nil;
                 }
-                (Expression::Pair(car, cdr), _) if car.is_named_symbol(symbol::DOT) => {
-                    name = cdr.car()?.try_as_symbol()?;
-                    names = cdr.cdr()?;
+                (Expression::Pair(pair), _) if pair.0.is_named_symbol(symbol::DOT) => {
+                    name = pair.1.car()?.try_as_symbol()?;
+                    names = pair.1.cdr()?;
                     arg = args;
                     args = &Expression::Nil;
                 }
-                (Expression::Pair(_, _), Expression::Pair(_, _)) => {
+                (Expression::Pair(_), Expression::Pair(_)) => {
                     name = names.car()?.try_as_symbol()?;
                     names = names.cdr()?;
                     arg = args.car()?;
@@ -257,7 +257,7 @@ pub fn default_env() -> EnvRef {
         env.insert_native("cons", |args| {
             let (car, args) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
             let (cdr, _) = args.decons_rc().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(Expression::cons_rc(car.clone(), cdr.clone()))
+            Ok(Expression::cons_ref(car.clone(), cdr.clone()))
         });
         env.insert_native("car", |args| Ok(car(&args)?.car()?.clone()));
         env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone()));
@@ -454,7 +454,8 @@ fn apply(list: Expression, env: &EnvRef) -> Result<Expression> {
     loop {
         match in_cursor {
             Expression::Nil => break,
-            Expression::Pair(car, cdr) => {
+            Expression::Pair(pair) => {
+                let (car, cdr) = &**pair;
                 //let x = interpreter::eval(&car, env.clone())?;
                 let x = (**car).clone();
                 in_cursor = &*cdr;

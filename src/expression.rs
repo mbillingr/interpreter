@@ -23,7 +23,7 @@ pub enum Expression {
     Float(f64),
     True,
     False,
-    Pair(Ref<(Expression)>, Ref<(Expression)>),
+    Pair(Ref<(Ref<(Expression)>, Ref<(Expression)>)>),
     Procedure(Procedure<EnvRef>),
     Macro(Macro),
     Native(NativeFn),
@@ -67,55 +67,61 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Ref::new(car.into()), Ref::new(cdr.into()))
+        Expression::Pair(Ref::new((Ref::new(car.into()), Ref::new(cdr.into()))))
     }
 
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {
         match self {
-            Expression::Pair(car, cdr) => Ok((car, cdr)),
+            Expression::Pair(pair) => Ok((&pair.0, &pair.1)),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
-    pub fn cons_rc(car: Ref<Expression>, cdr: Ref<Expression>) -> Self {
-        Expression::Pair(car, cdr)
+    pub fn cons_ref(car: Ref<Expression>, cdr: Ref<Expression>) -> Self {
+        Expression::Pair(Ref::new((car, cdr)))
     }
 
     pub fn decons_rc(&self) -> Result<(&Ref<Expression>, &Ref<Expression>)> {
         match self {
-            Expression::Pair(car, cdr) => Ok((car, cdr)),
+            Expression::Pair(pair) => Ok((&pair.0, &pair.1)),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn car(&self) -> Result<&Expression> {
         match self {
-            Expression::Pair(car, _) => Ok(car),
+            Expression::Pair(pair) => Ok(&pair.0),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn cdr(&self) -> Result<&Expression> {
         match self {
-            Expression::Pair(_, cdr) => Ok(cdr),
+            Expression::Pair(pair) => Ok(&pair.1),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn car_mut(&mut self) -> Result<&mut Expression> {
         match self {
-            Expression::Pair(car, _) => {
-                Ok(Ref::get_mut(car).expect("mutable reference must be unique"))
-            }
+            Expression::Pair(pair) => Ok(Ref::get_mut(
+                &mut Ref::get_mut(pair)
+                    .expect("mutable reference must be unique")
+                    .0,
+            )
+            .expect("mutable reference must be unique")),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
         match self {
-            Expression::Pair(_, cdr) => {
-                Ok(Ref::get_mut(cdr).expect("mutable reference must be unique"))
-            }
+            Expression::Pair(pair) => Ok(Ref::get_mut(
+                &mut Ref::get_mut(pair)
+                    .expect("mutable reference must be unique")
+                    .1,
+            )
+            .expect("mutable reference must be unique")),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
@@ -158,7 +164,8 @@ impl Expression {
         loop {
             match in_cursor {
                 Expression::Nil => break,
-                Expression::Pair(car, cdr) => {
+                Expression::Pair(pair) => {
+                    let (car, cdr) = &**pair;
                     let x = func(&car)?;
                     in_cursor = &*cdr;
 
@@ -226,14 +233,14 @@ impl Expression {
     pub fn is_list(&self) -> bool {
         match self {
             Expression::Nil => true,
-            Expression::Pair(_, cdr) => cdr.is_list(),
+            Expression::Pair(pair) => pair.1.is_list(),
             _ => false,
         }
     }
 
     pub fn is_pair(&self) -> bool {
         match self {
-            Expression::Pair(_, _) => true,
+            Expression::Pair(_) => true,
             _ => false,
         }
     }
@@ -314,9 +321,7 @@ impl Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => {
-                Ref::ptr_eq(a_car, b_car) && Ref::ptr_eq(a_cdr, b_cdr)
-            }
+            (Pair(a), Pair(b)) => Ref::ptr_eq(&a.0, &b.0) && Ref::ptr_eq(&a.1, &b.1),
             (Procedure(a), Procedure(b)) => a.eqv(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -334,7 +339,7 @@ impl Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => a_car == b_car && a_cdr == b_cdr,
+            (Pair(a), Pair(b)) => a.0 == b.0 && a.1 == b.1,
             (Procedure(a), Procedure(b)) => a.equal(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -406,15 +411,16 @@ impl Expression {
             Expression::Char(ch) => format!("{:?}", ch),
             Expression::True => "#t".into(),
             Expression::False => "#f".into(),
-            Expression::Pair(ref car, ref cdr) => {
+            Expression::Pair(pair) => {
+                let (car, cdr) = &**pair;
                 let mut s = format!("({}", car.short_repr());
                 let mut cdr = cdr;
                 loop {
                     match **cdr {
                         Expression::Nil => break,
-                        Expression::Pair(ref a, ref d) => {
-                            s += &format!(" {}", a.short_repr());
-                            cdr = d;
+                        Expression::Pair(ref pair) => {
+                            s += &format!(" {}", pair.0.short_repr());
+                            cdr = &pair.1;
                         }
                         _ => {
                             s += &format!(" . {}", cdr.short_repr());
@@ -452,15 +458,16 @@ impl std::fmt::Debug for Expression {
             Expression::Char(ch) => write!(f, "{:?}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Pair(ref car, ref cdr) => {
-                let mut cdr = cdr;
+            Expression::Pair(pair) => {
+                let car = &pair.0;
+                let mut cdr = &pair.1;
                 write!(f, "({:?}", car)?;
                 loop {
-                    match **cdr {
+                    match &**cdr {
                         Expression::Nil => break,
-                        Expression::Pair(ref a, ref d) => {
-                            write!(f, " {:?}", a)?;
-                            cdr = d;
+                        Expression::Pair(p) => {
+                            write!(f, " {:?}", p.0)?;
+                            cdr = &p.1;
                         }
                         _ => {
                             write!(f, " . {:?}", cdr)?;
@@ -496,15 +503,16 @@ impl std::fmt::Display for Expression {
             Expression::Char(ch) => write!(f, "{}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
-            Expression::Pair(ref car, ref cdr) => {
-                let mut cdr = cdr;
+            Expression::Pair(pair) => {
+                let car = &pair.0;
+                let mut cdr = &pair.1;
                 write!(f, "({}", car)?;
                 loop {
-                    match **cdr {
+                    match &**cdr {
                         Expression::Nil => break,
-                        Expression::Pair(ref a, ref d) => {
-                            write!(f, " {}", a)?;
-                            cdr = d;
+                        Expression::Pair(p) => {
+                            write!(f, " {}", p.0)?;
+                            cdr = &p.1;
                         }
                         _ => {
                             write!(f, " . {}", cdr)?;
@@ -667,7 +675,7 @@ impl std::cmp::PartialEq for Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a_car, a_cdr), Pair(b_car, b_cdr)) => a_car == b_car && a_cdr == b_cdr,
+            (Pair(a), Pair(b)) => a.0 == b.0 && a.1 == b.1,
             _ => false,
         }
     }
@@ -810,7 +818,7 @@ impl<T> std::fmt::Debug for Procedure<T> {
         write!(
             f,
             "{}",
-            Expression::cons_rc(Ref::new(self.name.into()), self.params.clone())
+            Expression::cons_ref(Ref::new(self.name.into()), self.params.clone())
         )
     }
 }
@@ -831,7 +839,7 @@ impl<'a> ListIterator<'a> {
     pub fn tail(&self) -> Result<&'a Expression> {
         match self.next_pair {
             Expression::Nil => Ok(self.next_pair),
-            Expression::Pair(_, cdr) => Ok(&**cdr),
+            Expression::Pair(pair) => Ok(&pair.1),
             _ => Err(ErrorKind::TypeError("not a list".into()))?,
         }
     }
@@ -842,7 +850,7 @@ impl<'a> Iterator for ListIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let (car, cdr) = match self.next_pair {
             Expression::Nil => return None,
-            Expression::Pair(car, cdr) => (&**car, &**cdr),
+            Expression::Pair(pair) => (&pair.0, &pair.1),
             _ => return Some(Err(ErrorKind::TypeError("not a list".into()).into())),
         };
 

@@ -98,9 +98,9 @@ impl Tracer for CallGraph {
             let p = match param {
                 Expression::Nil => break,
                 Expression::Symbol(s) => s,
-                Expression::Pair(car, cdr) if car.is_symbol() => {
-                    param = cdr;
-                    car.try_as_symbol().unwrap()
+                Expression::Pair(p) if p.0.is_symbol() => {
+                    param = &p.1;
+                    p.0.try_as_symbol().unwrap()
                 }
                 _ => unreachable!(), // there should never be any other type than symbols in the parameter list
             };

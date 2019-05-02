@@ -27,10 +27,11 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 return Ok(expr.into_owned());
             }
             Native(_) | NativeIntrusive(_) => return Ok(expr.into_owned()),
-            Pair(ref car, ref cdr) => {
+            Pair(ref pair) => {
+                let (car, cdr) = &**pair;
                 match **cdr {
                     Expression::Nil => {}
-                    Expression::Pair(_, _) => {}
+                    Expression::Pair(_) => {}
                     _ => return Ok(expr.into_owned()),
                 }
                 //let l = expr.try_into_list()?;
