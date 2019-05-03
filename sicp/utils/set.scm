@@ -24,5 +24,6 @@
       (define (dispatch m k)
         (cond ((eq? m 'lookup) (lookup k))
               ((eq? m 'insert) (insert k))
+              ((eq? m 'contains) (not (eq? 'not-found (lookup k))))
               (else (error "Unknown request -- SET" m))))
       dispatch)))
