@@ -197,6 +197,32 @@ impl Environment {
             current_procedure: self.current_procedure.clone(),
         })
     }
+
+    pub fn print(&self) -> usize {
+        if let Some(parent) = &self.parent {
+            let depth = parent.borrow().print() + 4;
+            let indent: String = (0..depth).map(|_| ' ').collect();
+            let header = format!("----------<{}>----------", self.name());
+            println!("{}+{}", indent, header);
+            for (k, v) in &self.map {
+                println!(
+                    "{}| {}: {}",
+                    indent,
+                    k,
+                    match v {
+                        Entry::Procedure(p) => p.name().to_string(),
+                        Entry::Value(v) => v.short_repr(),
+                    }
+                );
+            }
+            let footer: String = (0..header.len()).map(|_| '-').collect();
+            println!("{}+{}", indent, footer);
+            depth
+        } else {
+            println!("<global>");
+            0
+        }
+    }
 }
 
 impl std::fmt::Debug for Environment {
@@ -367,6 +393,14 @@ pub fn default_env() -> EnvRef {
         env.insert(
             "newline",
             X::Procedure(Procedure::build(X::Nil, scheme!((display, "\n")), &defenv).unwrap()),
+        );
+
+        env.insert(
+            "print-env",
+            Expression::NativeIntrusive(|_, env| {
+                env.borrow().print();
+                Ok(Expression::Undefined)
+            }),
         );
     }
 
