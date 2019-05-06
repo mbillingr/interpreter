@@ -4,7 +4,7 @@
   (export <= >=
           abs accumulate append average
           caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cube
-          debug-print dec
+          debug-eval debug-print dec
           even?
           false fixed-point
           gcd get get-coercion
@@ -24,6 +24,10 @@
     (define nil (list))
     (define false #f)
     (define true #t)
+
+    (define-syntax debug-eval
+      (syntax-rules ()
+        ((_ expr) (debug (quote expr)))))
 
     (define (timeit f)
       (define (measure f start)
