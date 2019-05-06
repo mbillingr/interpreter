@@ -1,12 +1,17 @@
 // This file was adapted from the imgui-rs repository
 // Original source: https://github.com/Gekkio/imgui-rs/blob/41d6ccc6b3e56e157f094fbf66233d7c005b3a0e/imgui-examples/examples/support_gfx/mod.rs
 
-use imgui::{FontGlyphRange, ImFontConfig, ImGui, ImVec4, Ui};
+use imgui::{FontGlyphRange, ImFontConfig, ImGui, ImString, ImVec4, Ui};
 use imgui_gfx_renderer::{Renderer, Shaders};
 use imgui_winit_support;
 use std::time::Instant;
 
-pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_ui: F) {
+pub fn run<F: FnMut(&Ui) -> bool>(
+    title: String,
+    ini_file: Option<&str>,
+    clear_color: [f32; 4],
+    mut run_ui: F,
+) {
     use gfx::{self, Device};
     use gfx_window_glutin;
     use glutin;
@@ -60,7 +65,7 @@ pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_
             style.colors[col] = imgui_gamma_to_linear(style.colors[col]);
         }
     }
-    imgui.set_ini_filename(None);
+    imgui.set_ini_filename(ini_file.map(String::from).map(ImString::from));
 
     // In the examples we only use integer DPI factors, because the UI can get very blurry
     // otherwise. This might or might not be what you want in a real application.

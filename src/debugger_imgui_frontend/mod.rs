@@ -8,12 +8,17 @@ mod support_gfx;
 const CLEAR_COLOR: [f32; 4] = [0.6, 0.7, 0.8, 1.0];
 
 pub fn run(debugger: Debugger) {
-    support_gfx::run("Scheme Debugger".to_owned(), CLEAR_COLOR, |ui| {
-        hello_world(ui);
-        ui.show_demo_window(&mut true);
-        env_window(ui, debugger.current_env());
-        true
-    });
+    support_gfx::run(
+        "Scheme Debugger".to_owned(),
+        Some("debug_imgui.ini"),
+        CLEAR_COLOR,
+        |ui| {
+            hello_world(ui);
+            ui.show_demo_window(&mut true);
+            env_window(ui, debugger.current_env());
+            true
+        },
+    );
 }
 
 fn hello_world<'a>(ui: &Ui<'a>) -> bool {
