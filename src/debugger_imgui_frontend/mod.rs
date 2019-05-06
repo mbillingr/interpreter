@@ -1,5 +1,6 @@
 use crate::debugger::Debugger;
 use crate::environment::{EnvRef, Environment};
+use crate::expression::Expression;
 use crate::symbol::Symbol;
 use imgui::*;
 
@@ -7,7 +8,7 @@ mod support_gfx;
 
 const CLEAR_COLOR: [f32; 4] = [0.6, 0.7, 0.8, 1.0];
 
-pub fn run(debugger: Debugger) {
+pub fn run(mut debugger: Debugger) {
     support_gfx::run(
         "Scheme Debugger".to_owned(),
         Some("debug_imgui.ini"),
@@ -16,6 +17,7 @@ pub fn run(debugger: Debugger) {
             hello_world(ui);
             ui.show_demo_window(&mut true);
             env_window(ui, debugger.current_env());
+            dbg_window(ui, &mut debugger);
             true
         },
     );
@@ -39,6 +41,29 @@ fn hello_world<'a>(ui: &Ui<'a>) -> bool {
         });
 
     true
+}
+
+fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
+    ui.window(im_str!("Current Expression"))
+        .size((300.0, 100.0), ImGuiCond::FirstUseEver)
+        .build(|| {
+            match debugger.current_expr() {
+                Ok(expr) => ui.text(expr.short_repr()),
+                Err(e) => ui.text(format!("{}", e)),
+            }
+            if ui.small_button(im_str!("eval")) {
+                debugger.eval();
+            }
+            for (x, y) in debugger.history().iter().rev() {
+                ui.text(x.short_repr());
+                ui.text(
+                    " => ".to_string()
+                        + &y.as_ref()
+                            .map(Expression::short_repr)
+                            .unwrap_or("Error".to_owned()),
+                );
+            }
+        });
 }
 
 fn env_window(ui: &Ui, env: &EnvRef) {
