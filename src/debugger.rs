@@ -8,7 +8,7 @@ pub struct Debugger {
     expr: Result<Expression>,
 
     //stack: Vec<Debugger>,
-    history: Vec<(Expression, Option<Expression>)>, // use Option as a workaround because errors are not cloneable
+    history: Vec<(Expression, std::result::Result<Expression, String>)>,
 }
 
 impl Debugger {
@@ -29,7 +29,7 @@ impl Debugger {
         &self.expr
     }
 
-    pub fn history(&self) -> &[(Expression, Option<Expression>)] {
+    pub fn history(&self) -> &[(Expression, std::result::Result<Expression, String>)] {
         &self.history
     }
 
@@ -58,8 +58,8 @@ impl Debugger {
                 self.history.push((
                     input,
                     match &self.expr {
-                        Ok(expr) => Some(expr.clone()),
-                        Err(_) => None,
+                        Ok(expr) => Ok(expr.clone()),
+                        Err(e) => Err(e.to_string()),
                     },
                 ))
             }

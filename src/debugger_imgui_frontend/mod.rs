@@ -56,12 +56,10 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
             }
             for (x, y) in debugger.history().iter().rev() {
                 ui.text(x.short_repr());
-                ui.text(
-                    " => ".to_string()
-                        + &y.as_ref()
-                            .map(Expression::short_repr)
-                            .unwrap_or("Error".to_owned()),
-                );
+                match y {
+                    Ok(expr) => ui.text(format!(" => {}", expr.short_repr())),
+                    Err(e) => ui.text(format!(" => {}", e)),
+                }
             }
         });
 }
