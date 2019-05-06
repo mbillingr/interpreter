@@ -132,7 +132,8 @@ pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_
 
         imgui_winit_support::update_mouse_cursor(&imgui, &context.window());
 
-        let frame_size = imgui_winit_support::get_frame_size(&context.window(), hidpi_factor).unwrap();
+        let frame_size =
+            imgui_winit_support::get_frame_size(&context.window(), hidpi_factor).unwrap();
 
         let ui = imgui.frame(frame_size, delta_s);
         if !run_ui(&ui) {

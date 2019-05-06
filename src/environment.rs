@@ -1,3 +1,5 @@
+use crate::debugger::Debugger;
+use crate::debugger_imgui_frontend;
 use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure, Ref, Weak};
 use crate::interpreter;
@@ -7,7 +9,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
-use crate::debugger_imgui_frontend;
 
 pub type EnvRef = Ref<RefCell<Environment>>;
 pub type EnvWeak = Weak<RefCell<Environment>>;
@@ -22,6 +23,15 @@ impl From<Environment> for EnvRef {
 pub enum Entry {
     Value(Expression),
     Procedure(Procedure<EnvWeak>),
+}
+
+impl Entry {
+    pub fn short_repr(&self) -> String {
+        match self {
+            Entry::Value(expr) => expr.short_repr(),
+            Entry::Procedure(proc) => Expression::Procedure(proc.clone().into()).short_repr(),
+        }
+    }
 }
 
 pub struct Environment {
@@ -406,8 +416,9 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "debug",
-            Expression::NativeIntrusive(|_, _| {
-                debugger_imgui_frontend::run();
+            Expression::NativeIntrusive(|args, env| {
+                let debugger = Debugger::new(car(&args)?.clone(), env.clone());
+                debugger_imgui_frontend::run(debugger);
                 Ok(Expression::Undefined)
             }),
         );
