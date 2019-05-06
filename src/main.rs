@@ -7,6 +7,8 @@ mod scheme;
 mod tests;
 
 mod completer;
+mod debugger;
+mod debugger_imgui_frontend;
 mod destructure;
 mod environment;
 mod errors;

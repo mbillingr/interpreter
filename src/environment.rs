@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
+use crate::debugger_imgui_frontend;
 
 pub type EnvRef = Ref<RefCell<Environment>>;
 pub type EnvWeak = Weak<RefCell<Environment>>;
@@ -399,6 +400,14 @@ pub fn default_env() -> EnvRef {
             "print-env",
             Expression::NativeIntrusive(|_, env| {
                 env.borrow().print();
+                Ok(Expression::Undefined)
+            }),
+        );
+
+        env.insert(
+            "debug",
+            Expression::NativeIntrusive(|_, _| {
+                debugger_imgui_frontend::run();
                 Ok(Expression::Undefined)
             }),
         );
