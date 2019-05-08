@@ -55,6 +55,16 @@ pub struct PositionalToken {
     pub token: Token,
 }
 
+impl PositionalToken {
+    pub fn eof() -> Self {
+        PositionalToken {
+            token: Token::EOF,
+            start_idx: std::usize::MAX,
+            end_idx: std::usize::MAX,
+        }
+    }
+}
+
 impl From<PositionalToken> for String {
     fn from(token: PositionalToken) -> Self {
         token.token.into()
@@ -98,10 +108,9 @@ impl Lexer {
         self.list_level <= 0
     }
 
-    pub fn take(&mut self) -> Vec<Token> {
+    pub fn take(&mut self) -> Vec<PositionalToken> {
         std::mem::replace(&mut self.token_stream, vec![])
             .into_iter()
-            .map(PositionalToken::into)
             .collect()
     }
 
