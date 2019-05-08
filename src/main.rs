@@ -6,6 +6,9 @@ mod scheme;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "source-tracking")]
+mod sourcecode;
+
 mod completer;
 mod destructure;
 mod environment;

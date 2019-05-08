@@ -5,8 +5,9 @@ authors = ["Martin Billinger <flkazemakase@gmail.com>"]
 edition = "2018"
 
 [features]
-default = ["thread-safe"]
+default = ["thread-safe", "source-tracking"]
 thread-safe = []
+source-tracking = []
 
 [dependencies]
 error-chain = "0.12"
