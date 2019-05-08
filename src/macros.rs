@@ -162,16 +162,16 @@ impl Pattern {
                 Pattern::Identifier(*s)
             }),
             Expression::Pair(pair) => {
-                let mut car = &pair.0;
-                let mut cdr = &pair.1;
+                let mut car = &pair.car;
+                let mut cdr = &pair.cdr;
                 let mut list = vec![];
                 loop {
-                    list.push(Pattern::parse(&*car, literals, ellipsis)?);
+                    list.push(Pattern::parse(car, literals, ellipsis)?);
                     match cdr {
                         Expression::Nil => return Ok(Pattern::List(list)),
                         Expression::Pair(p) => {
-                            car = &p.0;
-                            cdr = &p.1;
+                            car = &p.car;
+                            cdr = &p.cdr;
                         }
                         _ => {
                             return Ok(Pattern::ImproperList(
@@ -251,16 +251,16 @@ impl Template {
         match expr {
             Expression::Symbol(s) => Ok(Template::Identifier(*s)),
             Expression::Pair(pair) => {
-                let mut car = &pair.0;
-                let mut cdr = &pair.1;
+                let mut car = &pair.car;
+                let mut cdr = &pair.cdr;
                 let mut list = vec![];
                 loop {
                     list.push(Template::parse(&*car, literals, ellipsis)?);
                     match cdr {
                         Expression::Nil => return Ok(Template::List(list)),
                         Expression::Pair(p) => {
-                            car = &p.0;
-                            cdr = &p.1;
+                            car = &p.car;
+                            cdr = &p.cdr;
                         }
                         _ => {
                             return Ok(Template::ImproperList(

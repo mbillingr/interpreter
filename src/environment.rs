@@ -1,6 +1,6 @@
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Procedure};
+use crate::expression::{Args, Expression, NativeFn, Pair, Procedure};
 use crate::interpreter;
 use crate::symbol::{self, Symbol};
 use rand::Rng;
@@ -115,9 +115,9 @@ impl Environment {
                     names = &Expression::Nil;
                     args = &Expression::Nil;
                 }
-                (Expression::Pair(pair), _) if pair.0.is_named_symbol(symbol::DOT) => {
-                    name = pair.1.car()?.try_as_symbol()?;
-                    names = pair.1.cdr()?;
+                (Expression::Pair(pair), _) if pair.car.is_named_symbol(symbol::DOT) => {
+                    name = pair.cdr.car()?.try_as_symbol()?;
+                    names = pair.cdr.cdr()?;
                     arg = args;
                     args = &Expression::Nil;
                 }
@@ -494,7 +494,7 @@ fn apply(list: Expression, env: &EnvRef) -> Result<Expression> {
         match in_cursor {
             Expression::Nil => break,
             Expression::Pair(pair) => {
-                let (car, cdr) = &**pair;
+                let Pair { car, cdr } = &**pair;
                 in_cursor = &*cdr;
 
                 if in_cursor.is_nil() {

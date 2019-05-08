@@ -15,6 +15,11 @@ pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Expression>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
 
+pub struct Pair {
+    pub car: Expression,
+    pub cdr: Expression,
+}
+
 #[derive(Clone)]
 pub enum Expression {
     Undefined,
@@ -26,7 +31,7 @@ pub enum Expression {
     Float(f64),
     True,
     False,
-    Pair(Ref<(Expression, Expression)>),
+    Pair(Ref<Pair>),
     Procedure(Procedure<EnvRef>),
     Macro(Macro),
     Native(NativeFn),
@@ -70,26 +75,29 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Ref::new((car.into(), cdr.into())))
+        Expression::Pair(Ref::new(Pair {
+            car: car.into(),
+            cdr: cdr.into(),
+        }))
     }
 
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {
         match self {
-            Expression::Pair(pair) => Ok((&pair.0, &pair.1)),
+            Expression::Pair(pair) => Ok((&pair.car, &pair.cdr)),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn car(&self) -> Result<&Expression> {
         match self {
-            Expression::Pair(pair) => Ok(&pair.0),
+            Expression::Pair(pair) => Ok(&pair.car),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
 
     pub fn cdr(&self) -> Result<&Expression> {
         match self {
-            Expression::Pair(pair) => Ok(&pair.1),
+            Expression::Pair(pair) => Ok(&pair.cdr),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
@@ -107,7 +115,7 @@ impl Expression {
         match self {
             Expression::Pair(pair) => Ok(&mut Ref::get_mut(pair)
                 .expect("mutable reference must be unique")
-                .1),
+                .cdr),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
     }
@@ -117,7 +125,7 @@ impl Expression {
             Expression::Pair(pair) => {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 unsafe {
-                    let car = &pair.0 as *const _ as *mut Expression;
+                    let car = &pair.car as *const _ as *mut Expression;
                     *car = x;
                 }
             }
@@ -131,7 +139,7 @@ impl Expression {
             Expression::Pair(pair) => {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 unsafe {
-                    let cdr = &pair.1 as *const _ as *mut Expression;
+                    let cdr = &pair.cdr as *const _ as *mut Expression;
                     *cdr = x;
                 }
             }
@@ -179,7 +187,7 @@ impl Expression {
             match in_cursor {
                 Expression::Nil => break,
                 Expression::Pair(pair) => {
-                    let (car, cdr) = &**pair;
+                    let Pair { car, cdr, .. } = &**pair;
                     let x = func(&car)?;
                     in_cursor = &*cdr;
 
@@ -353,7 +361,7 @@ impl Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a), Pair(b)) => a.0 == b.0 && a.1 == b.1,
+            (Pair(a), Pair(b)) => a.car == b.car && a.cdr == b.cdr,
             (Procedure(a), Procedure(b)) => a.equal(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -426,15 +434,15 @@ impl Expression {
             Expression::True => "#t".into(),
             Expression::False => "#f".into(),
             Expression::Pair(pair) => {
-                let (car, cdr) = &**pair;
+                let Pair { car, cdr, .. } = &**pair;
                 let mut s = format!("({}", car.short_repr());
                 let mut cdr = cdr;
                 loop {
                     match cdr {
                         Expression::Nil => break,
                         Expression::Pair(ref pair) => {
-                            s += &format!(" {}", pair.0.short_repr());
-                            cdr = &pair.1;
+                            s += &format!(" {}", pair.car.short_repr());
+                            cdr = &pair.cdr;
                         }
                         _ => {
                             s += &format!(" . {}", cdr.short_repr());
@@ -473,15 +481,15 @@ impl std::fmt::Debug for Expression {
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
             Expression::Pair(pair) => {
-                let car = &pair.0;
-                let mut cdr = &pair.1;
+                let car = &pair.car;
+                let mut cdr = &pair.cdr;
                 write!(f, "({:?}", car)?;
                 loop {
                     match cdr {
                         Expression::Nil => break,
                         Expression::Pair(p) => {
-                            write!(f, " {:?}", p.0)?;
-                            cdr = &p.1;
+                            write!(f, " {:?}", p.car)?;
+                            cdr = &p.cdr;
                         }
                         _ => {
                             write!(f, " . {:?}", cdr)?;
@@ -518,15 +526,15 @@ impl std::fmt::Display for Expression {
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
             Expression::Pair(pair) => {
-                let car = &pair.0;
-                let mut cdr = &pair.1;
+                let car = &pair.car;
+                let mut cdr = &pair.cdr;
                 write!(f, "({}", car)?;
                 loop {
                     match cdr {
                         Expression::Nil => break,
                         Expression::Pair(p) => {
-                            write!(f, " {}", p.0)?;
-                            cdr = &p.1;
+                            write!(f, " {}", p.car)?;
+                            cdr = &p.cdr;
                         }
                         _ => {
                             write!(f, " . {}", cdr)?;
@@ -689,7 +697,7 @@ impl std::cmp::PartialEq for Expression {
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
-            (Pair(a), Pair(b)) => a.0 == b.0 && a.1 == b.1,
+            (Pair(a), Pair(b)) => a.car == b.car && a.cdr == b.cdr,
             _ => false,
         }
     }
@@ -849,7 +857,7 @@ impl<'a> ListIterator<'a> {
     pub fn tail(&self) -> Result<&'a Expression> {
         match self.next_pair {
             Expression::Nil => Ok(self.next_pair),
-            Expression::Pair(pair) => Ok(&pair.1),
+            Expression::Pair(pair) => Ok(&pair.cdr),
             _ => Err(ErrorKind::TypeError("not a list".into()))?,
         }
     }
@@ -860,7 +868,7 @@ impl<'a> Iterator for ListIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let (car, cdr) = match self.next_pair {
             Expression::Nil => return None,
-            Expression::Pair(pair) => (&pair.0, &pair.1),
+            Expression::Pair(pair) => (&pair.car, &pair.cdr),
             _ => return Some(Err(ErrorKind::TypeError("not a list".into()).into())),
         };
 
