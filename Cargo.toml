@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Martin Billinger <flkazemakase@gmail.com>"]
 edition = "2018"
 
+[features]
+default = ["thread-safe"]
+thread-safe = []
+
 [dependencies]
 error-chain = "0.12"
 lazy_static = "1"
