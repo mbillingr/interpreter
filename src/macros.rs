@@ -1,8 +1,7 @@
 use crate::errors::*;
-use crate::expression::Expression;
+use crate::expression::{Expression, Ref};
 use crate::symbol::{self, Symbol};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 macro_rules! hashmap(
     { } => {
@@ -45,7 +44,7 @@ macro_rules! hashmap(
 #[derive(Debug, Clone)]
 pub struct Macro {
     name: Symbol,
-    spec: Rc<TransformerSpec>,
+    spec: Ref<TransformerSpec>,
 }
 
 impl Macro {
@@ -67,7 +66,7 @@ impl Macro {
 
         Ok(Macro {
             name: *name.try_as_symbol()?,
-            spec: Rc::new(spec),
+            spec: Ref::new(spec),
         })
     }
 

@@ -9,7 +9,7 @@ mod env_ref_impl {
     #[derive(Clone)]
     pub struct EnvRef {
         env: Ref<RwLock<Environment>>,
-        ptr: *const Environment,
+        ptr: usize, //*const Environment,
     }
 
     pub type EnvTmpRef<'a> = sync::RwLockReadGuard<'a, Environment>;
@@ -24,13 +24,13 @@ mod env_ref_impl {
     impl EnvRef {
         fn new(r: Ref<RwLock<Environment>>) -> Self {
             let mut e = EnvRef {
-                ptr: 0 as *const _, //&*r.borrow(),
+                ptr: 0, // as *const _,
                 env: r,
             };
             // I fervently hope that the content is never moved once placed in a Ref (Rc/Arc)
             e.ptr = {
                 let x = &*e.borrow();
-                x as *const _
+                x as *const _ as usize
             };
             e
         }
@@ -52,7 +52,7 @@ mod env_ref_impl {
         }
 
         pub fn as_ptr(&self) -> *const Environment {
-            self.ptr
+            self.ptr as *const _
         }
     }
 

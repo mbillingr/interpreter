@@ -7,7 +7,28 @@ use crate::symbol;
 use crate::tracer::{install_tracer, remove_tracer, CallGraph};
 use std::borrow::Cow;
 
-pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
+#[cfg(not(feature = "debugging"))]
+mod debug_hooks {
+    use super::*;
+    pub fn enter_eval(expr: &Expression, env: &EnvRef) {}
+    pub fn leave_eval(res: &Result<Expression>) {}
+    pub fn predispatch(expr: &Expression, env: &EnvRef) {}
+    pub fn function_call(proc: &Expression, args: &Expression) {}
+}
+
+#[cfg(feature = "debugging")]
+mod debug_hooks {
+    pub use crate::debugger::{enter_eval, function_call, leave_eval, predispatch};
+}
+
+pub fn eval(expr: &Expression, env: EnvRef) -> Result<Expression> {
+    debug_hooks::enter_eval(expr, &env);
+    let r = inner_eval(expr, env);
+    debug_hooks::leave_eval(&r);
+    r
+}
+
+pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
 
     // We use Cow not for copy-on-write but for its ability
@@ -15,6 +36,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     let mut expr = Cow::Borrowed(expr);
 
     loop {
+        debug_hooks::predispatch(&expr, &env);
         match *expr {
             Symbol(ref s) => {
                 return env
@@ -83,6 +105,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
+                        debug_hooks::function_call(&proc, &args);
                         match proc {
                             Procedure(p) => {
                                 let parent = env;

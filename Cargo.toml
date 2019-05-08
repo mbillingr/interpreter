@@ -5,8 +5,9 @@ authors = ["Martin Billinger <flkazemakase@gmail.com>"]
 edition = "2018"
 
 [features]
-default = ["thread-safe"]
+default = ["debugging"]
 thread-safe = []
+debugging = ["thread-safe"]
 
 [dependencies]
 error-chain = "0.12"

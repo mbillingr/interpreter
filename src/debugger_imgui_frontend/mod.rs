@@ -1,6 +1,5 @@
-use crate::debugger::Debugger;
+use crate::debugger::{DebugRequest, Debugger};
 use crate::environment::{EnvRef, Environment};
-use crate::expression::Expression;
 use crate::symbol::Symbol;
 use imgui::*;
 
@@ -14,9 +13,13 @@ pub fn run(mut debugger: Debugger) {
         Some("debug_imgui.ini"),
         CLEAR_COLOR,
         |ui| {
+            debugger.poll();
+
             hello_world(ui);
             ui.show_demo_window(&mut true);
-            env_window(ui, debugger.current_env());
+            if let Some(env) = debugger.current_env() {
+                env_window(ui, env);
+            }
             dbg_window(ui, &mut debugger);
             true
         },
@@ -47,7 +50,16 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
     ui.window(im_str!("Current Expression"))
         .size((300.0, 100.0), ImGuiCond::FirstUseEver)
         .build(|| {
-            match debugger.current_expr() {
+            match debugger.current_request() {
+                Some(DebugRequest::FunctionCall(func, args)) => {
+                    ui.text(format!("gonna call {} with {} ...", func, args));
+                    if ui.small_button(im_str!("advance")) {
+                        debugger.advance();
+                    }
+                }
+                _ => {}
+            }
+            /*match debugger.current_expr() {
                 Ok(expr) => ui.text(expr.short_repr()),
                 Err(e) => ui.text(format!("{}", e)),
             }
@@ -60,7 +72,7 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
                     Ok(expr) => ui.text(format!(" => {}", expr.short_repr())),
                     Err(e) => ui.text(format!(" => {}", e)),
                 }
-            }
+            }*/
         });
 }
 
