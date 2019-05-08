@@ -96,7 +96,7 @@ fn main() {
     import_library(&scheme! {((builtin, core))}, &global).unwrap();
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
-    input.set_env(Ref::downgrade(&global));
+    input.set_env(global.downgrade());
 
     loop {
         input.set_prompt(LINE_PROMPT);

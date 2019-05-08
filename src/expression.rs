@@ -798,7 +798,7 @@ impl From<Procedure<EnvRef>> for Procedure<EnvWeak> {
         Procedure {
             body: proc.body,
             params: proc.params,
-            env: Ref::downgrade(&proc.env),
+            env: proc.env.downgrade(),
             name: proc.name,
         }
     }

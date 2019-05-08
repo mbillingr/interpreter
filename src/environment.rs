@@ -3,17 +3,47 @@ use crate::expression::{Args, Expression, NativeFn, Procedure, Ref, Weak};
 use crate::interpreter;
 use crate::symbol::{self, Symbol};
 use rand::Rng;
-use std::cell::RefCell;
+use std::cell::{self, RefCell};
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
 
-pub type EnvRef = Ref<RefCell<Environment>>;
-pub type EnvWeak = Weak<RefCell<Environment>>;
+#[derive(Clone)]
+pub struct EnvRef(Ref<RefCell<Environment>>);
+
+pub type EnvTmpRef<'a> = cell::Ref<'a, Environment>;
+pub type EnvMutRef<'a> = cell::RefMut<'a, Environment>;
 
 impl From<Environment> for EnvRef {
     fn from(env: Environment) -> Self {
-        Ref::new(RefCell::new(env))
+        EnvRef(Ref::new(RefCell::new(env)))
+    }
+}
+
+impl EnvRef {
+    pub fn borrow(&self) -> EnvTmpRef {
+        self.0.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> EnvMutRef {
+        self.0.borrow_mut()
+    }
+
+    pub fn downgrade(&self) -> EnvWeak {
+        EnvWeak(Ref::downgrade(&self.0))
+    }
+
+    pub fn as_ptr(&self) -> *mut Environment {
+        self.0.as_ptr()
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct EnvWeak(Weak<RefCell<Environment>>);
+
+impl EnvWeak {
+    pub fn upgrade(&self) -> Option<EnvRef> {
+        self.0.upgrade().map(EnvRef)
     }
 }
 
