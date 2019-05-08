@@ -120,10 +120,7 @@ impl Debugger {
     }
 
     pub fn current_env(&self) -> Option<&EnvRef> {
-        match self.current_request {
-            Some(DebugRequest::FunctionCall(_, _)) => self.stack.last().map(|frame| &frame.1),
-            _ => None,
-        }
+        self.stack.last().map(|frame| &frame.1)
     }
 
     /*pub fn history(&self) -> &[(Expression, std::result::Result<Expression, String>)] {

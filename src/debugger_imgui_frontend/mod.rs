@@ -1,5 +1,6 @@
 use crate::debugger::{DebugRequest, Debugger};
 use crate::environment::{EnvRef, Environment};
+use crate::expression::Expression;
 use crate::symbol::Symbol;
 use imgui::*;
 
@@ -49,30 +50,20 @@ fn hello_world<'a>(ui: &Ui<'a>) -> bool {
 fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
     ui.window(im_str!("Current Expression"))
         .size((300.0, 100.0), ImGuiCond::FirstUseEver)
-        .build(|| {
-            match debugger.current_request() {
-                Some(DebugRequest::FunctionCall(func, args)) => {
-                    ui.text(format!("gonna call {} with {} ...", func, args));
-                    if ui.small_button(im_str!("advance")) {
-                        debugger.advance();
-                    }
+        .build(|| match debugger.current_request() {
+            Some(DebugRequest::FunctionCall(func, args)) => {
+                ui.text(
+                    format!(
+                        "gonna call {} ...",
+                        Expression::cons(func.clone(), args.clone()).short_repr()
+                    )
+                    .replace('λ', "lambda"),
+                );
+                if ui.small_button(im_str!("advance")) {
+                    debugger.advance();
                 }
-                _ => {}
             }
-            /*match debugger.current_expr() {
-                Ok(expr) => ui.text(expr.short_repr()),
-                Err(e) => ui.text(format!("{}", e)),
-            }
-            if ui.small_button(im_str!("eval")) {
-                debugger.eval();
-            }
-            for (x, y) in debugger.history().iter().rev() {
-                ui.text(x.short_repr());
-                match y {
-                    Ok(expr) => ui.text(format!(" => {}", expr.short_repr())),
-                    Err(e) => ui.text(format!(" => {}", e)),
-                }
-            }*/
+            _ => {}
         });
 }
 

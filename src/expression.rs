@@ -445,7 +445,7 @@ impl Expression {
                 s.push(')');
                 s
             }
-            Expression::Procedure(p) => format!("λ {}", p.sig_repr()),
+            Expression::Procedure(p) => format!("{}", p.name()),
             Expression::Macro(_) => "syntax".into(),
             Expression::Native(_) | Expression::NativeIntrusive(_) => "(primitive)".into(),
             //Expression::Error(_) => "<ERROR>".into(),
@@ -734,10 +734,6 @@ impl<E> Procedure<E> {
 
     pub fn equal(&self, other: &Self) -> bool {
         self.body.equal(&other.body) && self.params.equal(&other.params)
-    }
-
-    pub fn sig_repr(&self) -> String {
-        self.params.short_repr()
     }
 }
 
