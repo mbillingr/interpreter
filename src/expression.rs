@@ -3,8 +3,12 @@ use crate::errors::*;
 use crate::macros::Macro;
 use crate::symbol::{self, Symbol};
 use crate::tracer::trace_procedure_call;
-
 use std::hash::{Hash, Hasher};
+
+#[cfg(feature = "thread-safe")]
+pub use std::sync::{Arc as Ref, Weak};
+
+#[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
 
 pub type Args = Expression;
