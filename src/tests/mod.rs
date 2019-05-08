@@ -4,6 +4,7 @@ use crate::environment::default_env;
 use crate::errors::Result;
 use crate::eval;
 use crate::parser::parse;
+use crate::syntax::expand;
 use crate::Expression;
 use crate::Lexer;
 
@@ -18,7 +19,8 @@ fn run<T: ToString>(src: T) -> Result<Expression> {
 
     parse(tokens)?
         .into_iter()
-        .map(|expr| eval(&expr, env.clone()))
+        .map(|expr| expand(&expr, &env))
+        .map(|expr| eval(&expr?, env.clone()))
         .last()
         .unwrap()
 }

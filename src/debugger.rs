@@ -49,7 +49,7 @@ impl Debugger {
                             .ok_or_else(|| ErrorKind::Undefined(*s).into());
                     }
                     Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True
-                    | False | Procedure(_) | Macro(_) | Error(_) | Native(_)
+                    | False | Procedure(_) | Macro(_) | Native(_)
                     | NativeIntrusive(_) => {
                         self.expr = Ok(expr.clone());
                     }

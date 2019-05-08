@@ -3,11 +3,14 @@ use crate::errors::*;
 use crate::macros::Macro;
 use crate::symbol::{self, Symbol};
 use crate::tracer::trace_procedure_call;
-
 use std::hash::{Hash, Hasher};
+
+#[cfg(feature = "thread-safe")]
+pub use std::sync::{Arc as Ref, Weak};
+
+#[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
 
-pub type List = Expression;
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Expression>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
@@ -28,7 +31,7 @@ pub enum Expression {
     Macro(Macro),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
-    Error(Ref<List>),
+    //Error(Ref<List>),
 }
 
 impl Expression {
@@ -91,14 +94,14 @@ impl Expression {
         }
     }
 
-    pub fn car_mut(&mut self) -> Result<&mut Expression> {
+    /*pub fn car_mut(&mut self) -> Result<&mut Expression> {
         match self {
             Expression::Pair(pair) => Ok(&mut Ref::get_mut(pair)
                 .expect("mutable reference must be unique")
                 .0),
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
-    }
+    }*/
 
     pub fn cdr_mut(&mut self) -> Result<&mut Expression> {
         match self {
@@ -141,14 +144,14 @@ impl Expression {
         ListIterator::from_expression(self)
     }
 
-    pub fn len(&self) -> Result<usize> {
+    /*pub fn len(&self) -> Result<usize> {
         let mut n = 0;
         for x in self.iter_list() {
             x?;
             n += 1;
         }
         Ok(n)
-    }
+    }*/
 
     pub fn append(&self, last: Expression) -> Result<Self> {
         let mut start = Expression::Nil;
@@ -241,13 +244,13 @@ impl Expression {
         }
     }
 
-    pub fn is_list(&self) -> bool {
+    /*pub fn is_list(&self) -> bool {
         match self {
             Expression::Nil => true,
             Expression::Pair(pair) => pair.1.is_list(),
             _ => false,
         }
-    }
+    }*/
 
     pub fn is_pair(&self) -> bool {
         match self {
@@ -256,13 +259,13 @@ impl Expression {
         }
     }
 
-    pub fn try_as_integer(&self) -> Result<i64> {
+    /*pub fn try_as_integer(&self) -> Result<i64> {
         match self {
             Expression::Integer(i) => Ok(*i),
             Expression::Float(f) if float_eq(*f, f.trunc()) => Ok(*f as i64),
             _ => Err(ErrorKind::TypeError(format!("{} is not an integer.", self)).into()),
         }
-    }
+    }*/
 
     pub fn try_as_float(&self) -> Result<f64> {
         match self {
@@ -286,18 +289,18 @@ impl Expression {
         }
     }
 
-    pub fn try_into_symbol(self) -> Result<Symbol> {
+    /*pub fn try_into_symbol(self) -> Result<Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),
             _ => Err(ErrorKind::TypeError(format!("{} is not a Symbol.", self)).into()),
         }
-    }
+    }*/
 
-    pub fn try_to_vec(&self) -> Result<Vec<Expression>> {
+    /*pub fn try_to_vec(&self) -> Result<Vec<Expression>> {
         self.iter_list().map(|r| r.map(Clone::clone)).collect()
-    }
+    }*/
 
-    pub fn logical_and(self, other: Self) -> Result<Self> {
+    /*pub fn logical_and(self, other: Self) -> Result<Self> {
         if self.is_true() {
             Ok(other)
         } else {
@@ -311,7 +314,7 @@ impl Expression {
         } else {
             Ok(other)
         }
-    }
+    }*/
 
     pub fn min(self, other: Self) -> Result<Self> {
         Ok(if other < self { other } else { self })
@@ -445,7 +448,7 @@ impl Expression {
             Expression::Procedure(p) => format!("λ {}", p.sig_repr()),
             Expression::Macro(_) => "syntax".into(),
             Expression::Native(_) | Expression::NativeIntrusive(_) => "(primitive)".into(),
-            Expression::Error(_) => "<ERROR>".into(),
+            //Expression::Error(_) => "<ERROR>".into(),
         }
     }
 }
@@ -491,13 +494,13 @@ impl std::fmt::Debug for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
-            Expression::Error(l) => {
+            /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
                     .map(|item| format!("{:?}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
-            }
+            }*/
         }
     }
 }
@@ -536,13 +539,13 @@ impl std::fmt::Display for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
-            Expression::Error(l) => {
+            /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
                     .map(|item| format!("{}", item.unwrap()))
                     .collect();
                 write!(f, "ERROR: {}", tmp.join(" "))
-            }
+            }*/
         }
     }
 }
@@ -682,7 +685,7 @@ impl std::cmp::PartialEq for Expression {
             (Float(a), Float(b)) => a == b,
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b)) => a == b,
-            (Char(a), Char(b)) => a == b,
+            //(Char(a), Char(b)) => a == b,
             (True, True) => true,
             (False, False) => true,
             (Nil, Nil) => true,
@@ -802,7 +805,7 @@ impl From<Procedure<EnvRef>> for Procedure<EnvWeak> {
         Procedure {
             body: proc.body,
             params: proc.params,
-            env: Ref::downgrade(&proc.env),
+            env: proc.env.downgrade(),
             name: proc.name,
         }
     }

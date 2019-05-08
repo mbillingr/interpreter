@@ -11,6 +11,7 @@ mod debugger;
 mod debugger_imgui_frontend;
 mod destructure;
 mod environment;
+mod envref;
 mod errors;
 mod expression;
 mod interpreter;
@@ -30,7 +31,7 @@ use crate::syntax::expand;
 use environment::EnvRef;
 use error_chain::ChainedError;
 use errors::*;
-use expression::{Expression, Ref};
+use expression::Expression;
 use interpreter::eval;
 use lexer::Lexer;
 use parser::parse;
@@ -98,7 +99,7 @@ fn main() {
     import_library(&scheme! {((builtin, core))}, &global).unwrap();
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
-    input.set_env(Ref::downgrade(&global));
+    input.set_env(global.downgrade());
 
     loop {
         input.set_prompt(LINE_PROMPT);

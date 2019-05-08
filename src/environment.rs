@@ -1,23 +1,14 @@
 use crate::debugger::Debugger;
 use crate::debugger_imgui_frontend;
+pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Procedure, Ref, Weak};
+use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter;
 use crate::symbol::{self, Symbol};
 use rand::Rng;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
-
-pub type EnvRef = Ref<RefCell<Environment>>;
-pub type EnvWeak = Weak<RefCell<Environment>>;
-
-impl From<Environment> for EnvRef {
-    fn from(env: Environment) -> Self {
-        Ref::new(RefCell::new(env))
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum Entry {

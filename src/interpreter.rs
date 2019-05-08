@@ -23,7 +23,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     .ok_or_else(|| ErrorKind::Undefined(*s).into());
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
-            | Procedure(_) | Macro(_) | Error(_) => {
+            | Procedure(_) | Macro(_) /*| Error(_)*/ => {
                 return Ok(expr.into_owned());
             }
             Native(_) | NativeIntrusive(_) => return Ok(expr.into_owned()),
