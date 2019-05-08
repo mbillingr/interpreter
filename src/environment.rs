@@ -37,9 +37,9 @@ impl Environment {
         }
     }
 
-    pub fn parent(&self) -> Option<&EnvRef> {
+    /*pub fn parent(&self) -> Option<&EnvRef> {
         self.parent.as_ref()
-    }
+    }*/
 
     pub fn is_root(&self) -> bool {
         self.parent.is_none()
