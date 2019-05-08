@@ -11,6 +11,9 @@ pub use std::sync::{Arc as Ref, Weak};
 #[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
 
+#[cfg(feature = "source-tracking")]
+use crate::sourcecode::SourceSpan;
+
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Expression>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
@@ -18,6 +21,20 @@ pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
 pub struct Pair {
     pub car: Expression,
     pub cdr: Expression,
+
+    #[cfg(feature = "source-tracking")]
+    pub src: Option<SourceSpan>,
+}
+
+impl Pair {
+    pub fn new(car: Expression, cdr: Expression) -> Self {
+        Pair {
+            car,
+            cdr,
+            #[cfg(feature = "source-tracking")]
+            src: None,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -75,10 +92,7 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Ref::new(Pair {
-            car: car.into(),
-            cdr: cdr.into(),
-        }))
+        Expression::Pair(Ref::new(Pair::new(car.into(), cdr.into())))
     }
 
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {

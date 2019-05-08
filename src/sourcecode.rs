@@ -1,3 +1,10 @@
+use crate::expression::Ref;
+
+pub struct SourceSpan {
+    span: Span,
+    source: Ref<SourceCode>,
+}
+
 #[derive(Copy, Clone)]
 struct Pos {
     idx: usize,

@@ -494,7 +494,7 @@ fn apply(list: Expression, env: &EnvRef) -> Result<Expression> {
         match in_cursor {
             Expression::Nil => break,
             Expression::Pair(pair) => {
-                let Pair { car, cdr } = &**pair;
+                let Pair { car, cdr, .. } = &**pair;
                 in_cursor = &*cdr;
 
                 if in_cursor.is_nil() {

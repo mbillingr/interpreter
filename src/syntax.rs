@@ -77,7 +77,7 @@ fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
             Expression::Pair(pair) => {
-                let Pair { car, cdr } = &**pair;
+                let Pair { car, cdr, .. } = &**pair;
                 let car = if let Expression::Symbol(s) = car {
                     if *s == symbol::ELSE {
                         Expression::True
