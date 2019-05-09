@@ -1,7 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::Expression;
-use crate::interpreter::eval;
+use crate::interpreter::{eval, is_special_form};
 use std::cell::RefCell;
 use std::sync::mpsc;
 use std::thread;
@@ -102,7 +102,7 @@ impl Debugger {
                     self.stack.pop().expect("stack underflow");
                 }
                 Some(DebugRequest::Predispatch(expr, env)) => {
-                    if expr.is_pair() {
+                    if is_special_form(&expr) {
                         self.current_request =
                             Some(DebugRequest::Predispatch(expr.clone(), env.clone()));
                     } else {

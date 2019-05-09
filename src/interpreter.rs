@@ -128,6 +128,26 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     }
 }
 
+pub fn is_special_form(expr: &Expression) -> bool {
+    let s = match expr.car() {
+        Ok(Expression::Symbol(s)) => *s,
+        _ => return false,
+    };
+
+    s == symbol::BEGIN
+        || s == symbol::COND
+        || s == symbol::DEFINE
+        || s == symbol::DEFINE_LIBRARY
+        || s == symbol::DEFINE_SYNTAX
+        || s == symbol::LAMBDA
+        || s == symbol::IF
+        || s == symbol::EVAL
+        || s == symbol::IMPORT
+        || s == symbol::QUOTE
+        || s == symbol::SETVAR
+        || s == symbol::TRACE
+}
+
 pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<Expression> {
     match proc {
         Expression::Procedure(p) => {
