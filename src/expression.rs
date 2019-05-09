@@ -184,6 +184,13 @@ impl Expression {
         Ok(())
     }
 
+    pub fn get_source(&self) -> Option<SourceView> {
+        match self {
+            Expression::Pair(pair) => pair.get_source(),
+            _ => None,
+        }
+    }
+
     pub fn sourced(self, src: Option<SourceView>) -> Expression {
         match self {
             Expression::Pair(pair) => {

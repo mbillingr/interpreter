@@ -3,6 +3,7 @@ use crate::environment::{EnvRef, Environment};
 use crate::expression::Expression;
 use crate::symbol::Symbol;
 use imgui::*;
+use imgui_sys;
 
 mod support_gfx;
 
@@ -51,15 +52,35 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
     ui.window(im_str!("Current Expression"))
         .size((300.0, 100.0), ImGuiCond::FirstUseEver)
         .build(|| match debugger.current_request() {
-            Some(DebugRequest::FunctionCall(func, args)) => {
-                ui.text(
-                    format!(
-                        "gonna call {} ...",
-                        Expression::cons(func.clone(), args.clone()).short_repr()
-                    )
-                    .replace('λ', "lambda"),
-                );
-                if ui.small_button(im_str!("advance")) {
+            Some(DebugRequest::FunctionCall(func, args, expr)) => {
+                ui.text("reduction:");
+                ui.text(Expression::cons(func.clone(), args.clone()).short_repr());
+                let advance = ui.small_button(im_str!("advance"));
+                ui.child_frame(im_str!("child frame"), ui.get_content_region_avail())
+                    .scrollbar_horizontal(true)
+                    .build(|| match expr.get_source() {
+                        None => ui.text(format!("<{}>", expr)),
+                        Some(src) => {
+                            for line in src.pre_span().split('\n') {
+                                ui.text(line);
+                            }
+                            ui.same_line(0.0);
+                            unsafe {
+                                imgui_sys::igSetScrollHereY(0.25);
+                            }
+                            for line in src.in_span().split('\n') {
+                                ui.text_colored(
+                                    [1.0, 0.0, 0.0, 1.0],
+                                    &ImString::from(line.to_owned()),
+                                );
+                            }
+                            ui.same_line(0.0);
+                            for line in src.post_span().split('\n') {
+                                ui.text(line);
+                            }
+                        }
+                    });
+                if advance {
                     debugger.advance();
                 }
             }

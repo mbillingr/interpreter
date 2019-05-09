@@ -44,10 +44,14 @@ pub fn predispatch(expr: &Expression, env: &EnvRef) {
     });
 }
 
-pub fn function_call(proc: &Expression, args: &Expression) {
+pub fn function_call(proc: &Expression, args: &Expression, expr: &Expression) {
     DEBUGGER.with(|debugger| {
         if let Some(service) = &*debugger.borrow() {
-            service.req(DebugRequest::FunctionCall(proc.clone(), args.clone()))
+            service.req(DebugRequest::FunctionCall(
+                proc.clone(),
+                args.clone(),
+                expr.clone(),
+            ))
         }
     });
 }
@@ -56,7 +60,7 @@ pub enum DebugRequest {
     EnterEval(Expression, EnvRef),
     LeaveEval(Result<Expression>),
     Predispatch(Expression, EnvRef),
-    FunctionCall(Expression, Expression),
+    FunctionCall(Expression, Expression, Expression),
 }
 
 pub struct Debugger {
@@ -102,7 +106,7 @@ impl Debugger {
                     self.stack.pop().expect("stack underflow");
                     self.stack.push((expr, env));
                 }
-                fc @ Some(DebugRequest::FunctionCall(_, _)) => self.current_request = fc,
+                fc @ Some(DebugRequest::FunctionCall(_, _, _)) => self.current_request = fc,
                 None => {}
             }
         }

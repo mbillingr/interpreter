@@ -39,13 +39,23 @@ mod source_impl {
         source: Ref<SourceCode>,
     }
 
+    impl SourceView {
+        pub fn pre_span(&self) -> &str {
+            &self.source.buffer[..self.span.start.idx]
+        }
+
+        pub fn in_span(&self) -> &str {
+            &self.source.buffer[self.span.start.idx..self.span.end.idx]
+        }
+
+        pub fn post_span(&self) -> &str {
+            &self.source.buffer[self.span.end.idx..]
+        }
+    }
+
     impl std::fmt::Display for SourceView {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(
-                f,
-                "{}",
-                &self.source.buffer[self.span.start.idx..self.span.end.idx]
-            )
+            write!(f, "{}", &self.in_span())
         }
     }
 

@@ -13,7 +13,7 @@ mod debug_hooks {
     pub fn enter_eval(expr: &Expression, env: &EnvRef) {}
     pub fn leave_eval(res: &Result<Expression>) {}
     pub fn predispatch(expr: &Expression, env: &EnvRef) {}
-    pub fn function_call(proc: &Expression, args: &Expression) {}
+    pub fn function_call(proc: &Expression, args: &Expression, expr: &Expression) {}
 }
 
 #[cfg(feature = "debugging")]
@@ -105,7 +105,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
-                        debug_hooks::function_call(&proc, &args);
+                        debug_hooks::function_call(&proc, &args, &expr);
                         match proc {
                             Procedure(p) => {
                                 let parent = env;
