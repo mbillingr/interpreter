@@ -102,7 +102,12 @@ impl Debugger {
                     self.stack.pop().expect("stack underflow");
                 }
                 Some(DebugRequest::Predispatch(expr, env)) => {
-                    self.service.rep(());
+                    if expr.is_pair() {
+                        self.current_request =
+                            Some(DebugRequest::Predispatch(expr.clone(), env.clone()));
+                    } else {
+                        self.service.rep(());
+                    }
                     self.stack.pop().expect("stack underflow");
                     self.stack.push((expr, env));
                 }

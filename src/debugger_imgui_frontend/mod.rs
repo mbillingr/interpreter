@@ -56,35 +56,45 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
                 ui.text("reduction:");
                 ui.text(Expression::cons(func.clone(), args.clone()).short_repr());
                 let advance = ui.small_button(im_str!("advance"));
-                ui.child_frame(im_str!("child frame"), ui.get_content_region_avail())
-                    .scrollbar_horizontal(true)
-                    .build(|| match expr.get_source() {
-                        None => ui.text(format!("<{}>", expr)),
-                        Some(src) => {
-                            for line in src.pre_span().split('\n') {
-                                ui.text(line);
-                            }
-                            ui.same_line(0.0);
-                            unsafe {
-                                imgui_sys::igSetScrollHereY(0.25);
-                            }
-                            for line in src.in_span().split('\n') {
-                                ui.text_colored(
-                                    [1.0, 0.0, 0.0, 1.0],
-                                    &ImString::from(line.to_owned()),
-                                );
-                            }
-                            ui.same_line(0.0);
-                            for line in src.post_span().split('\n') {
-                                ui.text(line);
-                            }
-                        }
-                    });
+                source_view(ui, &expr);
+                if advance {
+                    debugger.advance();
+                }
+            }
+            Some(DebugRequest::Predispatch(expr, env)) => {
+                ui.text("reduction:");
+                ui.text(expr.short_repr());
+                let advance = ui.small_button(im_str!("advance"));
+                source_view(ui, &expr);
                 if advance {
                     debugger.advance();
                 }
             }
             _ => {}
+        });
+}
+
+fn source_view(ui: &Ui, expr: &Expression) {
+    ui.child_frame(im_str!("source view"), ui.get_content_region_avail())
+        .scrollbar_horizontal(true)
+        .build(|| match expr.get_source() {
+            None => ui.text(format!("<{}>", expr)),
+            Some(src) => {
+                for line in src.pre_span().split('\n') {
+                    ui.text(line);
+                }
+                ui.same_line(0.0);
+                unsafe {
+                    imgui_sys::igSetScrollHereY(0.25);
+                }
+                for line in src.in_span().split('\n') {
+                    ui.text_colored([1.0, 0.0, 0.0, 1.0], &ImString::from(line.to_owned()));
+                }
+                ui.same_line(0.0);
+                for line in src.post_span().split('\n') {
+                    ui.text(line);
+                }
+            }
         });
 }
 
