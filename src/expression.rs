@@ -1,6 +1,7 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
 use crate::macros::Macro;
+use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
 use crate::tracer::trace_procedure_call;
 use std::hash::{Hash, Hasher};
@@ -10,9 +11,6 @@ pub use std::sync::{Arc as Ref, Weak};
 
 #[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
-
-#[cfg(feature = "source-tracking")]
-use crate::sourcecode::SourceView;
 
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Expression>;
@@ -37,6 +35,12 @@ impl Pair {
         })
     }
 
+    #[cfg(not(feature = "source-tracking"))]
+    pub fn new_sourced(car: Expression, cdr: Expression, _: SourceView) -> Ref<Self> {
+        Pair::new(car, cdr)
+    }
+
+    #[cfg(feature = "source-tracking")]
     pub fn new_sourced(car: Expression, cdr: Expression, src: SourceView) -> Ref<Self> {
         Ref::new(Pair {
             car,
