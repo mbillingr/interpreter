@@ -1,6 +1,6 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
-use crate::expression::Expression;
+use crate::expression::{Expression, Pair};
 use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(pair) => {
-            let car = &pair.0;
+            let car = &pair.car;
             let syntax_macro = if let Symbol(s) = car {
                 match env.borrow().lookup(s) {
                     Some(Expression::Macro(m)) => Some(m),
@@ -77,7 +77,7 @@ fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
             Expression::Pair(pair) => {
-                let (car, cdr) = &**pair;
+                let Pair { car, cdr, .. } = &**pair;
                 let car = if let Expression::Symbol(s) = car {
                     if *s == symbol::ELSE {
                         Expression::True
@@ -153,9 +153,9 @@ fn expand_and(list: &Expression, env: &EnvRef) -> Result<Expression> {
 
     match args {
         Expression::Nil => Ok(Expression::True),
-        Expression::Pair(p) if p.1 == Expression::Nil => Ok((p.0).clone()),
+        Expression::Pair(p) if p.cdr == Expression::Nil => Ok((p.car).clone()),
         Expression::Pair(p) => expand_if(
-            &scheme!(if, @(p.0).clone(), @expand_and(&scheme!(and, ...(p.1).clone()), env)?, #f),
+            &scheme!(if, @(p.car).clone(), @expand_and(&scheme!(and, ...(p.cdr).clone()), env)?, #f),
             env,
         ),
         _ => unreachable!(),

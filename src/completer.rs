@@ -24,7 +24,7 @@ impl Completer for EnvHelper {
     fn complete(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
         if let Some(rc_env) = self.0.upgrade() {
             let mut lexer = Lexer::new();
-            let tokens = match lexer.tokenize(line.to_string()) {
+            let tokens = match lexer.tokenize(line) {
                 Ok(l) => l.take_pos(),
                 Err(_) => return Ok((0, vec![])),
             };

@@ -1,6 +1,6 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
-use crate::expression::{Expression, Procedure, Ref};
+use crate::expression::{Expression, Pair as PairType, Procedure, Ref};
 use crate::libraries::{define_library, import_library, store_library};
 use crate::macros;
 use crate::symbol;
@@ -50,7 +50,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
             }
             Native(_) | NativeIntrusive(_) => return Ok(expr.into_owned()),
             Pair(ref pair) => {
-                let (car, cdr) = &**pair;
+                let PairType{car, cdr, ..} = &**pair;
                 match cdr {
                     Expression::Nil => {}
                     Expression::Pair(_) => {}

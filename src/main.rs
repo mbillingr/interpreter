@@ -20,6 +20,7 @@ mod lexer;
 mod libraries;
 mod macros;
 mod parser;
+mod sourcecode;
 mod symbol;
 mod syntax;
 mod tracer;
@@ -27,6 +28,7 @@ mod tracer;
 use crate::environment::Environment;
 use crate::io::LineReader;
 use crate::libraries::import_library;
+use crate::parser::parse_file;
 use crate::syntax::expand;
 use environment::EnvRef;
 use error_chain::ChainedError;
@@ -36,47 +38,42 @@ use interpreter::eval;
 use lexer::Lexer;
 use parser::parse;
 use std::env;
+use std::path::Path;
 
 const LINE_PROMPT: &str = ">> ";
 const MULTI_PROMPT: &str = " ... ";
 
-fn repl(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
-    let mut lexer = Lexer::new();
+fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
+    let mut source = String::new();
 
+    input.set_prompt(LINE_PROMPT);
     loop {
-        lexer.tokenize(input.read_line()?)?;
+        source.push_str(&input.read_line()?);
+
+        let mut lexer = Lexer::new();
+        lexer.tokenize(&source)?;
 
         if lexer.is_balanced() {
             let mut result = Expression::Undefined;
-            for expr in parse(lexer.take())? {
-                let expr = expand(&expr, &env)?;
+            for expr in parse(lexer.take(), source)? {
+                let expr = expand(&expr, env)?;
                 result = eval(&expr, env.clone())?;
             }
             match result {
                 Expression::Undefined => {}
                 res => println!("{}", res),
             }
-            input.set_prompt(LINE_PROMPT);
+            return Ok(());
         } else {
             input.set_prompt(MULTI_PROMPT);
         }
     }
 }
 
-fn run_file(input: &mut impl LineReader, env: EnvRef) -> Result<()> {
-    let mut lexer = Lexer::new();
-
-    while !input.is_eof() {
-        let line = input.read_line()?;
-        lexer.tokenize(line)?;
-
-        if lexer.is_balanced() {
-            for expr in parse(lexer.take())? {
-                let expr = expand(&expr, &env)?;
-                eval(&expr, env.clone())?;
-            }
-        }
-    }
+fn run_file(path: impl AsRef<Path>, env: &EnvRef) -> Result<()> {
+    let expr = parse_file(path)?;
+    let expr = expand(&expr, env)?;
+    eval(&expr, env.clone())?;
     Ok(())
 }
 
@@ -86,8 +83,7 @@ fn main() {
     for arg in env::args().skip(1) {
         match arg {
             _ => {
-                let mut file = io::FileInput::new(&arg).unwrap();
-                if let Err(e) = run_file(&mut file, global.clone()) {
+                if let Err(e) = run_file(arg, &global) {
                     report_error(e);
                     return;
                 }
@@ -103,7 +99,7 @@ fn main() {
 
     loop {
         input.set_prompt(LINE_PROMPT);
-        match repl(&mut input, global.clone()) {
+        match repl(&mut input, &global) {
             Ok(_) => {}
             Err(Error(ErrorKind::ReadlineError(rustyline::error::ReadlineError::Eof), _)) => {
                 println!("EOF");
