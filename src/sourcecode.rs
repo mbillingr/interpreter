@@ -21,7 +21,6 @@ mod source_impl {
 #[cfg(feature = "source-tracking")]
 mod source_impl {
     use crate::expression::Ref;
-    use std::cell::RefCell;
 
     #[derive(Debug, Copy, Clone)]
     struct Pos {
@@ -37,7 +36,7 @@ mod source_impl {
     #[derive(Debug, Clone)]
     pub struct SourceView {
         span: Span,
-        source: Ref<RefCell<SourceCode>>,
+        source: Ref<SourceCode>,
     }
 
     impl std::fmt::Display for SourceView {
@@ -45,14 +44,14 @@ mod source_impl {
             write!(
                 f,
                 "{}",
-                &self.source.borrow().buffer[self.span.start.idx..self.span.end.idx]
+                &self.source.buffer[self.span.start.idx..self.span.end.idx]
             )
         }
     }
 
     #[derive(Debug, Clone)]
     pub struct Source {
-        source: Ref<RefCell<SourceCode>>,
+        source: Ref<SourceCode>,
     }
 
     impl Source {
@@ -107,7 +106,7 @@ mod source_impl {
     impl From<SourceCode> for Source {
         fn from(s: SourceCode) -> Self {
             Source {
-                source: Ref::new(RefCell::new(s)),
+                source: Ref::new(s),
             }
         }
     }
@@ -117,7 +116,7 @@ mod source_impl {
             let span = Span {
                 start: Pos { idx: 0 },
                 end: Pos {
-                    idx: s.source.borrow().len(),
+                    idx: s.source.len(),
                 },
             };
             SourceView {
