@@ -12,28 +12,37 @@ pub use std::sync::{Arc as Ref, Weak};
 pub use std::rc::{Rc as Ref, Weak};
 
 #[cfg(feature = "source-tracking")]
-use crate::sourcecode::SourceSpan;
+use crate::sourcecode::SourceView;
 
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Expression>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
 
+#[derive(Debug)]
 pub struct Pair {
     pub car: Expression,
     pub cdr: Expression,
 
     #[cfg(feature = "source-tracking")]
-    pub src: Option<SourceSpan>,
+    pub src: Option<SourceView>,
 }
 
 impl Pair {
-    pub fn new(car: Expression, cdr: Expression) -> Self {
-        Pair {
+    pub fn new(car: Expression, cdr: Expression) -> Ref<Self> {
+        Ref::new(Pair {
             car,
             cdr,
             #[cfg(feature = "source-tracking")]
             src: None,
-        }
+        })
+    }
+
+    pub fn new_sourced(car: Expression, cdr: Expression, src: SourceView) -> Ref<Self> {
+        Ref::new(Pair {
+            car,
+            cdr,
+            src: Some(src),
+        })
     }
 }
 
@@ -92,7 +101,7 @@ impl Expression {
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
-        Expression::Pair(Ref::new(Pair::new(car.into(), cdr.into())))
+        Expression::Pair(Pair::new(car.into(), cdr.into()))
     }
 
     pub fn decons(&self) -> Result<(&Expression, &Expression)> {

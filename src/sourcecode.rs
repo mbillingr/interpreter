@@ -1,91 +1,108 @@
 use crate::expression::Ref;
+use std::cell::RefCell;
 
-pub struct SourceSpan {
-    span: Span,
-    source: Ref<SourceCode>,
-}
-
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 struct Pos {
-    idx: usize,
+    pub idx: usize,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 struct Span {
-    start: Pos,
-    end: Pos,
+    pub start: Pos,
+    pub end: Pos,
 }
 
+#[derive(Debug, Clone)]
+pub struct SourceView {
+    span: Span,
+    source: Ref<RefCell<SourceCode>>,
+}
+
+impl SourceView {}
+
+impl std::fmt::Display for SourceView {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            &self.source.borrow().buffer[self.span.start.idx..self.span.end.idx]
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Source {
+    source: Ref<RefCell<SourceCode>>,
+}
+
+impl Source {
+    pub fn view(&self, start: usize, end: usize) -> SourceView {
+        SourceView {
+            span: Span {
+                start: Pos { idx: start },
+                end: Pos { idx: end },
+            },
+            source: self.source.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
 struct SourceCode {
     buffer: String,
     lines: Vec<usize>,
 }
 
 impl SourceCode {
-    pub fn new() -> Self {
-        SourceCode {
-            buffer: String::new(),
-            lines: vec![],
-        }
+    pub fn len(&self) -> usize {
+        self.buffer.len()
     }
 
     pub fn from_string(s: String) -> Self {
         SourceCode {
-            lines: std::iter::once(0)
-                .chain(
-                    s.chars()
-                        .enumerate()
-                        .filter(|(i, ch)| *ch == '\n')
-                        .map(|(i, _)| i + 1)
-                        .filter(|&i| i < s.len()),
-                )
-                .collect(),
+            lines: SourceCode::lines(&s),
             buffer: s,
         }
     }
 
-    pub fn append(&mut self, other: SourceCode) -> Span {
-        let start = Pos {
-            idx: self.buffer.len(),
-        };
-        self.buffer.push_str(&other.buffer);
-        self.lines
-            .extend(other.lines.into_iter().map(|i| i + start.idx));
-        let end = Pos {
-            idx: self.buffer.len(),
-        };
-        Span { start, end }
+    fn lines(s: &str) -> Vec<usize> {
+        std::iter::once(0)
+            .chain(
+                s.chars()
+                    .enumerate()
+                    .filter(|(_, ch)| *ch == '\n')
+                    .map(|(i, _)| i + 1)
+                    .filter(|&i| i < s.len()),
+            )
+            .collect()
     }
+}
 
-    pub fn line_start(&self, pos: Pos) -> Pos {
-        let mut idx = 0;
-        for &l in &self.lines {
-            if l > pos.idx {
-                break;
-            }
-            idx = l;
+impl From<String> for Source {
+    fn from(s: String) -> Self {
+        SourceCode::from_string(s).into()
+    }
+}
+
+impl From<SourceCode> for Source {
+    fn from(s: SourceCode) -> Self {
+        Source {
+            source: Ref::new(RefCell::new(s)),
         }
-        Pos { idx }
     }
+}
 
-    pub fn line_end(&self, pos: Pos) -> Pos {
-        let mut idx = 0;
-        for &l in &self.lines {
-            if l > pos.idx {
-                return Pos { idx: l };
-            }
-            idx = l;
+impl From<Source> for SourceView {
+    fn from(s: Source) -> Self {
+        let span = Span {
+            start: Pos { idx: 0 },
+            end: Pos {
+                idx: s.source.borrow().len(),
+            },
+        };
+        SourceView {
+            span,
+            source: s.source,
         }
-        Pos { idx }
-    }
-
-    pub fn chars<'a>(&'a self, span: Span) -> impl Iterator<Item = char> + 'a {
-        self.buffer[span.start.idx..span.end.idx].chars()
-    }
-
-    pub fn char_indices<'a>(&'a self, span: Span) -> impl Iterator<Item = (usize, char)> + 'a {
-        self.buffer[span.start.idx..span.end.idx]
-            .char_indices()
-            .map(move |(i, ch)| (i + span.start.idx, ch))
     }
 }

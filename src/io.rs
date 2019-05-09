@@ -2,9 +2,6 @@ use crate::completer::EnvHelper;
 use crate::environment::EnvWeak;
 use crate::errors::Result;
 use rustyline::Editor;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::path::Path;
 
 pub trait LineReader {
     fn read_line(&mut self) -> Result<String>;
@@ -47,33 +44,5 @@ impl LineReader for ReplInput {
 
     fn set_prompt(&mut self, prompt: &'static str) {
         self.prompt = prompt;
-    }
-}
-
-pub struct FileInput {
-    file: BufReader<File>,
-    eof: bool,
-}
-
-impl FileInput {
-    pub fn new(filename: impl AsRef<Path>) -> Result<Self> {
-        Ok(FileInput {
-            file: BufReader::new(File::open(filename)?),
-            eof: false,
-        })
-    }
-}
-
-impl LineReader for FileInput {
-    fn read_line(&mut self) -> Result<String> {
-        let mut buf = String::new();
-        if self.file.read_line(&mut buf)? == 0 {
-            self.eof = true;
-        }
-        Ok(buf)
-    }
-
-    fn is_eof(&self) -> bool {
-        self.eof
     }
 }

@@ -8,16 +8,16 @@ use crate::syntax::expand;
 use crate::Expression;
 use crate::Lexer;
 
-fn run<T: ToString>(src: T) -> Result<Expression> {
+fn run(src: &str) -> Result<Expression> {
     let mut lexer = Lexer::new();
     let env = default_env();
     let tokens = lexer
-        .tokenize(src.to_string())?
+        .tokenize(src)?
         .take()
         .into_iter()
         .map(|ptoken| ptoken.into());
 
-    parse(tokens)?
+    parse(tokens, src.to_string())?
         .into_iter()
         .map(|expr| expand(&expr, &env))
         .map(|expr| eval(&expr?, env.clone()))

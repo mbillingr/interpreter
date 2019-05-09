@@ -118,7 +118,7 @@ impl Lexer {
         std::mem::replace(&mut self.token_stream, vec![])
     }
 
-    pub fn tokenize(&mut self, input: String) -> Result<&mut Self> {
+    pub fn tokenize(&mut self, input: &str) -> Result<&mut Self> {
         let mut chars = input.char_indices().peekable();
         while self.skip_whitespace(&mut chars) {
             if self.comment_level > 0 {
