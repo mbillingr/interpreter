@@ -10,6 +10,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(pair) => {
+            let src = pair.get_source();
             let car = &pair.car;
             let syntax_macro = if let Symbol(s) = car {
                 match env.borrow().lookup(s) {
@@ -19,7 +20,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
             } else {
                 None
             };
-            match *car {
+            let result = match *car {
                 _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
                 Symbol(s) if s == symbol::AND => expand_and(expr, env),
                 Symbol(s) if s == symbol::COND => expand_cond(expr, env),
@@ -32,7 +33,8 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
                 Symbol(s) if s == symbol::OR => expand_or(expr, env),
                 Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
                 _ => expr.map_list(|e| expand(&e, env)),
-            }
+            };
+            result.map(|x| x.sourced(src))
         }
         _ => Ok(expr.clone()),
     }

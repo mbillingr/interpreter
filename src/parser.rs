@@ -124,7 +124,7 @@ fn parse_list(input: &mut impl ParserInput) -> Result<Expression> {
         list = Expression::Pair(Pair::new_sourced(
             pair.car,
             pair.cdr,
-            input.source().view(start, end),
+            Some(input.source().view(start, end)),
         ))
     }
 

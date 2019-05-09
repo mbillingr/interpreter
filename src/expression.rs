@@ -34,19 +34,28 @@ impl Pair {
             src: None,
         })
     }
+}
 
-    #[cfg(not(feature = "source-tracking"))]
-    pub fn new_sourced(car: Expression, cdr: Expression, _: SourceView) -> Ref<Self> {
+#[cfg(not(feature = "source-tracking"))]
+impl Pair {
+    pub fn new_sourced(car: Expression, cdr: Expression, _: Option<SourceView>) -> Ref<Self> {
         Pair::new(car, cdr)
     }
 
-    #[cfg(feature = "source-tracking")]
-    pub fn new_sourced(car: Expression, cdr: Expression, src: SourceView) -> Ref<Self> {
-        Ref::new(Pair {
-            car,
-            cdr,
-            src: Some(src),
-        })
+    pub fn get_source(&self) -> Option<SourceView> {
+        None
+    }
+    pub fn set_source(&mut self, src: Option<SourceView>) {}
+}
+
+#[cfg(feature = "source-tracking")]
+impl Pair {
+    pub fn new_sourced(car: Expression, cdr: Expression, src: Option<SourceView>) -> Ref<Self> {
+        Ref::new(Pair { car, cdr, src })
+    }
+
+    pub fn get_source(&self) -> Option<SourceView> {
+        self.src.clone()
     }
 }
 
@@ -173,6 +182,15 @@ impl Expression {
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
         }
         Ok(())
+    }
+
+    pub fn sourced(self, src: Option<SourceView>) -> Expression {
+        match self {
+            Expression::Pair(pair) => {
+                Expression::Pair(Pair::new_sourced(pair.car.clone(), pair.cdr.clone(), src))
+            }
+            _ => self,
+        }
     }
 
     pub fn iter_list(&self) -> ListIterator {
