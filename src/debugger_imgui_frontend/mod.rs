@@ -61,7 +61,7 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
                     debugger.advance();
                 }
             }
-            Some(DebugRequest::Predispatch(expr, env)) => {
+            Some(DebugRequest::Predispatch(expr, _)) => {
                 ui.text("reduction:");
                 ui.text(expr.short_repr());
                 let advance = ui.small_button(im_str!("advance"));
@@ -69,6 +69,13 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
                 if advance {
                     debugger.advance();
                 }
+            }
+            Some(DebugRequest::LeaveEval(Err(e))) => {
+                ui.text("Call Stack:");
+                for (x, _) in debugger.stack() {
+                    ui.text(format!("{}", x));
+                }
+                ui.text_colored([1.0, 0.0, 0.0, 1.0], &ImString::from(format!("{}", e)));
             }
             _ => {}
         });
@@ -112,7 +119,6 @@ fn env_header(ui: &Ui, env: &Environment) {
         env_header(ui, &*parent.borrow());
     }
     if ui.collapsing_header(&env_name).build() {
-        ui.text(im_str!("Items"));
         let mut entries: Vec<String> = env
             .items()
             .map(|(key, value)| {

@@ -92,36 +92,43 @@ impl Debugger {
 
     pub fn poll(&mut self) {
         if self.current_request.is_none() {
-            match self.service.poll() {
-                Some(DebugRequest::EnterEval(expr, env)) => {
-                    self.service.rep(());
-                    self.stack.push((expr, env));
-                }
-                Some(DebugRequest::LeaveEval(_)) => {
-                    self.service.rep(());
-                    self.stack.pop().expect("stack underflow");
-                }
-                Some(DebugRequest::Predispatch(expr, env)) => {
-                    if is_special_form(&expr) {
-                        self.current_request =
-                            Some(DebugRequest::Predispatch(expr.clone(), env.clone()));
-                    } else {
-                        self.service.rep(());
+            self.current_request = self.service.poll();
+            match &self.current_request {
+                Some(DebugRequest::EnterEval(_, _)) => self.advance(),
+                Some(DebugRequest::LeaveEval(e)) => {
+                    if e.is_ok() {
+                        self.advance()
                     }
-                    self.stack.pop().expect("stack underflow");
-                    self.stack.push((expr, env));
                 }
-                fc @ Some(DebugRequest::FunctionCall(_, _, _)) => self.current_request = fc,
+                Some(DebugRequest::Predispatch(expr, _)) => {
+                    if !is_special_form(expr) {
+                        self.advance()
+                    }
+                }
+                Some(DebugRequest::FunctionCall(_, _, _)) => {}
                 None => {}
             }
         }
     }
 
     pub fn advance(&mut self) {
-        if self.current_request.is_some() {
-            self.service.rep(());
-            self.current_request = None;
+        match self.current_request.take() {
+            None => return,
+            Some(DebugRequest::EnterEval(expr, env)) => self.stack.push((expr, env)),
+            Some(DebugRequest::LeaveEval(_)) => {
+                self.stack.pop().expect("stack underflow");
+            }
+            Some(DebugRequest::Predispatch(expr, env)) => {
+                self.stack.pop().expect("stack underflow");
+                self.stack.push((expr, env));
+            }
+            Some(DebugRequest::FunctionCall(_, _, _)) => {}
         }
+        self.service.rep(());
+    }
+
+    pub fn stack(&self) -> &[(Expression, EnvRef)] {
+        &self.stack
     }
 
     pub fn current_request(&self) -> Option<&DebugRequest> {
