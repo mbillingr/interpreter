@@ -132,7 +132,7 @@ impl Debugger {
                     }
                 }
                 Some(DebugRequest::Predispatch(expr, _)) => {
-                    if !is_special_form(expr) {
+                    if !expr.is_pair() {
                         self.advance()
                     }
                 }

@@ -1,4 +1,4 @@
-use crate::debugger::{DebugRequest, Debugger};
+use crate::debugger::{DebugFrame, DebugRequest, Debugger};
 use crate::environment::{EnvRef, Environment};
 use crate::expression::Expression;
 use crate::symbol::Symbol;
@@ -23,6 +23,7 @@ pub fn run(mut debugger: Debugger) {
                 env_window(ui, env);
             }
             dbg_window(ui, &mut debugger);
+            stack_window(ui, debugger.stack());
             true
         },
     );
@@ -118,7 +119,11 @@ fn env_header(ui: &Ui, env: &Environment) {
     if let Some(parent) = env.parent() {
         env_header(ui, &*parent.borrow());
     }
-    if ui.collapsing_header(&env_name).build() {
+    env_entry(ui, env, &env_name);
+}
+
+fn env_entry(ui: &Ui, env: &Environment, title: &ImStr) {
+    if ui.collapsing_header(title).build() {
         let mut entries: Vec<String> = env
             .items()
             .map(|(key, value)| {
@@ -132,6 +137,17 @@ fn env_header(ui: &Ui, env: &Environment) {
             ui.bullet_text(&entry);
         }
     }
+}
+
+fn stack_window(ui: &Ui, callstack: &[DebugFrame]) {
+    ui.window(im_str!("Callstack"))
+        .size((300.0, 100.0), ImGuiCond::FirstUseEver)
+        .build(|| {
+            for frame in callstack.iter().filter(|f| f.is_tail()) {
+                let title: ImString = format!("{}", frame.expr()).into();
+                env_entry(ui, &*frame.env().borrow(), &title);
+            }
+        });
 }
 
 impl From<Symbol> for ImString {
