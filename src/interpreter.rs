@@ -128,7 +128,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     }
 }
 
-pub fn is_special_form(expr: &Expression) -> bool {
+/*pub fn is_special_form(expr: &Expression) -> bool {
     let s = match expr.car() {
         Ok(Expression::Symbol(s)) => *s,
         _ => return false,
@@ -146,7 +146,7 @@ pub fn is_special_form(expr: &Expression) -> bool {
         || s == symbol::QUOTE
         || s == symbol::SETVAR
         || s == symbol::TRACE
-}
+}*/
 
 pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<Expression> {
     match proc {

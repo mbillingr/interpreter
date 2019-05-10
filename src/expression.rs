@@ -784,6 +784,14 @@ impl<E> Procedure<E> {
         self
     }
 
+    pub fn body_ex(&self) -> &Expression {
+        &self.body
+    }
+
+    pub fn params_ex(&self) -> &Expression {
+        &self.params
+    }
+
     pub fn env(&self) -> &E {
         &self.env
     }
@@ -819,14 +827,6 @@ impl Procedure<EnvRef> {
         let mut env = Environment::new_child(self.env.clone(), self.clone());
         env.set_vars(self.params_ex().clone(), args)?;
         Ok(env.into())
-    }
-
-    pub fn body_ex(&self) -> &Expression {
-        &self.body
-    }
-
-    pub fn params_ex(&self) -> &Expression {
-        &self.params
     }
 
     pub fn notify_call(&self, called_env: &EnvRef, calling_env: &EnvRef) {

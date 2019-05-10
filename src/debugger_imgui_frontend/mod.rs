@@ -57,7 +57,8 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
                 ui.text("reduction:");
                 ui.text(Expression::cons(func.clone(), args.clone()).short_repr());
                 let advance = ui.small_button(im_str!("advance"));
-                source_view(ui, &expr);
+                ui.separator();
+                source_view(ui, &expr, [0.0, 0.8, 0.0, 1.0]);
                 if advance {
                     debugger.advance();
                 }
@@ -66,7 +67,8 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
                 ui.text("reduction:");
                 ui.text(expr.short_repr());
                 let advance = ui.small_button(im_str!("advance"));
-                source_view(ui, &expr);
+                ui.separator();
+                source_view(ui, &expr, [1.0, 0.0, 1.0, 1.0]);
                 if advance {
                     debugger.advance();
                 }
@@ -82,7 +84,7 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
         });
 }
 
-fn source_view(ui: &Ui, expr: &Expression) {
+fn source_view(ui: &Ui, expr: &Expression, color: [f32; 4]) {
     ui.child_frame(im_str!("source view"), ui.get_content_region_avail())
         .scrollbar_horizontal(true)
         .build(|| match expr.get_source() {
@@ -96,7 +98,7 @@ fn source_view(ui: &Ui, expr: &Expression) {
                     imgui_sys::igSetScrollHereY(0.25);
                 }
                 for line in src.in_span().split('\n') {
-                    ui.text_colored([1.0, 0.0, 0.0, 1.0], &ImString::from(line.to_owned()));
+                    ui.text_colored(color, &ImString::from(line.to_owned()));
                 }
                 ui.same_line(0.0);
                 for line in src.post_span().split('\n') {
@@ -107,7 +109,7 @@ fn source_view(ui: &Ui, expr: &Expression) {
 }
 
 fn env_window(ui: &Ui, env: &EnvRef) {
-    ui.window(im_str!("Current Environment"))
+    ui.window(im_str!("Lexical Environment"))
         .size((300.0, 100.0), ImGuiCond::FirstUseEver)
         .build(|| {
             env_header(ui, &*env.borrow());
@@ -140,12 +142,25 @@ fn env_entry(ui: &Ui, env: &Environment, title: &ImStr) {
 }
 
 fn stack_window(ui: &Ui, callstack: &[DebugFrame]) {
-    ui.window(im_str!("Callstack"))
+    ui.window(im_str!("Call Stack"))
         .size((300.0, 100.0), ImGuiCond::FirstUseEver)
         .build(|| {
+            let mut last: Option<&EnvRef> = None;
             for frame in callstack.iter().filter(|f| f.is_tail()) {
-                let title: ImString = format!("{}", frame.expr()).into();
-                env_entry(ui, &*frame.env().borrow(), &title);
+                if let Some(le) = last {
+                    if le.as_ptr() == frame.env().as_ptr() {
+                        continue;
+                    }
+                }
+                last = Some(frame.env());
+                let e = &*frame.env().borrow();
+                let title: ImString = format!(
+                    "{} {}",
+                    e.current_procedure().name(),
+                    e.current_procedure().params_ex()
+                )
+                .into();
+                env_entry(ui, e, &title);
             }
         });
 }

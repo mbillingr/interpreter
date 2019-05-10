@@ -1,7 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::Expression;
-use crate::interpreter::{eval, is_special_form};
+use crate::interpreter::eval;
 use std::cell::RefCell;
 use std::sync::mpsc;
 use std::thread;
