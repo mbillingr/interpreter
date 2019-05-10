@@ -72,8 +72,8 @@ fn dbg_window(ui: &Ui, debugger: &mut Debugger) {
             }
             Some(DebugRequest::LeaveEval(Err(e))) => {
                 ui.text("Call Stack:");
-                for (x, _) in debugger.stack() {
-                    ui.text(format!("{}", x));
+                for frame in debugger.stack().iter().filter(|f| f.is_tail()) {
+                    ui.text(format!("{}", frame.expr()));
                 }
                 ui.text_colored([1.0, 0.0, 0.0, 1.0], &ImString::from(format!("{}", e)));
             }

@@ -63,11 +63,41 @@ pub enum DebugRequest {
     FunctionCall(Expression, Expression, Expression),
 }
 
+pub enum DebugFrame {
+    Frame(Expression, EnvRef),
+    TailFrame(Expression, EnvRef),
+}
+
+impl DebugFrame {
+    pub fn expr(&self) -> &Expression {
+        match self {
+            DebugFrame::Frame(x, _) => x,
+            DebugFrame::TailFrame(x, _) => x,
+        }
+    }
+
+    pub fn env(&self) -> &EnvRef {
+        match self {
+            DebugFrame::Frame(_, e) => e,
+            DebugFrame::TailFrame(_, e) => e,
+        }
+    }
+
+    pub fn is_tail(&self) -> bool {
+        match self {
+            DebugFrame::TailFrame(_, _) => true,
+            _ => false,
+        }
+    }
+}
+
 pub struct Debugger {
     service: Replier<DebugRequest, ()>,
     current_request: Option<DebugRequest>,
 
-    stack: Vec<(Expression, EnvRef)>,
+    track_tailcalls: bool,
+
+    stack: Vec<DebugFrame>,
     //history: Vec<(Expression, std::result::Result<Expression, String>)>,
 }
 
@@ -85,6 +115,7 @@ impl Debugger {
         Debugger {
             service: rep,
             current_request: None,
+            track_tailcalls: true,
             stack: vec![],
             //history: vec![],
         }
@@ -114,20 +145,28 @@ impl Debugger {
     pub fn advance(&mut self) {
         match self.current_request.take() {
             None => return,
-            Some(DebugRequest::EnterEval(expr, env)) => self.stack.push((expr, env)),
+            Some(DebugRequest::EnterEval(expr, env)) => {
+                self.stack.push(DebugFrame::Frame(expr, env))
+            }
             Some(DebugRequest::LeaveEval(_)) => {
-                self.stack.pop().expect("stack underflow");
+                if self.track_tailcalls {
+                    while let Some(DebugFrame::TailFrame(_, _)) = self.stack.pop() {}
+                } else {
+                    self.stack.pop().expect("stack underflow");
+                }
             }
             Some(DebugRequest::Predispatch(expr, env)) => {
-                self.stack.pop().expect("stack underflow");
-                self.stack.push((expr, env));
+                if !self.track_tailcalls {
+                    self.stack.pop().expect("stack underflow");
+                }
+                self.stack.push(DebugFrame::TailFrame(expr, env));
             }
             Some(DebugRequest::FunctionCall(_, _, _)) => {}
         }
         self.service.rep(());
     }
 
-    pub fn stack(&self) -> &[(Expression, EnvRef)] {
+    pub fn stack(&self) -> &[DebugFrame] {
         &self.stack
     }
 
@@ -136,7 +175,7 @@ impl Debugger {
     }
 
     pub fn current_env(&self) -> Option<&EnvRef> {
-        self.stack.last().map(|frame| &frame.1)
+        self.stack.last().map(DebugFrame::env)
     }
 
     /*pub fn history(&self) -> &[(Expression, std::result::Result<Expression, String>)] {
