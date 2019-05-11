@@ -37,10 +37,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 //let l = expr.try_into_list()?;
                 match car {
                     Symbol(s) if *s == symbol::BEGIN => expr = Cow::Owned(begin(&cdr, &env)?),
-                    Symbol(s) if *s == symbol::COND => match cond(&cdr, &env)? {
-                        Return::RetVal(ex) => return Ok(ex),
-                        Return::TailCall(ex) => expr = Cow::Owned(ex),
-                    },
+                    Symbol(s) if *s == symbol::COND => expr = Cow::Owned(cond(&cdr, &env)?),
                     Symbol(s) if *s == symbol::DEFINE => return define(&cdr, &env),
                     Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
                         let name = cdr.car()?;
@@ -166,12 +163,7 @@ fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     Ok(Expression::Procedure(proc))
 }
 
-enum Return {
-    RetVal(Expression),
-    TailCall(Expression),
-}
-
-fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
+fn cond(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
     while !list.is_nil() {
         let (row, cdr) = list.decons()?;
         list = &cdr;
@@ -180,13 +172,20 @@ fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
         let cond = eval(cond, env.clone())?;
         if cond.is_true() {
             if cdr.is_nil() {
-                return Ok(Return::RetVal(cond));
+                if cond.is_pair() {
+                    return Ok(Expression::cons(
+                        symbol::QUOTE,
+                        Expression::cons(cond, Expression::Nil),
+                    ));
+                } else {
+                    return Ok(cond);
+                }
             } else {
-                return Ok(Return::TailCall(begin(cdr, env)?));
+                return Ok(begin(cdr, env)?);
             }
         }
     }
-    Ok(Return::RetVal(Expression::Undefined))
+    Ok(Expression::Undefined)
 }
 
 fn if_form(list: &Expression, env: EnvRef) -> Result<&Expression> {
