@@ -4,13 +4,13 @@
   (export <= >=
           abs accumulate append average
           caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cube
-          debug-print dec
+          debug-print dec delay
           even?
-          false fixed-point
+          false fixed-point force
           gcd get get-coercion
           inc iterative-improve
           length
-          map map1 memq modulo
+          map map1 memo-proc memq modulo
           nil
           power println put put-coercion
           timeit true
@@ -168,6 +168,22 @@
     (define (debug-print x)
       (println "DEBUG: " x)
       x)
+
+    (define (memo-proc proc)
+      (let ((already-run? false) (result false))
+        (lambda ()
+          (if already-run?
+              result
+              (begin (set! result (proc))
+                     (set! already-run? true)
+                     result)))))
+
+    (define-syntax delay
+      (syntax-rules ()
+        ((_ x) (memo-proc (lambda () x)))))
+
+    (define (force delayed)
+      (delayed))
 
     ;; ==========================================
     ;;   put and get into a global table
