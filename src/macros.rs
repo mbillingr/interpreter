@@ -79,8 +79,8 @@ impl Macro {
 }
 
 struct TransformerSpec {
-    literals: Vec<Symbol>,
-    ellipsis: Symbol,
+    //literals: Vec<Symbol>,
+    //ellipsis: Symbol,
     rules: Vec<SyntaxRule>,
 }
 
@@ -108,8 +108,8 @@ impl TransformerSpec {
             .collect::<Result<_>>()?;
 
         Ok(TransformerSpec {
-            literals,
-            ellipsis,
+            //literals,
+            //ellipsis,
             rules,
         })
     }
@@ -455,8 +455,8 @@ mod test {
 
         let spec = TransformerSpec::parse(&expr, &env).unwrap();
 
-        assert_eq!(vec![Symbol::new("lit1"), "lit2".into()], spec.literals);
-        assert_eq!(Symbol::new("my_ellipsis"), spec.ellipsis);
+        //assert_eq!(vec![Symbol::new("lit1"), "lit2".into()], spec.literals);
+        //assert_eq!(Symbol::new("my_ellipsis"), spec.ellipsis);
         assert_eq!(Pattern::Constant(42.into()), spec.rules[0].pattern);
         assert_eq!(
             Template::Constant("the answer!".into()),

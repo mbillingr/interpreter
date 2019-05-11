@@ -24,6 +24,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
                 Symbol(s) if s == symbol::AND => expand_and(expr, env),
                 Symbol(s) if s == symbol::COND => expand_cond(expr, env),
                 Symbol(s) if s == symbol::DEFINE => expand_define(expr, env),
+                Symbol(s) if s == symbol::DEFINE_LIBRARY => Ok(expr.clone()),
                 Symbol(s) if s == symbol::DEFINE_SYNTAX => Ok(expr.clone()),
                 Symbol(s) if s == symbol::IF => expand_if(expr, env),
                 Symbol(s) if s == symbol::INCLUDE => expand_include(expr, env),

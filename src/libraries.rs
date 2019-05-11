@@ -34,24 +34,14 @@ impl Library {
 
 /// Load library from file -- cached.
 ///
-/// This brain-dead implementation simply evals the file, then checks the cache again.
-/// Macros are expanded if they are defined in the outer environment.
-fn get_library(name: &[Symbol], outer_env: &EnvRef) -> Result<Library> {
+/// This brain-dead implementation simply evals the definition, then checks the cache again.
+fn get_library(name: &[Symbol]) -> Result<Library> {
     if let Some(lib) = LIBRARIES.with(|libs| libs.borrow().get(name).cloned()) {
         return Ok(lib);
     }
 
     let lib_expr = parse_file(resolve_lib(name))?;
-    // todo: Allow expressions before the library definition
-    //       to make macros available during expansion of the library.
-    //
-    //       Currently they need to be available when the library is imported for the first time.
-    //       This sucks because it's error prone and moves the burden to the library user.
-    //       Instead, it should be possible for a library to define and import the macros it needs.
-    //       This should happen in a closed scope, so that we do not contaminate the environment
-    //       in which the library is imported.
     assert_eq!(Expression::Nil, *lib_expr.cdr()?);
-    let lib_expr = expand(&lib_expr, outer_env)?;
     eval(lib_expr.car()?, Environment::new(None).into())?;
 
     LIBRARIES
@@ -71,7 +61,7 @@ pub fn import_library(import_sets: &Expression, env: &EnvRef) -> Result<()> {
         let imp = imp?;
         match imp.car()? {
             // todo: only, except, prefix, rename
-            _ => get_library(&libname(imp)?, env)?.import(env),
+            _ => get_library(&libname(imp)?)?.import(env),
         }
     }
     Ok(())
@@ -108,7 +98,7 @@ pub fn define_library(declarations: &Expression) -> Result<Library> {
                 import_library(decl.cdr().unwrap(), &private_env)?
             }
             Expression::Symbol(s) if *s == symbol::BEGIN || *s == symbol::INCLUDE => {
-                eval(decl, private_env.clone())?;
+                eval(&expand(decl, &private_env)?, private_env.clone())?;
             }
             x => Err(ErrorKind::GenericError(format!(
                 "Invalid library declaration: {}",
