@@ -305,7 +305,11 @@ impl Template {
                     let expr = sub.expand(bindings)?;
                     result = Expression::cons(expr, result);
                 }
-                Ok(result)
+                if let Ok(Expression::Macro(m)) = result.car() {
+                    m.expand(&result)
+                } else {
+                    Ok(result)
+                }
             }
             Template::ImproperList(subs, tail) => {
                 let mut result = tail.expand(bindings)?;
