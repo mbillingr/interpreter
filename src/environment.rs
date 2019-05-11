@@ -383,7 +383,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "newline",
-            X::Procedure(Procedure::build(X::Nil, scheme!((display, "\n")), &defenv).unwrap()),
+            X::Procedure(Procedure::build(X::Nil, scheme!(((display, "\n"))), &defenv).unwrap()),
         );
 
         env.insert(

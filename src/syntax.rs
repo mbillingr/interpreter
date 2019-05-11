@@ -64,12 +64,8 @@ fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
-    if body.cdr().unwrap() == &Expression::Nil {
-        Ok(scheme!(lambda, @signature.clone(), @expand(body.car()?, env)?))
-    } else {
-        let body = Expression::cons(scheme!(begin), body.map_list(|e| expand(&e, env))?);
-        Ok(scheme!(lambda, @signature.clone(), @body))
-    }
+    let body = body.map_list(|e| expand(&e, env))?;
+    Ok(scheme!(lambda, @signature.clone(), ...body))
 }
 
 fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {

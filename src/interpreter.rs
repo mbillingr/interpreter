@@ -87,8 +87,8 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             Procedure(p) => {
                                 let parent = env;
                                 env = p.new_local_env(args)?;
-                                expr = Cow::Owned(p.body_ex().clone());
                                 p.notify_call(&env, &parent);
+                                expr = Cow::Owned(begin(p.body_ex(), &env)?);
                             }
                             Native(func) => return func(args),
                             NativeIntrusive(func) => return func(args, &env),
@@ -110,7 +110,8 @@ pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<
         Expression::Procedure(p) => {
             let env = p.new_local_env(args)?;
             p.notify_call(&env, calling_env);
-            eval(&p.body_ex(), env)
+            let last = begin(p.body_ex(), &env)?;
+            eval(&last, env)
         }
         Expression::Native(func) => func(args),
         x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into()),
@@ -156,8 +157,7 @@ fn set_var(list: &Expression, env: &EnvRef) -> Result<Expression> {
 }
 
 fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
-    let (signature, list) = list.decons()?;
-    let (body, _) = list.decons()?;
+    let (signature, body) = list.decons()?;
     let proc = Procedure::new(
         Ref::new(signature.clone()),
         Ref::new(body.clone()),
