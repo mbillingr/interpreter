@@ -104,9 +104,10 @@ pub fn define_library(declarations: &Expression) -> Result<Library> {
                     }
                 }
             }
-            Expression::Symbol(s)
-                if *s == symbol::IMPORT || *s == symbol::BEGIN || *s == symbol::INCLUDE =>
-            {
+            Expression::Symbol(s) if *s == symbol::IMPORT => {
+                import_library(decl.cdr().unwrap(), &private_env)?
+            }
+            Expression::Symbol(s) if *s == symbol::BEGIN || *s == symbol::INCLUDE => {
                 eval(decl, private_env.clone())?;
             }
             x => Err(ErrorKind::GenericError(format!(

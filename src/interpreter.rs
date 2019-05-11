@@ -1,7 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Pair as PairType, Procedure, Ref};
-use crate::libraries::{define_library, import_library, store_library};
+use crate::libraries::{define_library, store_library};
 use crate::macros;
 use crate::symbol;
 use crate::tracer::{install_tracer, remove_tracer, CallGraph};
@@ -58,10 +58,6 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     }
                     Symbol(s) if *s == symbol::EVAL => {
                         expr = Cow::Owned(eval(cdr.car()?, env.clone())?);
-                    }
-                    Symbol(s) if *s == symbol::IMPORT => {
-                        import_library(cdr, &env)?;
-                        return Ok(Expression::Undefined);
                     }
                     Symbol(s) if *s == symbol::QUOTE => {
                         return Ok(cdr.car()?.clone());

@@ -20,7 +20,7 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
                 None
             };
             match *car {
-                _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
+                _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr, env),
                 Symbol(s) if s == symbol::AND => expand_and(expr, env),
                 Symbol(s) if s == symbol::COND => expand_cond(expr, env),
                 Symbol(s) if s == symbol::DEFINE => expand_define(expr, env),

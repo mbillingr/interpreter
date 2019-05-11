@@ -2,6 +2,7 @@ use crate::envref::EnvRef;
 use crate::errors::*;
 use crate::expression::Expression;
 use crate::symbol::{self, Symbol};
+use crate::syntax::expand;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -72,8 +73,8 @@ impl Macro {
         })
     }
 
-    pub fn expand(&self, expr: &Expression) -> Result<Expression> {
-        self.spec.expand(expr)
+    pub fn expand(&self, expr: &Expression, env: &EnvRef) -> Result<Expression> {
+        self.spec.expand(expr, env)
     }
 }
 
@@ -113,9 +114,9 @@ impl TransformerSpec {
         })
     }
 
-    pub fn expand(&self, expr: &Expression) -> Result<Expression> {
+    pub fn expand(&self, expr: &Expression, env: &EnvRef) -> Result<Expression> {
         for rule in &self.rules {
-            if let Some(expansion) = rule.match_expand(expr) {
+            if let Some(expansion) = rule.match_expand(expr, env) {
                 return expansion;
             }
         }
@@ -141,10 +142,10 @@ impl SyntaxRule {
         })
     }
 
-    pub fn match_expand(&self, expr: &Expression) -> Option<Result<Expression>> {
+    pub fn match_expand(&self, expr: &Expression, env: &EnvRef) -> Option<Result<Expression>> {
         self.pattern
             .match_expr(expr)
-            .map(|bindings| self.template.expand(&bindings))
+            .map(|bindings| self.template.expand(&bindings, env))
     }
 }
 
@@ -291,7 +292,7 @@ impl Template {
         }
     }
 
-    fn expand(&self, bindings: &HashMap<Symbol, Expression>) -> Result<Expression> {
+    fn expand(&self, bindings: &HashMap<Symbol, Expression>, env: &EnvRef) -> Result<Expression> {
         match self {
             Template::Constant(expr) => Ok(expr.clone()),
             Template::Identifier(ident) => match bindings.get(ident) {
@@ -302,19 +303,20 @@ impl Template {
             Template::List(subs) => {
                 let mut result = Expression::Nil;
                 for sub in subs.iter().rev() {
-                    let expr = sub.expand(bindings)?;
+                    let expr = sub.expand(bindings, env)?;
                     result = Expression::cons(expr, result);
                 }
+                let result = expand(&result, env)?;
                 if let Ok(Expression::Macro(m)) = result.car() {
-                    m.expand(&result)
+                    m.expand(&result, env)
                 } else {
                     Ok(result)
                 }
             }
             Template::ImproperList(subs, tail) => {
-                let mut result = tail.expand(bindings)?;
+                let mut result = tail.expand(bindings, env)?;
                 for sub in subs.iter().rev() {
-                    let expr = sub.expand(bindings)?;
+                    let expr = sub.expand(bindings, env)?;
                     result = Expression::cons(expr, result);
                 }
                 Ok(result)
@@ -427,10 +429,14 @@ mod test {
             Template::Identifier("no".into()),
         ]);
 
+        use crate::environment::Environment;
+        let env: EnvRef = Environment::new(None).into();
+
         assert_eq!(
             scheme!((less, x, 0), (neg, x), x),
             template.expand(
-                &hashmap! { cond => scheme!(less, x, 0), yes => scheme!(neg, x), no => scheme!(x)}
+                &hashmap! { cond => scheme!(less, x, 0), yes => scheme!(neg, x), no => scheme!(x)},
+                &env
             ).unwrap()
         );
     }

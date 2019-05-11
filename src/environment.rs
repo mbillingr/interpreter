@@ -398,13 +398,10 @@ pub fn default_env() -> EnvRef {
             }),
         );
 
-        env.insert_native(
-            "body",
-            |args| match car(&args)? {
-                Expression::Procedure(p) => Ok(p.body_ex().clone()),
-                a => Err(ErrorKind::TypeError(format!("not a procedure: {:?}", a)))?,
-            }
-        );
+        env.insert_native("body", |args| match car(&args)? {
+            Expression::Procedure(p) => Ok(p.body_ex().clone()),
+            a => Err(ErrorKind::TypeError(format!("not a procedure: {:?}", a)))?,
+        });
     }
 
     defenv
