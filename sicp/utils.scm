@@ -3,7 +3,8 @@
 
   (export <= >=
           abs accumulate append average
-          caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cube
+          caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cons-stream
+          cube
           debug-print dec delay
           even?
           false fixed-point force
@@ -13,8 +14,8 @@
           map map1 memo-proc memq modulo
           nil
           power println put put-coercion
-          timeit true
-          sqr sqrt symbol<?
+          the-empty-stream timeit true
+          stream-car stream-cdr stream-null? sqr sqrt symbol<?
           xor)
 
   (import (builtin core)
@@ -184,6 +185,15 @@
 
     (define (force delayed)
       (delayed))
+
+    (define-syntax cons-stream
+      (syntax-rules ()
+        ((_ a b) (cons a (delay b)))))
+
+    (define the-empty-stream '())
+    (define (stream-null? stream) (null? stream))
+    (define (stream-car stream) (car stream))
+    (define (stream-cdr stream) (force (cdr stream)))
 
     ;; ==========================================
     ;;   put and get into a global table
