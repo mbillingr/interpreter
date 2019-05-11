@@ -34,7 +34,7 @@
         (display "x -- ")
         (display (/ sum n))
         (display " +- ")
-        (display (sqrt (/ (- sqsum (/ (sqr sum) n) (- n 1)))))
+        (display (sqrt (/ (- sqsum (/ (sqr sum) n)) (- n 1))))
         (newline))
       (define (iter n sum sqsum end)
         (if (and (> n 3) (> (runtime) end))
