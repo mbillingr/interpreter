@@ -47,7 +47,7 @@ pub fn eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         return Ok(Expression::Undefined);
                     }
                     Symbol(s) if *s == symbol::DEFINE_SYNTAX => {
-                        let macro_ = macros::Macro::parse(cdr)?;
+                        let macro_ = macros::Macro::parse(cdr, &env)?;
                         env.borrow_mut()
                             .insert(macro_.name(), Expression::Macro(macro_));
                         return Ok(Expression::Undefined);

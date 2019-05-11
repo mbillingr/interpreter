@@ -248,6 +248,10 @@ pub fn default_env() -> EnvRef {
     {
         let mut env = defenv.borrow_mut();
 
+        // place holders
+
+        env.insert(symbol::LAMBDA, symbol::LAMBDA.into());
+
         // interpreter functions
 
         env.insert("apply", Expression::NativeIntrusive(apply));

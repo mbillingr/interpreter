@@ -1,3 +1,4 @@
+use crate::envref::EnvRef;
 use crate::errors::*;
 use crate::expression::Expression;
 use crate::symbol::{self, Symbol};
@@ -42,7 +43,7 @@ macro_rules! hashmap(
      };
 );
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Macro {
     name: Symbol,
     spec: Rc<TransformerSpec>,
@@ -53,7 +54,7 @@ impl Macro {
         self.name
     }
 
-    pub fn parse(expr: &Expression) -> Result<Self> {
+    pub fn parse(expr: &Expression, env: &EnvRef) -> Result<Self> {
         let (name, rules) = expr.decons()?;
         let rules = rules.car()?;
         match rules.car()? {
@@ -63,7 +64,7 @@ impl Macro {
             _ => {}
         }
 
-        let spec = TransformerSpec::parse(rules.cdr()?)?;
+        let spec = TransformerSpec::parse(rules.cdr()?, env)?;
 
         Ok(Macro {
             name: *name.try_as_symbol()?,
@@ -76,7 +77,6 @@ impl Macro {
     }
 }
 
-#[derive(Debug)]
 struct TransformerSpec {
     literals: Vec<Symbol>,
     ellipsis: Symbol,
@@ -84,7 +84,7 @@ struct TransformerSpec {
 }
 
 impl TransformerSpec {
-    pub fn parse(mut list: &Expression) -> Result<Self> {
+    pub fn parse(mut list: &Expression, env: &EnvRef) -> Result<Self> {
         let mut ellipsis = symbol::ELLIPSIS;
         let spec = match list.car()? {
             Expression::Symbol(s) => {
@@ -103,7 +103,7 @@ impl TransformerSpec {
         let rules: Vec<SyntaxRule> = list
             .cdr()?
             .iter_list()
-            .map(|x| x.and_then(|x| SyntaxRule::parse(x, &literals, ellipsis)))
+            .map(|x| x.and_then(|x| SyntaxRule::parse(x, &literals, ellipsis, env)))
             .collect::<Result<_>>()?;
 
         Ok(TransformerSpec {
@@ -116,28 +116,32 @@ impl TransformerSpec {
     pub fn expand(&self, expr: &Expression) -> Result<Expression> {
         for rule in &self.rules {
             if let Some(expansion) = rule.match_expand(expr) {
-                return Ok(expansion);
+                return expansion;
             }
         }
         Err(ErrorKind::GenericError("no pattern matched".into()).into())
     }
 }
 
-#[derive(Debug)]
 struct SyntaxRule {
     pattern: Pattern,
     template: Template,
 }
 
 impl SyntaxRule {
-    pub fn parse(list: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+    pub fn parse(
+        list: &Expression,
+        literals: &[Symbol],
+        ellipsis: Symbol,
+        env: &EnvRef,
+    ) -> Result<Self> {
         Ok(SyntaxRule {
             pattern: Pattern::parse(list.car()?, literals, ellipsis)?,
-            template: Template::parse(list.cdr()?.car()?, literals, ellipsis)?,
+            template: Template::parse(list.cdr()?.car()?, literals, ellipsis, env)?,
         })
     }
 
-    pub fn match_expand(&self, expr: &Expression) -> Option<Expression> {
+    pub fn match_expand(&self, expr: &Expression) -> Option<Result<Expression>> {
         self.pattern
             .match_expr(expr)
             .map(|bindings| self.template.expand(&bindings))
@@ -247,15 +251,27 @@ enum Template {
 }
 
 impl Template {
-    pub fn parse(expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
+    pub fn parse(
+        expr: &Expression,
+        literals: &[Symbol],
+        ellipsis: Symbol,
+        env: &EnvRef,
+    ) -> Result<Self> {
         match expr {
-            Expression::Symbol(s) => Ok(Template::Identifier(*s)),
+            Expression::Symbol(s) => {
+                Ok(env
+                    .borrow()
+                    .lookup(s)
+                    .map(|x| Template::Constant(x))
+                    .unwrap_or_else(|| Template::Identifier(*s)))
+                //env.borrow().lookup(s).map(|x| Template::Constant(x)).ok_or_else(|| ErrorKind::Undefined(*s).into())
+            }
             Expression::Pair(pair) => {
                 let mut car = &pair.car;
                 let mut cdr = &pair.cdr;
                 let mut list = vec![];
                 loop {
-                    list.push(Template::parse(&*car, literals, ellipsis)?);
+                    list.push(Template::parse(&*car, literals, ellipsis, env)?);
                     match cdr {
                         Expression::Nil => return Ok(Template::List(list)),
                         Expression::Pair(p) => {
@@ -265,7 +281,7 @@ impl Template {
                         _ => {
                             return Ok(Template::ImproperList(
                                 list,
-                                Box::new(Template::parse(&*cdr, literals, ellipsis)?),
+                                Box::new(Template::parse(&*cdr, literals, ellipsis, env)?),
                             ))
                         }
                     }
@@ -275,28 +291,29 @@ impl Template {
         }
     }
 
-    fn expand(&self, bindings: &HashMap<Symbol, Expression>) -> Expression {
+    fn expand(&self, bindings: &HashMap<Symbol, Expression>) -> Result<Expression> {
         match self {
-            Template::Constant(expr) => expr.clone(),
+            Template::Constant(expr) => Ok(expr.clone()),
             Template::Identifier(ident) => match bindings.get(ident) {
-                Some(expr) => expr.clone(),
-                None => (*ident).into(),
+                Some(expr) => Ok(expr.clone()),
+                //None => (*ident).into(),
+                None => Err(ErrorKind::Undefined(*ident).into()),
             },
             Template::List(subs) => {
                 let mut result = Expression::Nil;
                 for sub in subs.iter().rev() {
-                    let expr = sub.expand(bindings);
+                    let expr = sub.expand(bindings)?;
                     result = Expression::cons(expr, result);
                 }
-                result
+                Ok(result)
             }
             Template::ImproperList(subs, tail) => {
-                let mut result = tail.expand(bindings);
+                let mut result = tail.expand(bindings)?;
                 for sub in subs.iter().rev() {
-                    let expr = sub.expand(bindings);
+                    let expr = sub.expand(bindings)?;
                     result = Expression::cons(expr, result);
                 }
-                result
+                Ok(result)
             }
         }
     }
@@ -401,17 +418,16 @@ mod test {
     #[test]
     fn expand() {
         let template = Template::List(vec![
-            Template::Identifier("if".into()),
             Template::Identifier("cond".into()),
             Template::Identifier("yes".into()),
             Template::Identifier("no".into()),
         ]);
 
         assert_eq!(
-            scheme!(if, (less, x, 0), (neg, x), x),
+            scheme!((less, x, 0), (neg, x), x),
             template.expand(
                 &hashmap! { cond => scheme!(less, x, 0), yes => scheme!(neg, x), no => scheme!(x)}
-            )
+            ).unwrap()
         );
     }
 
@@ -424,7 +440,10 @@ mod test {
             ((lit1, x, lit2), (x, x))
         );
 
-        let spec = TransformerSpec::parse(&expr).unwrap();
+        use crate::environment::Environment;
+        let env: EnvRef = Environment::new(None).into();
+
+        let spec = TransformerSpec::parse(&expr, &env).unwrap();
 
         assert_eq!(vec![Symbol::new("lit1"), "lit2".into()], spec.literals);
         assert_eq!(Symbol::new("my_ellipsis"), spec.ellipsis);
