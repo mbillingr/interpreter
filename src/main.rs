@@ -70,6 +70,7 @@ fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
 
 fn run_file(path: impl AsRef<Path>, env: &EnvRef) -> Result<()> {
     let expr = parse_file(path)?;
+    let expr = Expression::cons(symbol::BEGIN, expr);
     let expr = expand(&expr, env)?;
     eval(&expr, env.clone())?;
     Ok(())
