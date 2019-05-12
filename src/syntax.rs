@@ -21,10 +21,11 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
                 None
             };
             let result = match *car {
-                _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr),
+                _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr, env),
                 Symbol(s) if s == symbol::AND => expand_and(expr, env),
                 Symbol(s) if s == symbol::COND => expand_cond(expr, env),
                 Symbol(s) if s == symbol::DEFINE => expand_define(expr, env),
+                Symbol(s) if s == symbol::DEFINE_LIBRARY => Ok(expr.clone()),
                 Symbol(s) if s == symbol::DEFINE_SYNTAX => Ok(expr.clone()),
                 Symbol(s) if s == symbol::IF => expand_if(expr, env),
                 Symbol(s) if s == symbol::INCLUDE => expand_include(expr, env),
@@ -66,12 +67,8 @@ fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
-    if body.cdr().unwrap() == &Expression::Nil {
-        Ok(scheme!(lambda, @signature.clone(), @expand(body.car()?, env)?))
-    } else {
-        let body = Expression::cons(scheme!(begin), body.map_list(|e| expand(&e, env))?);
-        Ok(scheme!(lambda, @signature.clone(), @body))
-    }
+    let body = body.map_list(|e| expand(&e, env))?;
+    Ok(scheme!(lambda, @signature.clone(), ...body))
 }
 
 fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {

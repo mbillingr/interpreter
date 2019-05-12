@@ -36,18 +36,12 @@ impl<I: Iterator<Item = PositionalToken>> ParserInput for SourceIter<I> {
 }
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Expression> {
-    let mut result = Expression::Nil;
-    let mut cursor = &mut result;
-
     let src = fs::read_to_string(path)?;
     let mut lexer = Lexer::new();
 
-    for expr in parse(lexer.tokenize(&src)?.take(), src)? {
-        *cursor = Expression::cons(expr, Expression::Nil);
-        cursor = cursor.cdr_mut()?;
-    }
-
-    Ok(result)
+    Ok(parse(lexer.tokenize(&src)?.take(), src)?
+        .into_iter()
+        .collect())
 }
 
 pub fn parse(

@@ -1,7 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Pair as PairType, Procedure, Ref};
-use crate::libraries::{define_library, import_library, store_library};
+use crate::libraries::{define_library, store_library};
 use crate::macros;
 use crate::symbol;
 use crate::tracer::{install_tracer, remove_tracer, CallGraph};
@@ -59,10 +59,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 //let l = expr.try_into_list()?;
                 match car {
                     Symbol(s) if *s == symbol::BEGIN => expr = Cow::Owned(begin(&cdr, &env)?),
-                    Symbol(s) if *s == symbol::COND => match cond(&cdr, &env)? {
-                        Return::RetVal(ex) => return Ok(ex),
-                        Return::TailCall(ex) => expr = Cow::Owned(ex),
-                    },
+                    Symbol(s) if *s == symbol::COND => expr = Cow::Owned(cond(&cdr, &env)?),
                     Symbol(s) if *s == symbol::DEFINE => return define(&cdr, &env),
                     Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
                         let name = cdr.car()?;
@@ -72,7 +69,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         return Ok(Expression::Undefined);
                     }
                     Symbol(s) if *s == symbol::DEFINE_SYNTAX => {
-                        let macro_ = macros::Macro::parse(cdr)?;
+                        let macro_ = macros::Macro::parse(cdr, &env)?;
                         env.borrow_mut()
                             .insert(macro_.name(), Expression::Macro(macro_));
                         return Ok(Expression::Undefined);
@@ -83,10 +80,6 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     }
                     Symbol(s) if *s == symbol::EVAL => {
                         expr = Cow::Owned(eval(cdr.car()?, env.clone())?);
-                    }
-                    Symbol(s) if *s == symbol::IMPORT => {
-                        import_library(cdr, &env)?;
-                        return Ok(Expression::Undefined);
                     }
                     Symbol(s) if *s == symbol::QUOTE => {
                         return Ok(cdr.car()?.clone());
@@ -110,8 +103,8 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             Procedure(p) => {
                                 let parent = env;
                                 env = p.new_local_env(args)?;
-                                expr = Cow::Owned(p.body_ex().clone());
                                 p.notify_call(&env, &parent);
+                                expr = Cow::Owned(begin(p.body_ex(), &env)?);
                             }
                             Native(func) => return func(args),
                             NativeIntrusive(func) => return func(args, &env),
@@ -153,7 +146,8 @@ pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<
         Expression::Procedure(p) => {
             let env = p.new_local_env(args)?;
             p.notify_call(&env, calling_env);
-            eval(&p.body_ex(), env)
+            let last = begin(p.body_ex(), &env)?;
+            eval(&last, env)
         }
         Expression::Native(func) => func(args),
         x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into()),
@@ -199,8 +193,7 @@ fn set_var(list: &Expression, env: &EnvRef) -> Result<Expression> {
 }
 
 fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
-    let (signature, list) = list.decons()?;
-    let (body, _) = list.decons()?;
+    let (signature, body) = list.decons()?;
     let proc = Procedure::new(
         Ref::new(signature.clone()),
         Ref::new(body.clone()),
@@ -209,12 +202,7 @@ fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     Ok(Expression::Procedure(proc))
 }
 
-enum Return {
-    RetVal(Expression),
-    TailCall(Expression),
-}
-
-fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
+fn cond(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
     while !list.is_nil() {
         let (row, cdr) = list.decons()?;
         list = &cdr;
@@ -223,13 +211,20 @@ fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
         let cond = eval(cond, env.clone())?;
         if cond.is_true() {
             if cdr.is_nil() {
-                return Ok(Return::RetVal(cond));
+                if cond.is_pair() {
+                    return Ok(Expression::cons(
+                        symbol::QUOTE,
+                        Expression::cons(cond, Expression::Nil),
+                    ));
+                } else {
+                    return Ok(cond);
+                }
             } else {
-                return Ok(Return::TailCall(begin(cdr, env)?));
+                return Ok(begin(cdr, env)?);
             }
         }
     }
-    Ok(Return::RetVal(Expression::Undefined))
+    Ok(Expression::Undefined)
 }
 
 fn if_form(list: &Expression, env: EnvRef) -> Result<&Expression> {

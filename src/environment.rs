@@ -259,6 +259,10 @@ pub fn default_env() -> EnvRef {
     {
         let mut env = defenv.borrow_mut();
 
+        // place holders
+
+        env.insert(symbol::LAMBDA, symbol::LAMBDA.into());
+
         // interpreter functions
 
         env.insert("apply", Expression::NativeIntrusive(apply));
@@ -394,7 +398,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert(
             "newline",
-            X::Procedure(Procedure::build(X::Nil, scheme!((display, "\n")), &defenv).unwrap()),
+            X::Procedure(Procedure::build(X::Nil, scheme!(((display, "\n"))), &defenv).unwrap()),
         );
 
         env.insert(
@@ -404,6 +408,11 @@ pub fn default_env() -> EnvRef {
                 Ok(Expression::Undefined)
             }),
         );
+
+        env.insert_native("body", |args| match car(&args)? {
+            Expression::Procedure(p) => Ok(p.body_ex().clone()),
+            a => Err(ErrorKind::TypeError(format!("not a procedure: {:?}", a)))?,
+        });
 
         env.insert(
             "debug",

@@ -54,12 +54,8 @@ fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
         lexer.tokenize(&source)?;
 
         if lexer.is_balanced() {
-            let mut result = Expression::Undefined;
-            for expr in parse(lexer.take(), source)? {
-                let expr = expand(&expr, env)?;
-                result = eval(&expr, env.clone())?;
-            }
-            match result {
+            let expr = parse(lexer.take(), source)?.into_iter().collect();
+            match run_program(&expr, env)? {
                 Expression::Undefined => {}
                 res => println!("{}", res),
             }
@@ -71,10 +67,30 @@ fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
 }
 
 fn run_file(path: impl AsRef<Path>, env: &EnvRef) -> Result<()> {
-    let expr = parse_file(path)?;
-    let expr = expand(&expr, env)?;
-    eval(&expr, env.clone())?;
+    let prog = parse_file(path)?;
+    run_program(&prog, env)?;
     Ok(())
+}
+
+fn run_program(mut prog: &Expression, env: &EnvRef) -> Result<Expression> {
+    while !prog.is_nil() {
+        let decl = prog.car()?;
+        match decl.car() {
+            Ok(Expression::Symbol(s)) if *s == symbol::IMPORT => {
+                import_library(decl.cdr()?, &env)?;
+                prog = prog.cdr().unwrap();
+            }
+            _ => break,
+        }
+    }
+
+    if prog.is_nil() {
+        return Ok(Expression::Undefined);
+    }
+
+    let prog = Expression::cons(symbol::BEGIN, prog.clone());
+    let prog = expand(&prog, env)?;
+    eval(&prog, env.clone())
 }
 
 fn main() {

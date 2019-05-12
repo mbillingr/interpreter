@@ -9,6 +9,7 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "thread-safe")]
 pub use std::sync::{Arc as Ref, Weak};
 
+use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
 
@@ -647,6 +648,20 @@ impl From<bool> for Expression {
         } else {
             Expression::False
         }
+    }
+}
+
+impl FromIterator<Expression> for Expression {
+    fn from_iter<I: IntoIterator<Item = Expression>>(iter: I) -> Self {
+        let mut result = Expression::Nil;
+        let mut cursor = &mut result;
+
+        for expr in iter {
+            *cursor = Expression::cons(expr, Expression::Nil);
+            cursor = cursor.cdr_mut().unwrap();
+        }
+
+        result
     }
 }
 
