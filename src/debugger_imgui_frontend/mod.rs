@@ -35,7 +35,9 @@ fn hello_world<'a>(ui: &Ui<'a>) -> bool {
         .build(|| {
             ui.text(im_str!("Hello world!"));
             ui.text(im_str!("こんにちは世界！"));
-            ui.text(im_str!("λλλλλλλλλλ"));
+            ui.text(im_str!(
+                "αβγδεζηθικλμνξοπρσςτυφχψω"
+            ));
             ui.text(im_str!("This...is...imgui-rs!"));
             ui.separator();
             let mouse_pos = ui.imgui().mouse_pos();
@@ -128,11 +130,7 @@ fn env_entry(ui: &Ui, env: &Environment, title: &ImStr) {
     if ui.collapsing_header(title).build() {
         let mut entries: Vec<String> = env
             .items()
-            .map(|(key, value)| {
-                format!("{}: {}", key, value.short_repr())
-                    .replace('λ', "lambda")
-                    .into()
-            })
+            .map(|(key, value)| format!("{}: {}", key, value.short_repr()).into())
             .collect();
         entries.sort();
         for entry in entries.into_iter().map(|e| -> ImString { e.into() }) {

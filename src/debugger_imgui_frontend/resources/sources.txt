@@ -1,5 +1,0 @@
-The files in this directory come from various sources:
-
-File name               Project     Permalink
--------------------------------------------------------------
-mplus-1p-regular.ttf    imgui-rs    https://github.com/Gekkio/imgui-rs/blob/41d6ccc6b3e56e157f094fbf66233d7c005b3a0e/resources/mplus-1p-regular.ttf

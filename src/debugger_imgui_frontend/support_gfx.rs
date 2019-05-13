@@ -73,22 +73,34 @@ pub fn run<F: FnMut(&Ui) -> bool>(
 
     let font_size = (13.0 * hidpi_factor) as f32;
 
-    imgui.fonts().add_default_font_with_config(
+    /*imgui.fonts().add_default_font_with_config(
         ImFontConfig::new()
             .oversample_h(1)
             .pixel_snap_h(true)
             .size_pixels(font_size),
+    );*/
+
+    imgui.fonts().add_font_with_config(
+        include_bytes!("resources/ubuntu-font-family-0.83/UbuntuMono-R.ttf"),
+        ImFontConfig::new()
+            .oversample_h(2)
+            .pixel_snap_h(true)
+            .size_pixels(font_size),
+        &FontGlyphRange::default(),
     );
 
     imgui.fonts().add_font_with_config(
-        include_bytes!("resources/mplus-1p-regular.ttf"),
+        include_bytes!("resources/ubuntu-font-family-0.83/UbuntuMono-R.ttf"),
         ImFontConfig::new()
             .merge_mode(true)
-            .oversample_h(1)
+            .oversample_h(2)
             .pixel_snap_h(true)
-            .size_pixels(font_size)
-            .rasterizer_multiply(1.75),
-        &FontGlyphRange::japanese(),
+            .size_pixels(font_size),
+        &FontGlyphRange::from_slice(&[
+            0x0391, 0x03A9, // upper case greek letters
+            0x3B1, 0x3C9, // lower case greek letters
+            0,
+        ]),
     );
 
     imgui.set_font_global_scale((1.0 / hidpi_factor) as f32);
