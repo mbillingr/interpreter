@@ -98,6 +98,7 @@ pub struct Debugger {
 
     track_tailcalls: bool,
 
+    eval_depth: usize,
     stack: Vec<DebugFrame>,
     //history: Vec<(Expression, std::result::Result<Expression, String>)>,
 }
@@ -118,6 +119,7 @@ impl Debugger {
             service: rep,
             current_request: None,
             track_tailcalls: true,
+            eval_depth: 0,
             stack: vec![],
             //history: vec![],
         }
@@ -127,8 +129,12 @@ impl Debugger {
         if self.current_request.is_none() {
             self.current_request = self.service.poll();
             match &self.current_request {
-                Some(DebugRequest::EnterEval(_, _)) => self.advance(),
+                Some(DebugRequest::EnterEval(_, _)) => {
+                    self.eval_depth += 1;
+                    self.advance()
+                }
                 Some(DebugRequest::LeaveEval(e)) => {
+                    self.eval_depth -= 1;
                     if e.is_ok() {
                         self.advance()
                     }
@@ -172,6 +178,10 @@ impl Debugger {
             Some(DebugRequest::Done) => {}
         }
         self.service.rep(());
+    }
+
+    pub fn eval_depth(&self) -> usize {
+        self.eval_depth
     }
 
     pub fn stack(&self) -> &[DebugFrame] {

@@ -23,7 +23,7 @@ pub fn run(mut debugger: Debugger) {
                 env_window(ui, env);
             }
             dbg_window(ui, &mut debugger);
-            stack_window(ui, debugger.stack());
+            stack_window(ui, debugger.stack(), debugger.eval_depth());
             true
         },
     );
@@ -139,10 +139,12 @@ fn env_entry(ui: &Ui, env: &Environment, title: &ImStr) {
     }
 }
 
-fn stack_window(ui: &Ui, callstack: &[DebugFrame]) {
+fn stack_window(ui: &Ui, callstack: &[DebugFrame], depth: usize) {
     ui.window(im_str!("Call Stack"))
         .size((300.0, 100.0), ImGuiCond::FirstUseEver)
         .build(|| {
+            //let title: ImString = format!("Call Stack: {}", depth).into();
+            ui.text(format!("Call Stack: {}", depth));
             let mut last: Option<&EnvRef> = None;
             for frame in callstack.iter().filter(|f| f.is_tail()) {
                 if let Some(le) = last {
