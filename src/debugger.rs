@@ -61,6 +61,7 @@ pub enum DebugRequest {
     LeaveEval(Result<Expression>),
     Predispatch(Expression, EnvRef),
     FunctionCall(Expression, Expression, Expression),
+    Done,
 }
 
 pub enum DebugFrame {
@@ -109,7 +110,8 @@ impl Debugger {
         thread::spawn(move || {
             install_thread_debugger(req);
             let _ = eval(&expr, env);
-            println!("bye-bye debug thread")
+
+            DEBUGGER.with(|debugger| debugger.borrow().as_ref().unwrap().req(DebugRequest::Done));
         });
 
         Debugger {
@@ -121,7 +123,7 @@ impl Debugger {
         }
     }
 
-    pub fn poll(&mut self) {
+    pub fn poll(&mut self) -> bool {
         if self.current_request.is_none() {
             self.current_request = self.service.poll();
             match &self.current_request {
@@ -137,9 +139,14 @@ impl Debugger {
                     }
                 }
                 Some(DebugRequest::FunctionCall(_, _, _)) => {}
+                Some(DebugRequest::Done) => {
+                    self.service.rep(());
+                    return false;
+                }
                 None => {}
             }
         }
+        true
     }
 
     pub fn advance(&mut self) {
@@ -162,6 +169,7 @@ impl Debugger {
                 self.stack.push(DebugFrame::TailFrame(expr, env));
             }
             Some(DebugRequest::FunctionCall(_, _, _)) => {}
+            Some(DebugRequest::Done) => {}
         }
         self.service.rep(());
     }
