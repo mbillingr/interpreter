@@ -13,9 +13,10 @@
           length
           map map1 memo-proc memq modulo
           nil
-          power println put put-coercion
-          the-empty-stream timeit true
+          power println printn put put-coercion
           stream-car stream-cdr stream-null? sqr sqrt symbol<?
+          the-empty-stream timeit trace true
+          untrace
           xor)
 
   (import (builtin core)
@@ -50,6 +51,30 @@
                     (+ sqsum (sqr time))
                     end))))
       (iter 0 0 0 (+ (runtime) 1e6)))
+
+    (define (make-traced proc name)
+      (let ((level 0))
+        (lambda args
+          (if (equal? args '(untrace))
+              proc
+              (begin (set! level (+ level 1))
+                     (printn "> " level)
+                     (println (cons name args))
+                     (let ((result (apply proc args)))
+                       (printn "< " level)
+                       (println result)
+                       (set! level (- level 1))
+                       result))))))
+
+    (define-syntax trace
+      (syntax-rules ()
+        ((_ name)
+         (define name (make-traced name 'name)))))
+
+    (define-syntax untrace
+      (syntax-rules ()
+        ((_ name)
+         (define name (name 'untrace)))))
 
     (define (caar p) (car (car p)))
     (define (cadr p) (car (cdr p)))
@@ -169,6 +194,11 @@
           (begin (display (car args))
                  (display " ")
                  (apply println (cdr args)))))
+
+    (define (printn x n)
+      (cond ((> n 0) (display x)
+                     (printn x (- n 1)))))
+
 
     (define (debug-print x)
       (println "DEBUG: " x)

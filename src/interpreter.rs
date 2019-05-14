@@ -4,7 +4,6 @@ use crate::expression::{Expression, Pair as PairType, Procedure, Ref};
 use crate::libraries::{define_library, store_library};
 use crate::macros;
 use crate::symbol;
-use crate::tracer::{install_tracer, remove_tracer, CallGraph};
 use std::borrow::Cow;
 
 #[cfg(not(feature = "debugging"))]
@@ -63,9 +62,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         let (proc, args) = prepare_apply(&args)?;
                         match proc {
                             Expression::Procedure(p) => {
-                                let parent = env;
                                 env = p.new_local_env(args)?;
-                                p.notify_call(&env, &parent);
                                 expr = Cow::Owned(begin(p.body_ex(), &env)?);
                             }
                             Expression::Native(func) => return func(args),
@@ -99,25 +96,13 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         return Ok(cdr.car()?.clone());
                     }
                     Symbol(s) if *s == symbol::SETVAR => return set_var(&cdr, &env),
-                    Symbol(s) if *s == symbol::TRACE => {
-                        let x = cdr.car()?;
-                        let tracer_id = install_tracer(CallGraph::new());
-                        let result = eval(x, env.clone());
-                        let trace = remove_tracer(tracer_id);
-                        let trace = trace.as_any().downcast_ref::<CallGraph>().unwrap();
-                        println!("{:#?}", trace);
-                        // todo: do something useful with the trace
-                        expr = Cow::Owned(result?);
-                    }
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
                         debug_hooks::function_call(&proc, &args, &expr);
                         match proc {
                             Procedure(p) => {
-                                let parent = env;
                                 env = p.new_local_env(args)?;
-                                p.notify_call(&env, &parent);
                                 expr = Cow::Owned(begin(p.body_ex(), &env)?);
                             }
                             Native(func) => return func(args),

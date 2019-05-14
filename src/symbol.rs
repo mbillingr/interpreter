@@ -33,7 +33,6 @@ pub static SETVAR: Symbol = Symbol { name: "set!" };
 pub static SYNTAX_RULES: Symbol = Symbol {
     name: "syntax-rules",
 };
-pub static TRACE: Symbol = Symbol { name: "trace" };
 pub static UNDERSCORE: Symbol = Symbol { name: "_" };
 
 pub static GREEK_LAMBDA: Symbol = Symbol { name: "\u{03BB}" };
@@ -96,7 +95,6 @@ impl Symbol {
             n if n == RENAME.name() => RENAME,
             n if n == SETVAR.name() => SETVAR,
             n if n == SYNTAX_RULES.name() => SYNTAX_RULES,
-            n if n == TRACE.name() => TRACE,
             n if n == UNDERSCORE.name() => UNDERSCORE,
             n if n == GREEK_LAMBDA.name() => GREEK_LAMBDA,
             _ => Symbol {

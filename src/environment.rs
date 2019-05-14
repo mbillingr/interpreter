@@ -51,10 +51,6 @@ impl Environment {
         self.parent.as_ref()
     }
 
-    pub fn is_root(&self) -> bool {
-        self.parent.is_none()
-    }
-
     pub fn current_procedure(&self) -> &Procedure<EnvWeak> {
         &self.current_procedure
     }
@@ -163,23 +159,6 @@ impl Environment {
         );
         keys.into_iter()*/
         self.map.iter()
-    }
-
-    pub fn get_scope(&self) -> Vec<Symbol> {
-        let mut result = vec![];
-
-        let mut parent = self.parent.clone();
-        while let Some(env) = parent {
-            parent = env.borrow().parent.clone();
-
-            if env.borrow().is_root() {
-                break;
-            }
-
-            result.push(env.borrow().current_procedure().name());
-        }
-
-        result
     }
 
     pub fn export(&self, names: &HashMap<Symbol, Symbol>) -> Result<Environment> {

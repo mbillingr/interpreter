@@ -296,8 +296,8 @@ impl Template {
             Template::Constant(expr) => Ok(expr.clone()),
             Template::Identifier(ident) => match bindings.get(ident) {
                 Some(expr) => Ok(expr.clone()),
-                //None => (*ident).into(),
-                None => Err(ErrorKind::Undefined(*ident).into()),
+                None => Ok((*ident).into()),
+                //None => Err(ErrorKind::Undefined(*ident).into()),
             },
             Template::List(subs) => {
                 let mut result = Expression::Nil;

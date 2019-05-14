@@ -3,7 +3,6 @@ use crate::errors::*;
 use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
-use crate::tracer::trace_procedure_call;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "thread-safe")]
@@ -842,18 +841,6 @@ impl Procedure<EnvRef> {
         let mut env = Environment::new_child(self.env.clone(), self.clone());
         env.set_vars(self.params_ex().clone(), args)?;
         Ok(env.into())
-    }
-
-    pub fn notify_call(&self, called_env: &EnvRef, calling_env: &EnvRef) {
-        trace_procedure_call(self, called_env, calling_env);
-        /*print!("calling {} ", self.name);
-        match calling_env {
-            Some(pe) => match pe.borrow().current_procedure() {
-                Some(proc) => println!("from {}", proc.name),
-                None => println!("from the root"),
-            }
-            None => println!("from an unknown location"),
-        }*/
     }
 }
 

@@ -23,7 +23,6 @@ mod parser;
 mod sourcecode;
 mod symbol;
 mod syntax;
-mod tracer;
 
 use crate::environment::Environment;
 use crate::io::LineReader;
