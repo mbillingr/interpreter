@@ -58,6 +58,20 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 }
                 //let l = expr.try_into_list()?;
                 match car {
+                    Symbol(s) if *s == symbol::APPLY => {
+                        let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
+                        let (proc, args) = prepare_apply(&args)?;
+                        match proc {
+                            Expression::Procedure(p) => {
+                                let parent = env;
+                                env = p.new_local_env(args)?;
+                                p.notify_call(&env, &parent);
+                                expr = Cow::Owned(begin(p.body_ex(), &env)?);
+                            }
+                            Expression::Native(func) => return func(args),
+                            x => return Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into()),
+                        }
+                    },
                     Symbol(s) if *s == symbol::BEGIN => expr = Cow::Owned(begin(&cdr, &env)?),
                     Symbol(s) if *s == symbol::COND => expr = Cow::Owned(cond(&cdr, &env)?),
                     Symbol(s) if *s == symbol::DEFINE => return define(&cdr, &env),
@@ -141,17 +155,33 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
         || s == symbol::TRACE
 }*/
 
-pub fn call(proc: Expression, args: Expression, calling_env: &EnvRef) -> Result<Expression> {
-    match proc {
-        Expression::Procedure(p) => {
-            let env = p.new_local_env(args)?;
-            p.notify_call(&env, calling_env);
-            let last = begin(p.body_ex(), &env)?;
-            eval(&last, env)
+fn prepare_apply(list: &Expression) -> Result<(Expression, Expression)> {
+    let (proc, mut in_cursor) = list.decons()?;
+
+    let mut result = Expression::Nil;
+    let mut out_cursor = &mut result;
+
+    loop {
+        match in_cursor {
+            Expression::Nil => break,
+            Expression::Pair(pair) => {
+                let PairType { car, cdr, .. } = &**pair;
+                in_cursor = &*cdr;
+
+                if in_cursor.is_nil() {
+                    *out_cursor = car.clone();
+                    break;
+                } else {
+                    *out_cursor = Expression::cons(car.clone(), Expression::Nil);
+                };
+
+                out_cursor = out_cursor.cdr_mut().unwrap();
+            }
+            _ => return Err(ErrorKind::TypeError("not a list".into()))?,
         }
-        Expression::Native(func) => func(args),
-        x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into()),
     }
+
+    Ok((proc.clone(), result))
 }
 
 fn begin(mut list: &Expression, env: &EnvRef) -> Result<Expression> {

@@ -1,6 +1,5 @@
 use super::run_in_env;
-use crate::environment::{default_env, Environment};
-use crate::envref::EnvRef;
+use crate::environment::default_env;
 use crate::Expression;
 
 #[test]

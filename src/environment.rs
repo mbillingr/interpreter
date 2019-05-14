@@ -2,8 +2,7 @@ use crate::debugger::Debugger;
 use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Pair, Procedure};
-use crate::interpreter;
+use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::symbol::{self, Symbol};
 use rand::Rng;
 use std::collections::HashMap;
@@ -265,8 +264,6 @@ pub fn default_env() -> EnvRef {
 
         // interpreter functions
 
-        env.insert("apply", Expression::NativeIntrusive(apply));
-
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
         env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));
         env.insert_native("equal?", |args| native_binary(args, Expression::equal));
@@ -512,33 +509,4 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
         acc = func(acc, b?.clone())?;
     }
     Ok(acc)
-}
-
-fn apply(list: Expression, env: &EnvRef) -> Result<Expression> {
-    let mut result = Expression::Nil;
-    let mut in_cursor = &list;
-    let mut out_cursor = &mut result;
-
-    loop {
-        match in_cursor {
-            Expression::Nil => break,
-            Expression::Pair(pair) => {
-                let Pair { car, cdr, .. } = &**pair;
-                in_cursor = &*cdr;
-
-                if in_cursor.is_nil() {
-                    *out_cursor = car.clone();
-                    break;
-                } else {
-                    *out_cursor = Expression::cons(car.clone(), Expression::Nil);
-                };
-
-                out_cursor = out_cursor.cdr_mut().unwrap();
-            }
-            _ => return Err(ErrorKind::TypeError("not a list".into()))?,
-        }
-    }
-
-    let (proc, args) = result.decons()?;
-    interpreter::call(proc.clone(), args.clone(), env)
 }

@@ -6,6 +6,7 @@ use std::sync::Mutex;
 // Define some static symbols that the interpreter needs in any case.
 // IMPORTANT: When adding a new symbol here, make sure Symbol::new() checks against it.
 pub static AND: Symbol = Symbol { name: "and" };
+pub static APPLY: Symbol = Symbol { name: "apply" };
 pub static BEGIN: Symbol = Symbol { name: "begin" };
 pub static COND: Symbol = Symbol { name: "cond" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
@@ -74,6 +75,7 @@ impl Symbol {
     pub fn new<T: AsRef<str> + ToString>(name: T) -> Self {
         match name.as_ref() {
             n if n == AND.name() => AND,
+            n if n == APPLY.name() => APPLY,
             n if n == BEGIN.name() => BEGIN,
             n if n == COND.name() => COND,
             n if n == DEFINE.name() => DEFINE,
