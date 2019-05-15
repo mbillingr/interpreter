@@ -3,8 +3,8 @@
 
   (export <= >=
           abs accumulate append average
-          caar cadr cdar cddr caaar caddr cdadr cddar cdddr cadddr cons-stream
-          cube
+          caar cadr cdar cddr caaar caadr caddr cdadr cddar cdddr caaddr cadddr
+          cons-stream cube
           debug-eval debug-print dec delay
           even?
           false fixed-point force
@@ -86,6 +86,7 @@
     (define (cdadr p) (cdr (car (cdr p))))
     (define (cddar p) (cdr (cdr (car p))))
     (define (cdddr p) (cdr (cdr (cdr p))))
+    (define (caaddr p) (car (car (cdr (cdr p)))))
     (define (cadddr p) (car (cdr (cdr (cdr p)))))
 
     (define (abs x) (if (< x 0) (- x) x))
