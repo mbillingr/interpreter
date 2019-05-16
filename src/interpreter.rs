@@ -5,7 +5,6 @@ use crate::libraries::{define_library, store_library};
 use crate::macros;
 use crate::symbol;
 use std::borrow::Cow;
-use crate::interpreter::RetVal::ReturnValue;
 
 #[cfg(not(feature = "debugging"))]
 mod debug_hooks {
@@ -28,8 +27,8 @@ pub fn eval(expr: &Expression, env: EnvRef) -> Result<Expression> {
     r
 }
 
-enum RetVal {
-    ReturnValue(Expression),
+enum Return {
+    Value(Expression),
     TailCall(Expression, EnvRef),
 }
 
@@ -44,40 +43,35 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
         debug_hooks::predispatch(&expr, &env);
         let retval = match *expr {
             Symbol(ref s) => {
-                ReturnValue(env
+                Return::Value(env
                     .borrow()
                     .lookup(&s)
                     .ok_or_else(|| ErrorKind::Undefined(*s))?)
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
             | Procedure(_) | Macro(_) /*| Error(_)*/ => {
-                ReturnValue(expr.into_owned())
+                Return::Value(expr.into_owned())
             }
-            Native(_) | NativeIntrusive(_) => ReturnValue(expr.into_owned()),
+            Native(_) | NativeIntrusive(_) => Return::Value(expr.into_owned()),
             Pair(ref pair) => {
                 let PairType{car, cdr, ..} = &**pair;
-                match cdr {
-                    Expression::Nil => {}
-                    Expression::Pair(_) => {}
-                    _ => return Ok(expr.into_owned()),
-                }
-                //let l = expr.try_into_list()?;
                 match car {
                     Symbol(s) if *s == symbol::APPLY => {
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
                         let (proc, args) = prepare_apply(&args)?;
                         match proc {
                             Expression::Procedure(p) => {
-                                env = p.new_local_env(args)?;
-                                expr = Cow::Owned(begin(p.body_ex(), &env)?);
+                                let e = p.new_local_env(args)?;
+                                let x = begin(p.body_ex(), &e)?;
+                                Return::TailCall(x, e)
                             }
-                            Expression::Native(func) => return func(args),
-                            x => return Err(ErrorKind::TypeError(format!("not callable: {:?}", x)).into()),
+                            Expression::Native(func) => Return::Value(func(args)?),
+                            x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
                         }
                     },
-                    Symbol(s) if *s == symbol::BEGIN => expr = Cow::Owned(begin(&cdr, &env)?),
-                    Symbol(s) if *s == symbol::COND => expr = Cow::Owned(cond(&cdr, &env)?),
-                    Symbol(s) if *s == symbol::DEFINE => return define(&cdr, &env),
+                    Symbol(s) if *s == symbol::BEGIN => Return::TailCall(begin(&cdr, &env)?, env),
+                    Symbol(s) if *s == symbol::COND => Return::TailCall(cond(&cdr, &env)?, env),
+                    Symbol(s) if *s == symbol::DEFINE => Return::Value(define(&cdr, &env)?),
                     Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
                         let name = cdr.car()?;
                         let declarations = cdr.cdr()?;
@@ -91,15 +85,13 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             .insert(macro_.name(), Expression::Macro(macro_));
                         return Ok(Expression::Undefined);
                     }
-                    Symbol(s) if *s == symbol::LAMBDA => return lambda(&cdr, &env),
-                    Symbol(s) if *s == symbol::IF => {
-                        expr = Cow::Owned(if_form(&cdr, env.clone())?.clone())
-                    }
+                    Symbol(s) if *s == symbol::LAMBDA => Return::Value(lambda(&cdr, &env)?),
+                    Symbol(s) if *s == symbol::IF => Return::TailCall(if_form(&cdr, env.clone())?.clone(), env),
                     Symbol(s) if *s == symbol::EVAL => {
-                        expr = Cow::Owned(eval(cdr.car()?, env.clone())?);
+                        Return::TailCall(eval(cdr.car()?, env.clone())?, env)
                     }
                     Symbol(s) if *s == symbol::QUOTE => {
-                        return Ok(cdr.car()?.clone());
+                        Return::Value(cdr.car()?.clone())
                     }
                     Symbol(s) if *s == symbol::SETVAR => return set_var(&cdr, &env),
                     car => {
@@ -108,10 +100,11 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         debug_hooks::function_call(&proc, &args, &expr);
                         match proc {
                             Procedure(p) => {
-                                env = p.new_local_env(args)?;
-                                expr = Cow::Owned(begin(p.body_ex(), &env)?);
+                                let e = p.new_local_env(args)?;
+                                let x = begin(p.body_ex(), &e)?;
+                                Return::TailCall(x, e)
                             }
-                            Native(func) => return func(args),
+                            Native(func) => Return::Value(func(args)?),
                             NativeIntrusive(func) => return func(args, &env),
                             x => {
                                 return Err(
@@ -125,8 +118,8 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
         };
 
         match retval {
-            RetVal::ReturnValue(x) => return Ok(x),
-            RetVal::TailCall(x, e) => {
+            Return::Value(x) => return Ok(x),
+            Return::TailCall(x, e) => {
                 expr = Cow::Owned(x);
                 env = e;
             }
