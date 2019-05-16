@@ -65,22 +65,9 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
             Pair(ref pair) => {
                 let PairType{car, cdr, ..} = &**pair;
                 match car {
-                    Symbol(s) if *s == symbol::APPLY => {
-                        let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
-                        let (proc, args) = prepare_apply(&args)?;
-                        match proc {
-                            Expression::Procedure(p) => {
-                                let e = p.new_local_env(args)?;
-                                let x = begin(p.body_ex(), &e)?;
-                                Return::TailCall(x, e)
-                            }
-                            Expression::Native(func) => func(args)?,
-                            x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
-                        }
-                    },
-                    Symbol(s) if *s == symbol::BEGIN => Return::TailCall(begin(&cdr, &env)?, env),
-                    Symbol(s) if *s == symbol::COND => Return::TailCall(cond(&cdr, &env)?, env),
-                    Symbol(s) if *s == symbol::DEFINE => Return::Value(define(&cdr, &env)?),
+                    Symbol(s) if *s == symbol::BEGIN => begin(&cdr, &env)?,
+                    Symbol(s) if *s == symbol::COND => cond(&cdr, &env)?,
+                    Symbol(s) if *s == symbol::DEFINE => define(&cdr, &env)?,
                     Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
                         let name = cdr.car()?;
                         let declarations = cdr.cdr()?;
@@ -94,33 +81,20 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             .insert(macro_.name(), Expression::Macro(macro_));
                         return Ok(Expression::Undefined);
                     }
-                    Symbol(s) if *s == symbol::LAMBDA => Return::Value(lambda(&cdr, &env)?),
-                    Symbol(s) if *s == symbol::IF => Return::TailCall(if_form(&cdr, env.clone())?.clone(), env),
+                    Symbol(s) if *s == symbol::LAMBDA => lambda(&cdr, &env)?,
+                    Symbol(s) if *s == symbol::IF => if_form(&cdr, env.clone())?,
                     Symbol(s) if *s == symbol::EVAL => {
                         Return::TailCall(eval(cdr.car()?, env.clone())?, env)
                     }
                     Symbol(s) if *s == symbol::QUOTE => {
                         Return::Value(cdr.car()?.clone())
                     }
-                    Symbol(s) if *s == symbol::SETVAR => return set_var(&cdr, &env),
+                    Symbol(s) if *s == symbol::SETVAR => set_var(&cdr, &env)?,
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
                         debug_hooks::function_call(&proc, &args, &expr);
-                        match proc {
-                            Procedure(p) => {
-                                let e = p.new_local_env(args)?;
-                                let x = begin(p.body_ex(), &e)?;
-                                Return::TailCall(x, e)
-                            }
-                            Native(func) => func(args)?,
-                            NativeIntrusive(func) => func(args, &env)?,
-                            x => {
-                                return Err(
-                                    ErrorKind::TypeError(format!("not callable: {:?}", x)).into()
-                                );
-                            }
-                        }
+                        apply(proc, args)?
                     }
                 }
             }
@@ -156,11 +130,11 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
         || s == symbol::TRACE
 }*/
 
-fn prepare_apply(list: &Expression) -> Result<(Expression, Expression)> {
+pub fn prepare_apply(list: &Expression) -> Result<(Expression, Expression)> {
     let (proc, mut in_cursor) = list.decons()?;
 
-    let mut result = Expression::Nil;
-    let mut out_cursor = &mut result;
+    let mut args = Expression::Nil;
+    let mut out_cursor = &mut args;
 
     loop {
         match in_cursor {
@@ -182,16 +156,27 @@ fn prepare_apply(list: &Expression) -> Result<(Expression, Expression)> {
         }
     }
 
-    Ok((proc.clone(), result))
+    Ok((proc.clone(), args))
 }
 
-fn begin(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn apply(proc: Expression, args: Expression) -> Result<Return> {
+    match proc {
+        Expression::Procedure(p) => {
+            let e = p.new_local_env(args)?;
+            begin(p.body_ex(), &e)
+        }
+        Expression::Native(func) => func(args),
+        x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
+    }
+}
+
+fn begin(mut list: &Expression, env: &EnvRef) -> Result<Return> {
     loop {
         match list.decons()? {
             (car, Expression::Nil) => {
                 // we return the last element instead of evaluating it,
                 // so that it can be tail-called
-                return Ok(car.clone());
+                return Ok(Return::TailCall(car.clone(), env.clone()));
             }
             (car, cdr) => {
                 eval(car, env.clone())?;
@@ -201,16 +186,16 @@ fn begin(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
     }
 }
 
-fn define(list: &Expression, env: &EnvRef) -> Result<Expression> {
+fn define(list: &Expression, env: &EnvRef) -> Result<Return> {
     let (name, list) = list.decons()?;
     let (val_ex, _) = list.decons()?;
     let value = eval(val_ex, env.clone())?;
     env.borrow_mut()
         .insert(name.try_as_symbol()?.clone(), value);
-    Ok(Expression::Undefined)
+    Ok(Return::Value(Expression::Undefined))
 }
 
-fn set_var(list: &Expression, env: &EnvRef) -> Result<Expression> {
+fn set_var(list: &Expression, env: &EnvRef) -> Result<Return> {
     let (name, list) = list.decons()?;
     let (val_ex, _) = list.decons()?;
     let value = eval(val_ex, env.clone())?;
@@ -220,20 +205,20 @@ fn set_var(list: &Expression, env: &EnvRef) -> Result<Expression> {
     env.borrow_mut()
         .set_value(symbol, value)
         .ok_or_else(|| ErrorKind::Undefined(*symbol))?;
-    Ok(Expression::Undefined)
+    Ok(Return::Value(Expression::Undefined))
 }
 
-fn lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
+fn lambda(list: &Expression, env: &EnvRef) -> Result<Return> {
     let (signature, body) = list.decons()?;
     let proc = Procedure::new(
         Ref::new(signature.clone()),
         Ref::new(body.clone()),
         env.clone(),
     );
-    Ok(Expression::Procedure(proc))
+    Ok(Return::Value(Expression::Procedure(proc)))
 }
 
-fn cond(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
+fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
     while !list.is_nil() {
         let (row, cdr) = list.decons()?;
         list = &cdr;
@@ -242,30 +227,23 @@ fn cond(mut list: &Expression, env: &EnvRef) -> Result<Expression> {
         let cond = eval(cond, env.clone())?;
         if cond.is_true() {
             if cdr.is_nil() {
-                if cond.is_pair() {
-                    return Ok(Expression::cons(
-                        symbol::QUOTE,
-                        Expression::cons(cond, Expression::Nil),
-                    ));
-                } else {
-                    return Ok(cond);
-                }
+                return Ok(Return::Value(cond));
             } else {
-                return Ok(begin(cdr, env)?);
+                return begin(cdr, env);
             }
         }
     }
-    Ok(Expression::Undefined)
+    Ok(Return::Value(Expression::Undefined))
 }
 
-fn if_form(list: &Expression, env: EnvRef) -> Result<&Expression> {
+fn if_form(list: &Expression, env: EnvRef) -> Result<Return> {
     let (cond, list) = list.decons()?;
     let (then, list) = list.decons()?;
     let (otherwise, _) = list.decons()?;
 
-    if eval(cond, env)?.is_true() {
-        Ok(then)
+    if eval(cond, env.clone())?.is_true() {
+        Ok(Return::TailCall(then.clone(), env))
     } else {
-        Ok(otherwise)
+        Ok(Return::TailCall(otherwise.clone(), env))
     }
 }

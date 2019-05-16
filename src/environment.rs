@@ -3,7 +3,7 @@ use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure};
-use crate::interpreter::Return;
+use crate::interpreter::{apply, prepare_apply, Return};
 use crate::symbol::{self, Symbol};
 use rand::Rng;
 use std::collections::HashMap;
@@ -243,6 +243,11 @@ pub fn default_env() -> EnvRef {
         env.insert(symbol::LAMBDA, symbol::LAMBDA.into());
 
         // interpreter functions
+
+        env.insert_native("apply", |args| {
+            let (op, args) = prepare_apply(&args)?;
+            apply(op, args)
+        });
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
         env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));
