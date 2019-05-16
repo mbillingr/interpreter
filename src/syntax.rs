@@ -27,7 +27,6 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
                 Symbol(s) if s == symbol::DEFINE_SYNTAX => Ok(expr.clone()),
                 Symbol(s) if s == symbol::IF => expand_if(expr, env),
                 Symbol(s) if s == symbol::INCLUDE => expand_include(expr, env),
-                Symbol(s) if s == symbol::LAMBDA => expand_lambda(expr, env),
                 Symbol(s) if s == symbol::LET => expand_let(expr, env),
                 Symbol(s) if s == symbol::OR => expand_or(expr, env),
                 Symbol(s) if s == symbol::QUOTE => Ok(expr.clone()),
@@ -61,7 +60,7 @@ fn expand_define(list: &Expression, env: &EnvRef) -> Result<Expression> {
     }
 }
 
-fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 

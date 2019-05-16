@@ -9,6 +9,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
+use crate::syntax::expand_lambda;
 
 #[derive(Debug, Clone)]
 pub enum Entry {
@@ -240,7 +241,9 @@ pub fn default_env() -> EnvRef {
 
         // place holders
 
-        env.insert(symbol::LAMBDA, symbol::LAMBDA.into());
+        env.insert("lambda", Expression::NativeMacro(|expr, env|{
+            expand_lambda(&expr, env)
+        }));
 
         // interpreter functions
 
