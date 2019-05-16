@@ -58,14 +58,17 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     .ok_or_else(|| ErrorKind::Undefined(*s))?)
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
-            | Procedure(_) | Macro(_) /*| Error(_)*/ => {
+            | Procedure(_) | Macro(_) | Special(_)/*| Error(_)*/ => {
                 Return::Value(expr.into_owned())
             }
             Native(_) | NativeIntrusive(_) => Return::Value(expr.into_owned()),
+            NativeMacro(_) => unimplemented!("what should we do?"),
             Pair(ref pair) => {
                 let PairType{car, cdr, ..} = &**pair;
                 match car {
-                    Symbol(s) if *s == symbol::BEGIN => begin(&cdr, &env)?,
+                    Special(s) if *s == symbol::LAMBDA => lambda(&cdr, &env)?,
+
+                    Symbol(s) if *s == symbol::BEGIN => eval_sequence(&cdr, &env)?,
                     Symbol(s) if *s == symbol::COND => cond(&cdr, &env)?,
                     Symbol(s) if *s == symbol::DEFINE => define(&cdr, &env)?,
                     Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
@@ -81,7 +84,6 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                             .insert(macro_.name(), Expression::Macro(macro_));
                         return Ok(Expression::Undefined);
                     }
-                    Symbol(s) if *s == symbol::LAMBDA => lambda(&cdr, &env)?,
                     Symbol(s) if *s == symbol::IF => if_form(&cdr, env.clone())?,
                     Symbol(s) if *s == symbol::EVAL => {
                         Return::TailCall(eval(cdr.car()?, env.clone())?, env)
@@ -94,7 +96,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
                         debug_hooks::function_call(&proc, &args, &expr);
-                        apply(proc, args)?
+                        apply(proc, args, &env)?
                     }
                 }
             }
@@ -159,25 +161,23 @@ pub fn prepare_apply(list: &Expression) -> Result<(Expression, Expression)> {
     Ok((proc.clone(), args))
 }
 
-pub fn apply(proc: Expression, args: Expression) -> Result<Return> {
+pub fn apply(proc: Expression, args: Expression, env: &EnvRef) -> Result<Return> {
     match proc {
         Expression::Procedure(p) => {
             let e = p.new_local_env(args)?;
-            begin(p.body_ex(), &e)
+            eval_sequence(p.body_ex(), &e)
         }
         Expression::Native(func) => func(args),
+        Expression::NativeIntrusive(func) => func(args, env),
         x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
     }
 }
 
-fn begin(mut list: &Expression, env: &EnvRef) -> Result<Return> {
+fn eval_sequence(mut list: &Expression, env: &EnvRef) -> Result<Return> {
     loop {
         match list.decons()? {
-            (car, Expression::Nil) => {
-                // we return the last element instead of evaluating it,
-                // so that it can be tail-called
-                return Ok(Return::TailCall(car.clone(), env.clone()));
-            }
+            (car, Expression::Nil) =>
+                return Ok(Return::TailCall(car.clone(), env.clone())),
             (car, cdr) => {
                 eval(car, env.clone())?;
                 list = cdr;
@@ -229,7 +229,7 @@ fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
             if cdr.is_nil() {
                 return Ok(Return::Value(cond));
             } else {
-                return begin(cdr, env);
+                return eval_sequence(cdr, env);
             }
         }
     }

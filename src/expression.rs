@@ -16,6 +16,7 @@ pub use std::rc::{Rc as Ref, Weak};
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
+pub type MacroFn = fn(Expression, &EnvRef) -> Result<Expression>;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -65,6 +66,7 @@ pub enum Expression {
     Undefined,
     Nil,
     Symbol(Symbol),
+    Special(Symbol),
     String(Ref<String>),
     Char(char),
     Integer(i64),
@@ -74,6 +76,7 @@ pub enum Expression {
     Pair(Ref<Pair>),
     Procedure(Procedure<EnvRef>),
     Macro(Macro),
+    NativeMacro(MacroFn),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
     //Error(Ref<List>),
@@ -480,6 +483,7 @@ impl Expression {
             Expression::Undefined => "#<unspecified>".into(),
             Expression::Nil => "'()".into(),
             Expression::Symbol(s) => format!("{}", s),
+            Expression::Special(s) => format!("{}", s),
             Expression::String(s) => format!("{:?}", s),
             Expression::Integer(i) => format!("{}", i),
             Expression::Float(i) => format!("{}", i),
@@ -507,8 +511,9 @@ impl Expression {
                 s
             }
             Expression::Procedure(p) => format!("{}", p.name()),
-            Expression::Macro(_) => "syntax".into(),
-            Expression::Native(_) | Expression::NativeIntrusive(_) => "(primitive)".into(),
+            Expression::Macro(_) => "<syntax>".into(),
+            Expression::NativeMacro(_) => "<native syntax>".into(),
+            Expression::Native(_) | Expression::NativeIntrusive(_) => "<primitive>".into(),
             //Expression::Error(_) => "<ERROR>".into(),
         }
     }
@@ -527,6 +532,7 @@ impl std::fmt::Debug for Expression {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "'()"),
             Expression::Symbol(s) => write!(f, "{:?}", s),
+            Expression::Special(s) => write!(f, "{:?}", s),
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
@@ -554,6 +560,7 @@ impl std::fmt::Debug for Expression {
             }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
+            Expression::NativeMacro(_) => write!(f, "<native macro>"),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
@@ -573,6 +580,7 @@ impl std::fmt::Display for Expression {
             Expression::Nil => write!(f, "'()"),
             Expression::Symbol(s) => write!(f, "{}", s.name()),
             Expression::String(s) => write!(f, "{}", s),
+            Expression::Special(s) => write!(f, "{}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::Char(ch) => write!(f, "{}", ch),
@@ -599,6 +607,7 @@ impl std::fmt::Display for Expression {
             }
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
+            Expression::NativeMacro(_) => write!(f, "<native macro>"),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
@@ -930,4 +939,8 @@ impl<'a> Iterator for ListIterator<'a> {
         self.next_pair = cdr;
         Some(Ok(car))
     }
+}
+
+pub fn cons(a: Expression, d: Expression) -> Expression {
+    Expression::cons(a, d)
 }

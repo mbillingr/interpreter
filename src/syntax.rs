@@ -1,6 +1,6 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
-use crate::expression::{Expression, Pair};
+use crate::expression::{Expression, Pair, cons};
 use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
@@ -12,16 +12,14 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
         Pair(pair) => {
             let src = pair.get_source();
             let car = &pair.car;
-            let syntax_macro = if let Symbol(s) = car {
+            if let Symbol(s) = car {
                 match env.borrow().lookup(s) {
-                    Some(Expression::Macro(m)) => Some(m),
-                    _ => None,
+                    Some(Expression::Macro(m)) => return m.expand(expr, env).map(|x| x.sourced(src)),
+                    Some(Expression::NativeMacro(m)) => return m(expr.clone(), env),
+                    _ => {},
                 }
-            } else {
-                None
-            };
+            }
             let result = match *car {
-                _ if syntax_macro.is_some() => syntax_macro.unwrap().expand(expr, env),
                 Symbol(s) if s == symbol::AND => expand_and(expr, env),
                 Symbol(s) if s == symbol::COND => expand_cond(expr, env),
                 Symbol(s) if s == symbol::DEFINE => expand_define(expr, env),
@@ -68,7 +66,7 @@ fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
     let body = body.map_list(|e| expand(&e, env))?;
-    Ok(scheme!(lambda, @signature.clone(), ...body))
+    Ok(cons(Expression::Special(symbol::LAMBDA), cons(signature.clone(), body)))
 }
 
 fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {

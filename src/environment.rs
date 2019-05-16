@@ -244,10 +244,13 @@ pub fn default_env() -> EnvRef {
 
         // interpreter functions
 
-        env.insert_native("apply", |args| {
-            let (op, args) = prepare_apply(&args)?;
-            apply(op, args)
-        });
+        env.insert(
+            "apply",
+            Expression::NativeIntrusive(|args, env| {
+                let (op, args) = prepare_apply(&args)?;
+                apply(op, args, env)
+            }),
+        );
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
         env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));
