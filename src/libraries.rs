@@ -4,7 +4,7 @@ use crate::expression::Expression;
 use crate::interpreter::eval;
 use crate::parser::parse_file;
 use crate::symbol::{self, Symbol};
-use crate::syntax::expand;
+use crate::syntax::{car_to_special, expand};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,9 +40,15 @@ fn get_library(name: &[Symbol]) -> Result<Library> {
         return Ok(lib);
     }
 
+    let mut env = Environment::new(None);
+    env.insert("define-library", Expression::NativeMacro(car_to_special)); // we need this definition in order to define a library
+    let env = env.into();
+
     let lib_expr = parse_file(resolve_lib(name))?;
     assert_eq!(Expression::Nil, *lib_expr.cdr()?);
-    eval(lib_expr.car()?, Environment::new(None).into())?;
+    let lib_expr = expand(&lib_expr, &env)?;
+
+    eval(lib_expr.car()?, env)?;
 
     LIBRARIES
         .with(|libs| libs.borrow().get(name).cloned())

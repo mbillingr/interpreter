@@ -16,7 +16,7 @@ pub use std::rc::{Rc as Ref, Weak};
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
-pub type MacroFn = fn(Expression, &EnvRef) -> Result<Expression>;
+pub type MacroFn = fn(&Expression, &EnvRef) -> Result<Expression>;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -483,7 +483,7 @@ impl Expression {
             Expression::Undefined => "#<unspecified>".into(),
             Expression::Nil => "'()".into(),
             Expression::Symbol(s) => format!("{}", s),
-            Expression::Special(s) => format!("{}", s),
+            Expression::Special(s) => format!("<{}>", s),
             Expression::String(s) => format!("{:?}", s),
             Expression::Integer(i) => format!("{}", i),
             Expression::Float(i) => format!("{}", i),
@@ -532,7 +532,7 @@ impl std::fmt::Debug for Expression {
             Expression::Undefined => write!(f, "#<unspecified>"),
             Expression::Nil => write!(f, "'()"),
             Expression::Symbol(s) => write!(f, "{:?}", s),
-            Expression::Special(s) => write!(f, "{:?}", s),
+            Expression::Special(s) => write!(f, "<{:?}>", s),
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
@@ -580,7 +580,7 @@ impl std::fmt::Display for Expression {
             Expression::Nil => write!(f, "'()"),
             Expression::Symbol(s) => write!(f, "{}", s.name()),
             Expression::String(s) => write!(f, "{}", s),
-            Expression::Special(s) => write!(f, "{}", s),
+            Expression::Special(s) => write!(f, "<{}>", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
             Expression::Char(ch) => write!(f, "{}", ch),

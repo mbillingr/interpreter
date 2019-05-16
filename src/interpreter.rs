@@ -62,36 +62,19 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 Return::Value(expr.into_owned())
             }
             Native(_) | NativeIntrusive(_) => Return::Value(expr.into_owned()),
-            NativeMacro(_) => unimplemented!("what should we do?"),
+            NativeMacro(_) => Return::Value(expr.into_owned()),
             Pair(ref pair) => {
                 let PairType{car, cdr, ..} = &**pair;
                 match car {
+                    Special(s) if *s == symbol::BEGIN => eval_sequence(&cdr, &env)?,
+                    Special(s) if *s == symbol::COND => cond(&cdr, &env)?,
+                    Special(s) if *s == symbol::DEFINE => define(&cdr, &env)?,
+                    Special(s) if *s == symbol::DEFINE_LIBRARY => def_library(&cdr)?,
+                    Special(s) if *s == symbol::DEFINE_SYNTAX => def_syntax(&cdr, &env)?,
+                    Special(s) if *s == symbol::IF => if_form(&cdr, env.clone())?,
                     Special(s) if *s == symbol::LAMBDA => lambda(&cdr, &env)?,
-
-                    Symbol(s) if *s == symbol::BEGIN => eval_sequence(&cdr, &env)?,
-                    Symbol(s) if *s == symbol::COND => cond(&cdr, &env)?,
-                    Symbol(s) if *s == symbol::DEFINE => define(&cdr, &env)?,
-                    Symbol(s) if *s == symbol::DEFINE_LIBRARY => {
-                        let name = cdr.car()?;
-                        let declarations = cdr.cdr()?;
-                        let lib = define_library(declarations)?;
-                        store_library(name, lib)?;
-                        return Ok(Expression::Undefined);
-                    }
-                    Symbol(s) if *s == symbol::DEFINE_SYNTAX => {
-                        let macro_ = macros::Macro::parse(cdr, &env)?;
-                        env.borrow_mut()
-                            .insert(macro_.name(), Expression::Macro(macro_));
-                        return Ok(Expression::Undefined);
-                    }
-                    Symbol(s) if *s == symbol::IF => if_form(&cdr, env.clone())?,
-                    Symbol(s) if *s == symbol::EVAL => {
-                        Return::TailCall(eval(cdr.car()?, env.clone())?, env)
-                    }
-                    Symbol(s) if *s == symbol::QUOTE => {
-                        Return::Value(cdr.car()?.clone())
-                    }
-                    Symbol(s) if *s == symbol::SETVAR => set_var(&cdr, &env)?,
+                    Special(s) if *s == symbol::SETVAR => set_var(&cdr, &env)?,
+                    Special(s) if *s == symbol::QUOTE => quote(cdr)?,
                     car => {
                         let proc = eval(car, env.clone())?;
                         let args = (*cdr).map_list(|a| eval(a, env.clone()))?;
@@ -176,8 +159,7 @@ pub fn apply(proc: Expression, args: Expression, env: &EnvRef) -> Result<Return>
 fn eval_sequence(mut list: &Expression, env: &EnvRef) -> Result<Return> {
     loop {
         match list.decons()? {
-            (car, Expression::Nil) =>
-                return Ok(Return::TailCall(car.clone(), env.clone())),
+            (car, Expression::Nil) => return Ok(Return::TailCall(car.clone(), env.clone())),
             (car, cdr) => {
                 eval(car, env.clone())?;
                 list = cdr;
@@ -193,6 +175,25 @@ fn define(list: &Expression, env: &EnvRef) -> Result<Return> {
     env.borrow_mut()
         .insert(name.try_as_symbol()?.clone(), value);
     Ok(Return::Value(Expression::Undefined))
+}
+
+fn def_library(list: &Expression) -> Result<Return> {
+    let name = list.car()?;
+    let declarations = list.cdr()?;
+    let lib = define_library(declarations)?;
+    store_library(name, lib)?;
+    Ok(Return::Value(Expression::Undefined))
+}
+
+fn def_syntax(list: &Expression, env: &EnvRef) -> Result<Return> {
+    let macro_ = macros::Macro::parse(list, &env)?;
+    env.borrow_mut()
+        .insert(macro_.name(), Expression::Macro(macro_));
+    Ok(Return::Value(Expression::Undefined))
+}
+
+fn quote(list: &Expression) -> Result<Return> {
+    list.car().map(Clone::clone).map(Return::Value)
 }
 
 fn set_var(list: &Expression, env: &EnvRef) -> Result<Return> {

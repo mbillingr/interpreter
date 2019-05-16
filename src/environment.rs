@@ -5,11 +5,14 @@ use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::symbol::{self, Symbol};
+use crate::syntax::{
+    car_to_special, expand_and, expand_begin, expand_cond, expand_define, expand_if,
+    expand_include, expand_lambda, expand_let, expand_or, expand_setvar,
+};
 use rand::Rng;
 use std::collections::HashMap;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
-use crate::syntax::expand_lambda;
 
 #[derive(Debug, Clone)]
 pub enum Entry {
@@ -239,11 +242,21 @@ pub fn default_env() -> EnvRef {
     {
         let mut env = defenv.borrow_mut();
 
-        // place holders
+        // macros
 
-        env.insert("lambda", Expression::NativeMacro(|expr, env|{
-            expand_lambda(&expr, env)
-        }));
+        env.insert("and", Expression::NativeMacro(expand_and));
+        env.insert("begin", Expression::NativeMacro(expand_begin));
+        env.insert("cond", Expression::NativeMacro(expand_cond));
+        env.insert("define", Expression::NativeMacro(expand_define));
+        env.insert("define-library", Expression::NativeMacro(car_to_special));
+        env.insert("define-syntax", Expression::NativeMacro(car_to_special));
+        env.insert("if", Expression::NativeMacro(expand_if));
+        env.insert("include", Expression::NativeMacro(expand_include));
+        env.insert("lambda", Expression::NativeMacro(expand_lambda));
+        env.insert("let", Expression::NativeMacro(expand_let));
+        env.insert("or", Expression::NativeMacro(expand_or));
+        env.insert("quote", Expression::NativeMacro(car_to_special));
+        env.insert("set!", Expression::NativeMacro(expand_setvar));
 
         // interpreter functions
 
@@ -252,6 +265,13 @@ pub fn default_env() -> EnvRef {
             Expression::NativeIntrusive(|args, env| {
                 let (op, args) = prepare_apply(&args)?;
                 apply(op, args, env)
+            }),
+        );
+
+        env.insert(
+            "eval",
+            Expression::NativeIntrusive(|expr, env| {
+                Ok(Return::TailCall(expr.car()?.clone(), env.clone()))
             }),
         );
 
