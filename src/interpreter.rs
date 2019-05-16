@@ -5,6 +5,7 @@ use crate::libraries::{define_library, store_library};
 use crate::macros;
 use crate::symbol;
 use std::borrow::Cow;
+use crate::interpreter::RetVal::ReturnValue;
 
 #[cfg(not(feature = "debugging"))]
 mod debug_hooks {
@@ -27,6 +28,11 @@ pub fn eval(expr: &Expression, env: EnvRef) -> Result<Expression> {
     r
 }
 
+enum RetVal {
+    ReturnValue(Expression),
+    TailCall(Expression, EnvRef),
+}
+
 pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     use Expression::*;
 
@@ -36,18 +42,18 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
 
     loop {
         debug_hooks::predispatch(&expr, &env);
-        match *expr {
+        let retval = match *expr {
             Symbol(ref s) => {
-                return env
+                ReturnValue(env
                     .borrow()
                     .lookup(&s)
-                    .ok_or_else(|| ErrorKind::Undefined(*s).into());
+                    .ok_or_else(|| ErrorKind::Undefined(*s))?)
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
             | Procedure(_) | Macro(_) /*| Error(_)*/ => {
-                return Ok(expr.into_owned());
+                ReturnValue(expr.into_owned())
             }
-            Native(_) | NativeIntrusive(_) => return Ok(expr.into_owned()),
+            Native(_) | NativeIntrusive(_) => ReturnValue(expr.into_owned()),
             Pair(ref pair) => {
                 let PairType{car, cdr, ..} = &**pair;
                 match cdr {
@@ -117,6 +123,14 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 }
             }
         };
+
+        match retval {
+            RetVal::ReturnValue(x) => return Ok(x),
+            RetVal::TailCall(x, e) => {
+                expr = Cow::Owned(x);
+                env = e;
+            }
+        }
     }
 }
 
