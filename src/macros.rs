@@ -259,11 +259,12 @@ impl Template {
     ) -> Result<Self> {
         match expr {
             Expression::Symbol(s) => {
-                Ok(env
-                    .borrow()
-                    .lookup(s)
-                    .map(|x| Template::Constant(x))
-                    .unwrap_or_else(|| Template::Identifier(*s)))
+                /*Ok(env
+                .borrow()
+                .lookup(s)
+                .map(|x| Template::Constant(x))
+                .unwrap_or_else(|| Template::Identifier(*s)))*/
+                Ok(Template::Identifier(*s))
                 //env.borrow().lookup(s).map(|x| Template::Constant(x)).ok_or_else(|| ErrorKind::Undefined(*s).into())
             }
             Expression::Pair(pair) => {
@@ -306,10 +307,10 @@ impl Template {
                     result = Expression::cons(expr, result);
                 }
                 let result = expand(&result, env)?;
-                if let Ok(Expression::Macro(m)) = result.car() {
-                    m.expand(&result, env)
-                } else {
-                    Ok(result)
+                match result.car() {
+                    Ok(Expression::Macro(m)) => m.expand(&result, env),
+                    Ok(Expression::NativeMacro(m)) => m(&result, env),
+                    _ => Ok(result),
                 }
             }
             Template::ImproperList(subs, tail) => {
