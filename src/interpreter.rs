@@ -27,9 +27,18 @@ pub fn eval(expr: &Expression, env: EnvRef) -> Result<Expression> {
     r
 }
 
-enum Return {
+pub enum Return {
     Value(Expression),
     TailCall(Expression, EnvRef),
+}
+
+impl<T> From<T> for Return
+where
+    T: Into<Expression>,
+{
+    fn from(x: T) -> Self {
+        Return::Value(x.into())
+    }
 }
 
 pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
@@ -65,7 +74,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                                 let x = begin(p.body_ex(), &e)?;
                                 Return::TailCall(x, e)
                             }
-                            Expression::Native(func) => Return::Value(func(args)?),
+                            Expression::Native(func) => func(args)?,
                             x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
                         }
                     },
@@ -104,8 +113,8 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                                 let x = begin(p.body_ex(), &e)?;
                                 Return::TailCall(x, e)
                             }
-                            Native(func) => Return::Value(func(args)?),
-                            NativeIntrusive(func) => return func(args, &env),
+                            Native(func) => func(args)?,
+                            NativeIntrusive(func) => func(args, &env)?,
                             x => {
                                 return Err(
                                     ErrorKind::TypeError(format!("not callable: {:?}", x)).into()

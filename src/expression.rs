@@ -1,5 +1,6 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
+use crate::interpreter::Return;
 use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
@@ -13,8 +14,8 @@ use std::iter::FromIterator;
 pub use std::rc::{Rc as Ref, Weak};
 
 pub type Args = Expression;
-pub type NativeFn = fn(Args) -> Result<Expression>;
-pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Expression>;
+pub type NativeFn = fn(Args) -> Result<Return>;
+pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
 
 #[derive(Debug)]
 pub struct Pair {

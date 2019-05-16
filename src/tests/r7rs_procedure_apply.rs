@@ -1,5 +1,6 @@
 use super::run_in_env;
 use crate::environment::default_env;
+use crate::interpreter::Return;
 use crate::Expression;
 
 #[test]
@@ -10,6 +11,7 @@ fn apply() {
             .and_then(|x| x.try_as_float())
             .map(f64::sqrt)
             .map(Expression::from)
+            .map(Return::Value)
     });
 
     assert_eq!(

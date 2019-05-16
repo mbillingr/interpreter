@@ -3,6 +3,7 @@ use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure};
+use crate::interpreter::Return;
 use crate::symbol::{self, Symbol};
 use rand::Rng;
 use std::collections::HashMap;
@@ -249,7 +250,9 @@ pub fn default_env() -> EnvRef {
 
         // types
 
-        env.insert_native("symbol?", |args| Ok(car(&args)?.is_symbol().into()));
+        env.insert_native("symbol?", |args| {
+            Ok(Return::Value(car(&args)?.is_symbol().into()))
+        });
 
         // simple i/o
 
@@ -265,28 +268,28 @@ pub fn default_env() -> EnvRef {
         env.insert_native("cons", |args| {
             let (car, args) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
             let (cdr, _) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
-            Ok(Expression::cons(car.clone(), cdr.clone()))
+            Ok(Return::Value(Expression::cons(car.clone(), cdr.clone())))
         });
-        env.insert_native("car", |args| Ok(car(&args)?.car()?.clone()));
-        env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone()));
+        env.insert_native("car", |args| Ok(car(&args)?.car()?.clone().into()));
+        env.insert_native("cdr", |args| Ok(car(&args)?.cdr()?.clone().into()));
 
         env.insert_native("set-car!", |args| {
             let pair = car(&args)?;
             let x = car(cdr(&args)?)?;
             pair.set_car(x.clone())?;
-            Ok(Expression::Undefined)
+            Ok(Return::Value(Expression::Undefined))
         });
 
         env.insert_native("set-cdr!", |args| {
             let pair = car(&args)?;
             let x = car(cdr(&args)?)?;
             pair.set_cdr(x.clone())?;
-            Ok(Expression::Undefined)
+            Ok(Return::Value(Expression::Undefined))
         });
 
         // list operations
 
-        env.insert_native("list", Ok);
+        env.insert_native("list", |args| Ok(Return::Value(args)));
         env.insert_native("null?", |args| Ok(car(&args)?.is_nil().into()));
 
         // numerical operations
@@ -300,7 +303,7 @@ pub fn default_env() -> EnvRef {
         env.insert_native("/", |args| native_unifold(args, X::one(), X::div));
         env.insert_native("min", |args| native_fold2(args, X::min));
         env.insert_native("max", |args| native_fold2(args, X::max));
-        env.insert_native("round", |args| car(&args)?.round());
+        env.insert_native("round", |args| car(&args)?.round().map(Return::Value));
         env.insert_native("remainder", |args| {
             native_binary(args, X::truncate_remainder)
         });
@@ -361,12 +364,16 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_micros();
-            Ok(Expression::Integer(t as i64))
+            Ok(Expression::Integer(t as i64).into())
         });
 
         env.insert_native("random", |args| match car(&args)? {
-            Expression::Integer(n) => Ok(Expression::Integer(rand::thread_rng().gen_range(0, n))),
-            Expression::Float(n) => Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n))),
+            Expression::Integer(n) => {
+                Ok(Expression::Integer(rand::thread_rng().gen_range(0, n)).into())
+            }
+            Expression::Float(n) => {
+                Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n)).into())
+            }
             x => {
                 Err(ErrorKind::TypeError(format!("Invalid upper limit for random: {:?}", x)).into())
             }
@@ -381,12 +388,12 @@ pub fn default_env() -> EnvRef {
             "print-env",
             Expression::NativeIntrusive(|_, env| {
                 env.borrow().print();
-                Ok(Expression::Undefined)
+                Ok(Return::Value(Expression::Undefined))
             }),
         );
 
         env.insert_native("body", |args| match car(&args)? {
-            Expression::Procedure(p) => Ok(p.body_ex().clone()),
+            Expression::Procedure(p) => Ok(p.body_ex().clone().into()),
             a => Err(ErrorKind::TypeError(format!("not a procedure: {:?}", a)))?,
         });
 
@@ -395,7 +402,7 @@ pub fn default_env() -> EnvRef {
             Expression::NativeIntrusive(|args, env| {
                 let debugger = Debugger::new(car(&args)?.clone(), env.clone());
                 debugger_imgui_frontend::run(debugger);
-                Ok(Expression::Undefined)
+                Ok(Return::Value(Expression::Undefined))
             }),
         );
     }
@@ -403,19 +410,19 @@ pub fn default_env() -> EnvRef {
     defenv
 }
 
-fn native_binary<R, F>(args: Args, op: F) -> Result<Expression>
+fn native_binary<R, F>(args: Args, op: F) -> Result<Return>
 where
     R: IntoResultExpression,
     F: Fn(&Expression, &Expression) -> R,
 {
     let (a, args) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
     let (b, _) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
-    op(a, b).into_result()
+    op(a, b).into_result().map(Return::Value)
 }
 
-fn native_display(args: Args) -> Result<Expression> {
+fn native_display(args: Args) -> Result<Return> {
     print!("{}", car(&args)?);
-    Ok(Expression::Undefined)
+    Ok(Return::Value(Expression::Undefined))
 }
 
 /// apply a bivariate function to all arguments in sequence
@@ -423,11 +430,11 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     mut acc: Expression,
     func: F,
-) -> Result<Expression> {
+) -> Result<Return> {
     for b in args.iter_list() {
         acc = func(acc, b?.clone())?;
     }
-    Ok(acc)
+    Ok(Return::Value(acc))
 }
 
 /// apply a bivariate function to all arguments in sequence, initializing the
@@ -435,24 +442,21 @@ fn native_fold<F: Fn(Expression, Expression) -> Result<Expression>>(
 fn native_fold2<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     func: F,
-) -> Result<Expression> {
+) -> Result<Return> {
     let (acc, tail) = args.decons()?;
     let mut acc = acc.clone();
     for b in tail.iter_list() {
         acc = func(acc, b?.clone())?;
     }
-    Ok(acc)
+    Ok(Return::Value(acc))
 }
 
 /// apply a bivariate comparison function to all arguments in sequence
-fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
-    args: Args,
-    pred: F,
-) -> Result<Expression> {
+fn native_compare<F: Fn(&Expression, &Expression) -> bool>(args: Args, pred: F) -> Result<Return> {
     let mut args = args.iter_list();
 
     let mut a = match args.next_expr()? {
-        None => return Ok(Expression::True),
+        None => return Ok(Return::Value(Expression::True)),
         Some(x) => x,
     };
 
@@ -461,11 +465,11 @@ fn native_compare<F: Fn(&Expression, &Expression) -> bool>(
         if pred(&a, &b) {
             a = b
         } else {
-            return Ok(Expression::False);
+            return Ok(Return::Value(Expression::False));
         }
     }
 
-    Ok(Expression::True)
+    Ok(Return::Value(Expression::True))
 }
 
 /// apply a bivariate function to all arguments in sequence, but handle a single argument as
@@ -474,18 +478,19 @@ fn native_unifold<F: Fn(Expression, Expression) -> Result<Expression>>(
     args: Args,
     mut acc: Expression,
     func: F,
-) -> Result<Expression> {
+) -> Result<Return> {
     let mut args = args.iter_list();
 
     let first = args.next_expr()?.ok_or(ErrorKind::ArgumentError)?.clone();
 
     match args.next_expr()? {
-        None => return func(acc, first),
+        None => return func(acc, first).map(Return::Value),
         Some(second) => acc = func(first, second.clone())?,
     }
 
     for b in args {
         acc = func(acc, b?.clone())?;
     }
-    Ok(acc)
+
+    Ok(Return::Value(acc))
 }
