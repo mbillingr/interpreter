@@ -141,14 +141,12 @@ pub fn expand_include(list: &Expression, env: &EnvRef, state: &State) -> Result<
     let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
 
-    println!("including from {:?}", state.current_file);
-
     let mut result = scheme!((begin));
 
     for filename in list {
         let filename = filename?.try_as_str()?;
-        let path =
-            find_file(filename).ok_or_else(|| ErrorKind::FileNotFoundError(filename.to_owned()))?;
+        let path = find_file(filename, state)
+            .ok_or_else(|| ErrorKind::FileNotFoundError(filename.to_owned()))?;
         let expr = parse_file(path)?;
         let expr = expand(&expr, env, state)?;
         result = result.append(expr)?;
@@ -217,11 +215,26 @@ pub fn expand_setvar(list: &Expression, env: &EnvRef, state: &State) -> Result<E
 }
 
 /// super primitive implementation that does not attempt any search path and file extension magic.
-fn find_file(path: impl AsRef<Path>) -> Option<PathBuf> {
+fn find_file(path: impl AsRef<Path>, state: &State) -> Option<PathBuf> {
     let path = path.as_ref();
-    if path.is_file() {
-        Some(path.to_owned())
-    } else {
-        None
+    let mut candidates = vec![];
+
+    if path.is_relative() {
+        candidates.extend(
+            state
+                .current_file
+                .as_ref()
+                .and_then(|file| file.parent())
+                .map(|dir| dir.join(path)),
+        );
     }
+
+    candidates.push(path.to_path_buf());
+
+    for candidate in candidates {
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
 }
