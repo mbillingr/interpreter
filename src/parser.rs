@@ -6,6 +6,7 @@ use crate::sourcecode::Source;
 use std::fs;
 use std::iter::Peekable;
 use std::path::Path;
+use crate::global_thread_state::ThreadState;
 
 trait ParserInput {
     fn peek_token(&mut self) -> Option<&PositionalToken>;
@@ -36,12 +37,18 @@ impl<I: Iterator<Item = PositionalToken>> ParserInput for SourceIter<I> {
 }
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Expression> {
+    let prev_file = ThreadState::current_file();
+    ThreadState::set_current_file(Some(path.as_ref().to_path_buf()));
+
     let src = fs::read_to_string(path)?;
     let mut lexer = Lexer::new();
 
-    Ok(parse(lexer.tokenize(&src)?.take(), src)?
+    let result = parse(lexer.tokenize(&src)?.take(), src)?
         .into_iter()
-        .collect())
+        .collect();
+
+    ThreadState::set_current_file(prev_file);
+    Ok(result)
 }
 
 pub fn parse(

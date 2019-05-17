@@ -4,6 +4,7 @@ use crate::expression::{cons, Expression, Pair};
 use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
+use crate::global_thread_state::ThreadState;
 
 // convert some syntactic forms, expand macros, check errors, ... (mostly to-do)
 pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
@@ -126,6 +127,8 @@ pub fn expand_if(list: &Expression, env: &EnvRef) -> Result<Expression> {
 pub fn expand_include(list: &Expression, env: &EnvRef) -> Result<Expression> {
     let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
+
+    println!("including from {:?}", ThreadState::current_file());
 
     let mut result = scheme!((begin));
 
