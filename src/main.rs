@@ -105,6 +105,9 @@ fn run_program(
 fn main() {
     let global: EnvRef = Environment::new(None).into();
 
+    // make the core library available to the repl
+    import_library(&scheme! {((builtin, core))}, &global).unwrap();
+
     for arg in env::args().skip(1) {
         match arg {
             _ => {
@@ -115,9 +118,6 @@ fn main() {
             }
         }
     }
-
-    // make the core library available to the repl
-    import_library(&scheme! {((builtin, core))}, &global).unwrap();
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
     input.set_env(global.downgrade());
