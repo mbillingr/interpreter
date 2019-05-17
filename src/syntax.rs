@@ -141,7 +141,7 @@ pub fn expand_include(list: &Expression, env: &EnvRef, state: &State) -> Result<
     let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
 
-    let mut result = scheme!((begin));
+    let mut result = scheme!((Expression::Special(symbol::BEGIN)));
 
     for filename in list {
         let filename = filename?.try_as_str()?;
