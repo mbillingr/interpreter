@@ -14,6 +14,7 @@ mod environment;
 mod envref;
 mod errors;
 mod expression;
+mod global_thread_state;
 mod interpreter;
 mod io;
 mod lexer;

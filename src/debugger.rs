@@ -1,23 +1,26 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::Expression;
+use crate::global_thread_state::ThreadState;
 use crate::interpreter::eval;
 use std::cell::RefCell;
 use std::sync::mpsc;
 use std::thread;
 
-thread_local! {
-    static DEBUGGER: RefCell<Option<Requester<DebugRequest, ()>>> = RefCell::new(None);
+pub type ThreadDebugger = RefCell<Option<Requester<DebugRequest, ()>>>;
+
+pub fn default_thread_debugger() -> ThreadDebugger {
+    RefCell::new(None)
 }
 
 pub fn install_thread_debugger(service: Requester<DebugRequest, ()>) {
-    DEBUGGER.with(|debugger| {
+    ThreadState::with_debugger(|debugger| {
         *debugger.borrow_mut() = Some(service);
     });
 }
 
 pub fn enter_eval(expr: &Expression, env: &EnvRef) {
-    DEBUGGER.with(|debugger| {
+    ThreadState::with_debugger(|debugger| {
         if let Some(service) = &*debugger.borrow() {
             service.req(DebugRequest::EnterEval(expr.clone(), env.clone()))
         }
@@ -25,7 +28,7 @@ pub fn enter_eval(expr: &Expression, env: &EnvRef) {
 }
 
 pub fn leave_eval(res: &Result<Expression>) {
-    DEBUGGER.with(|debugger| {
+    ThreadState::with_debugger(|debugger| {
         if let Some(service) = &*debugger.borrow() {
             let res = match res {
                 Ok(expr) => Ok(expr.clone()),
@@ -37,7 +40,7 @@ pub fn leave_eval(res: &Result<Expression>) {
 }
 
 pub fn predispatch(expr: &Expression, env: &EnvRef) {
-    DEBUGGER.with(|debugger| {
+    ThreadState::with_debugger(|debugger| {
         if let Some(service) = &*debugger.borrow() {
             service.req(DebugRequest::Predispatch(expr.clone(), env.clone()))
         }
@@ -45,7 +48,7 @@ pub fn predispatch(expr: &Expression, env: &EnvRef) {
 }
 
 pub fn function_call(proc: &Expression, args: &Expression, expr: &Expression) {
-    DEBUGGER.with(|debugger| {
+    ThreadState::with_debugger(|debugger| {
         if let Some(service) = &*debugger.borrow() {
             service.req(DebugRequest::FunctionCall(
                 proc.clone(),
@@ -112,7 +115,9 @@ impl Debugger {
             install_thread_debugger(req);
             let _ = eval(&expr, env);
 
-            DEBUGGER.with(|debugger| debugger.borrow().as_ref().unwrap().req(DebugRequest::Done));
+            ThreadState::with_debugger(|debugger| {
+                debugger.borrow().as_ref().unwrap().req(DebugRequest::Done)
+            });
         });
 
         Debugger {
