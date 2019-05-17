@@ -4,7 +4,7 @@ use crate::expression::Expression;
 use crate::interpreter::eval;
 use crate::parser::parse_file;
 use crate::symbol::{self, Symbol};
-use crate::syntax::{car_to_special, expand};
+use crate::syntax::{self, car_to_special, expand};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -44,11 +44,26 @@ fn get_library(name: &[Symbol]) -> Result<Library> {
     env.insert("define-library", Expression::NativeMacro(car_to_special)); // we need this definition in order to define a library
     let env = env.into();
 
-    let lib_expr = parse_file(resolve_lib(name))?;
-    assert_eq!(Expression::Nil, *lib_expr.cdr()?);
-    let lib_expr = expand(&lib_expr, &env)?;
+    let path = resolve_lib(name);
 
-    eval(lib_expr.car()?, env)?;
+    let lib_expr = parse_file(&path)?;
+    let state = syntax::State::default().with_file(path);
+
+    assert_eq!(Expression::Nil, *lib_expr.cdr()?);
+    let lib_expr = expand(&lib_expr, &env, &state)?;
+
+    let lib_expr = lib_expr.car()?;
+    assert_eq!(
+        Expression::Special(symbol::DEFINE_LIBRARY),
+        *lib_expr.car()?
+    );
+
+    let lib_expr = lib_expr.cdr()?;
+
+    let actual_name = lib_expr.car()?;
+    let declarations = lib_expr.cdr()?;
+    let lib = define_library(declarations, &state)?;
+    store_library(actual_name, lib)?;
 
     LIBRARIES
         .with(|libs| libs.borrow().get(name).cloned())
@@ -73,7 +88,7 @@ pub fn import_library(import_sets: &Expression, env: &EnvRef) -> Result<()> {
     Ok(())
 }
 
-pub fn define_library(declarations: &Expression) -> Result<Library> {
+pub fn define_library(declarations: &Expression, state: &syntax::State) -> Result<Library> {
     let private_env: EnvRef = Environment::new(None).into();
 
     let mut exports = HashMap::new();
@@ -104,7 +119,7 @@ pub fn define_library(declarations: &Expression) -> Result<Library> {
                 import_library(decl.cdr().unwrap(), &private_env)?
             }
             Expression::Symbol(s) if *s == symbol::BEGIN || *s == symbol::INCLUDE => {
-                eval(&expand(decl, &private_env)?, private_env.clone())?;
+                eval(&expand(decl, &private_env, state)?, private_env.clone())?;
             }
             x => Err(ErrorKind::GenericError(format!(
                 "Invalid library declaration: {}",

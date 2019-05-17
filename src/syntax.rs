@@ -4,10 +4,21 @@ use crate::expression::{cons, Expression, Pair};
 use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
-use crate::global_thread_state::ThreadState;
+
+#[derive(Default)]
+pub struct State {
+    current_file: Option<PathBuf>,
+}
+
+impl State {
+    pub fn with_file(mut self, path: impl Into<PathBuf>) -> Self {
+        self.current_file = Some(path.into());
+        self
+    }
+}
 
 // convert some syntactic forms, expand macros, check errors, ... (mostly to-do)
-pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand(expr: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(pair) => {
@@ -16,19 +27,20 @@ pub fn expand(expr: &Expression, env: &EnvRef) -> Result<Expression> {
             if let Symbol(s) = car {
                 match env.borrow().lookup(s) {
                     Some(Expression::Macro(m)) => {
-                        return m.expand(expr, env).map(|x| x.sourced(src))
+                        return m.expand(expr, env, state).map(|x| x.sourced(src))
                     }
-                    Some(Expression::NativeMacro(m)) => return m(expr, env),
+                    Some(Expression::NativeMacro(m)) => return m(expr, env, state),
                     _ => {}
                 }
             }
-            expr.map_list(|e| expand(&e, env)).map(|x| x.sourced(src))
+            expr.map_list(|e| expand(&e, env, state))
+                .map(|x| x.sourced(src))
         }
         _ => Ok(expr.clone()),
     }
 }
 
-pub fn car_to_special(list: &Expression, _env: &EnvRef) -> Result<Expression> {
+pub fn car_to_special(list: &Expression, _env: &EnvRef, _state: &State) -> Result<Expression> {
     if let Expression::Symbol(s) = list.car()? {
         Ok(cons(Expression::Special(*s), list.cdr().unwrap().clone()))
     } else {
@@ -36,7 +48,7 @@ pub fn car_to_special(list: &Expression, _env: &EnvRef) -> Result<Expression> {
     }
 }
 
-pub fn expand_and(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_and(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(and), cmd);
 
@@ -44,20 +56,21 @@ pub fn expand_and(list: &Expression, env: &EnvRef) -> Result<Expression> {
         Expression::Nil => Ok(Expression::True),
         Expression::Pair(p) if p.cdr == Expression::Nil => Ok((p.car).clone()),
         Expression::Pair(p) => expand_if(
-            &scheme!(if, @(p.car).clone(), @expand_and(&scheme!(and, ...(p.cdr).clone()), env)?, #f),
+            &scheme!(if, @(p.car).clone(), @expand_and(&scheme!(and, ...(p.cdr).clone()), env, state)?, #f),
             env,
+            state,
         ),
         _ => unreachable!(),
     }
 }
 
-pub fn expand_begin(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_begin(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(begin), list.car()?);
-    let body = list.cdr().unwrap().map_list(|e| expand(&e, env))?;
+    let body = list.cdr().unwrap().map_list(|e| expand(&e, env, state))?;
     Ok(cons(Expression::Special(symbol::BEGIN), body))
 }
 
-pub fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_cond(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
@@ -76,12 +89,12 @@ pub fn expand_cond(list: &Expression, env: &EnvRef) -> Result<Expression> {
             }
             row => row.clone(),
         };
-        expand(&row, env)
+        expand(&row, env, state)
     })?;
     Ok(cons(Expression::Special(symbol::COND), body))
 }
 
-pub fn expand_define(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_define(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(define), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
@@ -90,12 +103,12 @@ pub fn expand_define(list: &Expression, env: &EnvRef) -> Result<Expression> {
             return Err(ErrorKind::ArgumentError)?;
         }
         let value = body.car()?;
-        conslist!(signature.clone(), expand(value, env)?)
+        conslist!(signature.clone(), expand(value, env, state)?)
     } else if signature.is_pair() {
         let (name, signature) = signature.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
         let lambda = scheme!(lambda, @signature.clone(), ...body.clone());
-        let lambda = expand_lambda(&lambda, env)?;
+        let lambda = expand_lambda(&lambda, env, state)?;
 
         conslist!(name.clone(), lambda)
     } else {
@@ -108,7 +121,7 @@ pub fn expand_define(list: &Expression, env: &EnvRef) -> Result<Expression> {
     Ok(cons(Expression::Special(symbol::DEFINE), definition))
 }
 
-pub fn expand_if(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_if(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(if)), list.next_expr()?);
@@ -118,17 +131,17 @@ pub fn expand_if(list: &Expression, env: &EnvRef) -> Result<Expression> {
 
     Ok(conslist!(
         Expression::Special(symbol::IF),
-        expand(cond, env)?,
-        expand(if_, env)?,
-        expand(else_, env)?
+        expand(cond, env, state)?,
+        expand(if_, env, state)?,
+        expand(else_, env, state)?
     ))
 }
 
-pub fn expand_include(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_include(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
     assert_eq!(Some(&scheme!(include)), list.next_expr()?);
 
-    println!("including from {:?}", ThreadState::current_file());
+    println!("including from {:?}", state.current_file);
 
     let mut result = scheme!((begin));
 
@@ -137,25 +150,25 @@ pub fn expand_include(list: &Expression, env: &EnvRef) -> Result<Expression> {
         let path =
             find_file(filename).ok_or_else(|| ErrorKind::FileNotFoundError(filename.to_owned()))?;
         let expr = parse_file(path)?;
-        let expr = expand(&expr, env)?;
+        let expr = expand(&expr, env, state)?;
         result = result.append(expr)?;
     }
 
     Ok(result)
 }
 
-pub fn expand_lambda(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_lambda(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
-    let body = body.map_list(|e| expand(&e, env))?;
+    let body = body.map_list(|e| expand(&e, env, state))?;
     Ok(cons(
         Expression::Special(symbol::LAMBDA),
         cons(signature.clone(), body),
     ))
 }
 
-pub fn expand_let(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_let(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
 
     assert_eq!(Some(&scheme!(let)), list.next_expr()?);
@@ -184,22 +197,22 @@ pub fn expand_let(list: &Expression, env: &EnvRef) -> Result<Expression> {
 
     let lambda_form = scheme!(lambda, @vars, ...body.clone());
     exps = Expression::cons(lambda_form, exps);
-    expand(&exps, env)
+    expand(&exps, env, state)
 }
 
-pub fn expand_or(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_or(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(or), cmd);
     let mapped = args.map_list(|x| Ok(scheme!((@x.clone()))))?;
     let mapped = mapped.append(scheme!(((#t, #f))))?;
-    expand_cond(&scheme!(cond, ...mapped), env)
+    expand_cond(&scheme!(cond, ...mapped), env, state)
 }
 
-pub fn expand_setvar(list: &Expression, env: &EnvRef) -> Result<Expression> {
+pub fn expand_setvar(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(symbol::SETVAR), list.car()?);
     Ok(cons(
         Expression::Special(symbol::SETVAR),
-        expand(list.cdr().unwrap(), env)?,
+        expand(list.cdr().unwrap(), env, state)?,
     ))
 }
 

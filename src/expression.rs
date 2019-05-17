@@ -4,6 +4,7 @@ use crate::interpreter::Return;
 use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
+use crate::syntax;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "thread-safe")]
@@ -16,7 +17,7 @@ pub use std::rc::{Rc as Ref, Weak};
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
-pub type MacroFn = fn(&Expression, &EnvRef) -> Result<Expression>;
+pub type MacroFn = fn(&Expression, &EnvRef, &syntax::State) -> Result<Expression>;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -799,6 +800,7 @@ impl std::cmp::PartialEq for Expression {
             (Float(a), Float(b)) => a == b,
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b)) => a == b,
+            (Special(a), Special(b)) => a == b,
             //(Char(a), Char(b)) => a == b,
             (True, True) => true,
             (False, False) => true,

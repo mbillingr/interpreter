@@ -4,6 +4,7 @@ use crate::expression::{Expression, Pair as PairType, Procedure, Ref};
 use crate::libraries::{define_library, store_library};
 use crate::macros;
 use crate::symbol;
+use crate::syntax;
 use std::borrow::Cow;
 
 #[cfg(not(feature = "debugging"))]
@@ -180,7 +181,7 @@ fn define(list: &Expression, env: &EnvRef) -> Result<Return> {
 fn def_library(list: &Expression) -> Result<Return> {
     let name = list.car()?;
     let declarations = list.cdr()?;
-    let lib = define_library(declarations)?;
+    let lib = define_library(declarations, &syntax::State::default())?;
     store_library(name, lib)?;
     Ok(Return::Value(Expression::Undefined))
 }

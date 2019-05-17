@@ -38,7 +38,7 @@ use interpreter::eval;
 use lexer::Lexer;
 use parser::parse;
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const LINE_PROMPT: &str = ">> ";
 const MULTI_PROMPT: &str = " ... ";
@@ -55,7 +55,7 @@ fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
 
         if lexer.is_balanced() {
             let expr = parse(lexer.take(), source)?.into_iter().collect();
-            match run_program(&expr, env)? {
+            match run_program(&expr, env, None)? {
                 Expression::Undefined => {}
                 res => println!("{}", res),
             }
@@ -67,12 +67,16 @@ fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
 }
 
 fn run_file(path: impl AsRef<Path>, env: &EnvRef) -> Result<()> {
-    let prog = parse_file(path)?;
-    run_program(&prog, env)?;
+    let prog = parse_file(path.as_ref())?;
+    run_program(&prog, env, Some(path.as_ref().to_path_buf()))?;
     Ok(())
 }
 
-fn run_program(mut prog: &Expression, env: &EnvRef) -> Result<Expression> {
+fn run_program(
+    mut prog: &Expression,
+    env: &EnvRef,
+    current_file: Option<PathBuf>,
+) -> Result<Expression> {
     while !prog.is_nil() {
         let decl = prog.car()?;
         match decl.car() {
@@ -88,8 +92,13 @@ fn run_program(mut prog: &Expression, env: &EnvRef) -> Result<Expression> {
         return Ok(Expression::Undefined);
     }
 
+    let mut state = syntax::State::default();
+    if let Some(file) = current_file {
+        state = state.with_file(file);
+    }
+
     let prog = Expression::cons(symbol::BEGIN, prog.clone());
-    let prog = expand(&prog, env)?;
+    let prog = expand(&prog, env, &state)?;
     eval(&prog, env.clone())
 }
 

@@ -6,7 +6,7 @@ use crate::envref::EnvRef;
 use crate::errors::Result;
 use crate::eval;
 use crate::parser::parse;
-use crate::syntax::expand;
+use crate::syntax::{self, expand};
 use crate::Expression;
 use crate::Lexer;
 
@@ -24,7 +24,7 @@ fn run_in_env(src: &str, env: &EnvRef) -> Result<Expression> {
 
     parse(tokens, src.to_string())?
         .into_iter()
-        .map(|expr| expand(&expr, env))
+        .map(|expr| expand(&expr, env, &syntax::State::default()))
         .map(|expr| eval(&expr?, env.clone()))
         .last()
         .unwrap()

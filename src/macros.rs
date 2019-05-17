@@ -2,7 +2,7 @@ use crate::envref::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Ref};
 use crate::symbol::{self, Symbol};
-use crate::syntax::expand;
+use crate::syntax::{self, expand};
 use std::collections::HashMap;
 
 macro_rules! hashmap(
@@ -72,8 +72,13 @@ impl Macro {
         })
     }
 
-    pub fn expand(&self, expr: &Expression, env: &EnvRef) -> Result<Expression> {
-        self.spec.expand(expr, env)
+    pub fn expand(
+        &self,
+        expr: &Expression,
+        env: &EnvRef,
+        state: &syntax::State,
+    ) -> Result<Expression> {
+        self.spec.expand(expr, env, state)
     }
 }
 
@@ -113,9 +118,14 @@ impl TransformerSpec {
         })
     }
 
-    pub fn expand(&self, expr: &Expression, env: &EnvRef) -> Result<Expression> {
+    pub fn expand(
+        &self,
+        expr: &Expression,
+        env: &EnvRef,
+        state: &syntax::State,
+    ) -> Result<Expression> {
         for rule in &self.rules {
-            if let Some(expansion) = rule.match_expand(expr, env) {
+            if let Some(expansion) = rule.match_expand(expr, env, state) {
                 return expansion;
             }
         }
@@ -141,10 +151,15 @@ impl SyntaxRule {
         })
     }
 
-    pub fn match_expand(&self, expr: &Expression, env: &EnvRef) -> Option<Result<Expression>> {
+    pub fn match_expand(
+        &self,
+        expr: &Expression,
+        env: &EnvRef,
+        state: &syntax::State,
+    ) -> Option<Result<Expression>> {
         self.pattern
             .match_expr(expr)
-            .map(|bindings| self.template.expand(&bindings, env))
+            .map(|bindings| self.template.expand(&bindings, env, state))
     }
 }
 
@@ -292,7 +307,12 @@ impl Template {
         }
     }
 
-    fn expand(&self, bindings: &HashMap<Symbol, Expression>, env: &EnvRef) -> Result<Expression> {
+    fn expand(
+        &self,
+        bindings: &HashMap<Symbol, Expression>,
+        env: &EnvRef,
+        state: &syntax::State,
+    ) -> Result<Expression> {
         match self {
             Template::Constant(expr) => Ok(expr.clone()),
             Template::Identifier(ident) => match bindings.get(ident) {
@@ -303,20 +323,20 @@ impl Template {
             Template::List(subs) => {
                 let mut result = Expression::Nil;
                 for sub in subs.iter().rev() {
-                    let expr = sub.expand(bindings, env)?;
+                    let expr = sub.expand(bindings, env, state)?;
                     result = Expression::cons(expr, result);
                 }
-                let result = expand(&result, env)?;
+                let result = expand(&result, env, state)?;
                 match result.car() {
-                    Ok(Expression::Macro(m)) => m.expand(&result, env),
-                    Ok(Expression::NativeMacro(m)) => m(&result, env),
+                    Ok(Expression::Macro(m)) => m.expand(&result, env, state),
+                    Ok(Expression::NativeMacro(m)) => m(&result, env, state),
                     _ => Ok(result),
                 }
             }
             Template::ImproperList(subs, tail) => {
-                let mut result = tail.expand(bindings, env)?;
+                let mut result = tail.expand(bindings, env, state)?;
                 for sub in subs.iter().rev() {
-                    let expr = sub.expand(bindings, env)?;
+                    let expr = sub.expand(bindings, env, state)?;
                     result = Expression::cons(expr, result);
                 }
                 Ok(result)
@@ -436,7 +456,7 @@ mod test {
             scheme!((less, x, 0), (neg, x), x),
             template.expand(
                 &hashmap! { cond => scheme!(less, x, 0), yes => scheme!(neg, x), no => scheme!(x)},
-                &env
+                &env, &syntax::State::default()
             ).unwrap()
         );
     }
