@@ -281,8 +281,29 @@ pub fn default_env() -> EnvRef {
 
         // types
 
+        env.insert_native("boolean?", |args| {
+            car(&args).map(Expression::is_bool).map(Into::into)
+        });
+        env.insert_native("char?", |args| {
+            car(&args).map(Expression::is_char).map(Into::into)
+        });
+        env.insert_native("null?", |args| {
+            car(&args).map(Expression::is_nil).map(Into::into)
+        });
+        env.insert_native("number?", |args| {
+            car(&args).map(Expression::is_number).map(Into::into)
+        });
+        env.insert_native("pair?", |args| {
+            car(&args).map(Expression::is_pair).map(Into::into)
+        });
+        env.insert_native("procedure?", |args| {
+            car(&args).map(Expression::is_procedure).map(Into::into)
+        });
+        env.insert_native("string?", |args| {
+            car(&args).map(Expression::is_string).map(Into::into)
+        });
         env.insert_native("symbol?", |args| {
-            Ok(Return::Value(car(&args)?.is_symbol().into()))
+            car(&args).map(Expression::is_symbol).map(Into::into)
         });
 
         // simple i/o
@@ -295,7 +316,6 @@ pub fn default_env() -> EnvRef {
 
         // pair operations
 
-        env.insert_native("pair?", |args| Ok(car(&args)?.is_pair().into()));
         env.insert_native("cons", |args| {
             let (car, args) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
             let (cdr, _) = args.decons().map_err(|_| ErrorKind::ArgumentError)?;
@@ -321,11 +341,9 @@ pub fn default_env() -> EnvRef {
         // list operations
 
         env.insert_native("list", |args| Ok(Return::Value(args)));
-        env.insert_native("null?", |args| Ok(car(&args)?.is_nil().into()));
 
         // numerical operations
 
-        env.insert_native("number?", |args| Ok(car(&args)?.is_number().into()));
         env.insert_native("exact?", |args| Ok(car(&args)?.is_exact().into()));
         env.insert_native("integer?", |args| Ok(car(&args)?.is_integer().into()));
         env.insert_native("+", |args| native_fold(args, X::zero(), X::add));

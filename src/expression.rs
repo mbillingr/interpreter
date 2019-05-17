@@ -257,6 +257,20 @@ impl Expression {
         Ok(result)
     }
 
+    pub fn is_bool(&self) -> bool {
+        match self {
+            Expression::True | Expression::False => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_char(&self) -> bool {
+        match self {
+            Expression::Char(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_nil(&self) -> bool {
         match self {
             Expression::Nil => true,
@@ -294,6 +308,13 @@ impl Expression {
         }
     }
 
+    pub fn is_string(&self) -> bool {
+        match self {
+            Expression::String(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_symbol(&self) -> bool {
         match self {
             Expression::Symbol(_) => true,
@@ -304,6 +325,15 @@ impl Expression {
     pub fn is_named_symbol<T: AsRef<str>>(&self, name: T) -> bool {
         match self {
             Expression::Symbol(s) => s.name() == name.as_ref(),
+            _ => false,
+        }
+    }
+
+    pub fn is_procedure(&self) -> bool {
+        match self {
+            Expression::Procedure(_) => true,
+            Expression::Native(_) => true,
+            Expression::NativeIntrusive(_) => true,
             _ => false,
         }
     }
