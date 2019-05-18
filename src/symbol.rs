@@ -9,6 +9,7 @@ pub static AND: Symbol = Symbol { name: "and" };
 pub static APPLY: Symbol = Symbol { name: "apply" };
 pub static BEGIN: Symbol = Symbol { name: "begin" };
 pub static COND: Symbol = Symbol { name: "cond" };
+pub static COND_APPLY: Symbol = Symbol { name: "=>" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
 pub static DEFINE_LIBRARY: Symbol = Symbol {
     name: "define-library",
@@ -77,6 +78,7 @@ impl Symbol {
             n if n == APPLY.name() => APPLY,
             n if n == BEGIN.name() => BEGIN,
             n if n == COND.name() => COND,
+            n if n == COND_APPLY.name() => COND_APPLY,
             n if n == DEFINE.name() => DEFINE,
             n if n == DEFINE_LIBRARY.name() => DEFINE_LIBRARY,
             n if n == DEFINE_SYNTAX.name() => DEFINE_SYNTAX,

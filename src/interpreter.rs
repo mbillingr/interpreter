@@ -230,6 +230,10 @@ fn cond(mut list: &Expression, env: &EnvRef) -> Result<Return> {
         if cond.is_true() {
             if cdr.is_nil() {
                 return Ok(Return::Value(cond));
+            } else if cdr.car()? == &symbol::COND_APPLY {
+                let func = eval(cdr.cdr()?.car()?, env.clone())?;
+                let call = conslist!(func, cond);
+                return Ok(Return::TailCall(call, env.clone()));
             } else {
                 return eval_sequence(cdr, env);
             }

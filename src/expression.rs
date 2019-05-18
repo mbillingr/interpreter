@@ -811,6 +811,15 @@ impl std::cmp::PartialEq for Expression {
     }
 }
 
+impl std::cmp::PartialEq<Symbol> for Expression {
+    fn eq(&self, rhs: &Symbol) -> bool {
+        match self {
+            Expression::Symbol(s) => s == rhs,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Procedure<E> {
     body: Ref<Expression>,
