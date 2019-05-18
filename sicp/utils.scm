@@ -3,7 +3,8 @@
 
   (export <= >=
           abs accumulate append average
-          caar cadr cdar cddr caaar caadr caddr cdadr cddar cdddr caaddr cadddr
+          caar cadr cdar cddr caaar caadr caddr cadar cdadr cddar cdddr caaddr
+          cadddr
           cons-stream cube
           debug-eval debug-print dec delay
           even?
@@ -82,6 +83,7 @@
     (define (cddr p) (cdr (cdr p)))
     (define (caaar p) (car (car (car p))))
     (define (caadr p) (car (car (cdr p))))
+    (define (cadar p) (car (cdr (car p))))
     (define (caddr p) (car (cdr (cdr p))))
     (define (cdadr p) (cdr (car (cdr p))))
     (define (cddar p) (cdr (cdr (car p))))
