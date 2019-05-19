@@ -66,6 +66,18 @@ pub fn parse(
     Ok(output)
 }
 
+pub fn read(src: String) -> Result<Expression> {
+    let mut lexer = Lexer::new();
+    lexer.tokenize(&src)?;
+
+    let mut input = SourceIter {
+        iter: lexer.take().into_iter().peekable(),
+        src: src.into(),
+    };
+
+    parse_expression(&mut input)
+}
+
 fn parse_expression(input: &mut impl ParserInput) -> Result<Expression> {
     if let Some(pt) = input.peek_token() {
         if pt.token == Token::ListOpen {

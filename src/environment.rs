@@ -4,6 +4,9 @@ pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter::{apply, prepare_apply, Return};
+use crate::io::{LineReader, ReplInput};
+use crate::lexer::Lexer;
+use crate::parser::read;
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
     car_to_special, expand_and, expand_begin, expand_cond, expand_define, expand_if,
@@ -274,6 +277,11 @@ pub fn default_env() -> EnvRef {
                 Ok(Return::TailCall(expr.car()?.clone(), env.clone()))
             }),
         );
+
+        env.insert_native("read", |_| {
+            let line = ReplInput::new("").read_line()?;
+            read(line).map(Return::Value)
+        });
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
         env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));

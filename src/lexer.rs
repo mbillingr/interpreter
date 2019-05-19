@@ -110,8 +110,8 @@ impl Lexer {
 
     pub fn take(&mut self) -> Vec<PositionalToken> {
         std::mem::replace(&mut self.token_stream, vec![])
-            .into_iter()
-            .collect()
+        //.into_iter()
+        //.collect()
     }
 
     pub fn take_pos(&mut self) -> Vec<PositionalToken> {
