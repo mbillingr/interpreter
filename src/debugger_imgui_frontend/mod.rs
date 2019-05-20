@@ -130,7 +130,7 @@ fn env_entry(ui: &Ui, env: &Environment, title: &ImStr) {
     if ui.collapsing_header(title).build() {
         let mut entries: Vec<String> = env
             .items()
-            .map(|(key, value)| format!("{}: {}", key, value.short_repr()).into())
+            .map(|(key, value)| format!("{}: {}", key, value.short_repr()))
             .collect();
         entries.sort();
         for entry in entries.into_iter().map(|e| -> ImString { e.into() }) {

@@ -73,6 +73,9 @@ pub struct Symbol {
 
 impl Symbol {
     pub fn new<T: AsRef<str> + ToString>(name: T) -> Self {
+        // Clippy complains about all the branching in this function, but this
+        // is what we actually want here, I guess...
+        #![allow(clippy::cyclomatic_complexity)]
         match name.as_ref() {
             n if n == AND.name() => AND,
             n if n == APPLY.name() => APPLY,

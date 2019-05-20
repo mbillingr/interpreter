@@ -27,7 +27,7 @@ impl<I: Iterator<Item = PositionalToken>> ParserInput for SourceIter<I> {
     }
 
     fn next_token(&mut self) -> PositionalToken {
-        self.iter.next().unwrap_or(PositionalToken::eof())
+        self.iter.next().unwrap_or_else(PositionalToken::eof)
     }
 
     fn source(&self) -> &Source {
