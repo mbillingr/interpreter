@@ -250,14 +250,23 @@ pub fn default_env() -> EnvRef {
         env.insert("begin", Expression::NativeMacro(expand_begin));
         env.insert("cond", Expression::NativeMacro(expand_cond));
         env.insert("define", Expression::NativeMacro(expand_define));
-        env.insert("define-library", Expression::NativeMacro(car_to_special));
-        env.insert("define-syntax", Expression::NativeMacro(car_to_special));
+        env.insert(
+            symbol::DEFINE_LIBRARY.name(),
+            Expression::NativeMacro(|expr, _, _| car_to_special(expr, symbol::DEFINE_LIBRARY)),
+        );
+        env.insert(
+            symbol::DEFINE_SYNTAX.name(),
+            Expression::NativeMacro(|expr, _, _| car_to_special(expr, symbol::DEFINE_SYNTAX)),
+        );
         env.insert("if", Expression::NativeMacro(expand_if));
         env.insert("include", Expression::NativeMacro(expand_include));
         env.insert("lambda", Expression::NativeMacro(expand_lambda));
         env.insert("let", Expression::NativeMacro(expand_let));
         env.insert("or", Expression::NativeMacro(expand_or));
-        env.insert("quote", Expression::NativeMacro(car_to_special));
+        env.insert(
+            symbol::QUOTE.name(),
+            Expression::NativeMacro(|expr, _, _| car_to_special(expr, symbol::QUOTE)),
+        );
         env.insert("set!", Expression::NativeMacro(expand_setvar));
 
         // interpreter functions

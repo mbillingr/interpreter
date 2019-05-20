@@ -41,7 +41,10 @@ fn get_library(name: &[Symbol]) -> Result<Library> {
     }
 
     let mut env = Environment::new(None);
-    env.insert("define-library", Expression::NativeMacro(car_to_special)); // we need this definition in order to define a library
+    env.insert(
+        symbol::DEFINE_LIBRARY.name(),
+        Expression::NativeMacro(|expr, _, _| car_to_special(expr, symbol::DEFINE_LIBRARY)),
+    ); // we need this definition in order to define a library
     let env = env.into();
 
     let path = resolve_lib(name);

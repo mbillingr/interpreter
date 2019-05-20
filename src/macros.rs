@@ -145,9 +145,16 @@ impl SyntaxRule {
         ellipsis: Symbol,
         env: &EnvRef,
     ) -> Result<Self> {
+        let pattern = Pattern::parse(list.car()?, literals, ellipsis)?;
         Ok(SyntaxRule {
-            pattern: Pattern::parse(list.car()?, literals, ellipsis)?,
-            template: Template::parse(list.cdr()?.car()?, literals, ellipsis, env)?,
+            template: Template::parse(
+                list.cdr()?.car()?,
+                literals,
+                &pattern.identifiers(),
+                ellipsis,
+                env,
+            )?,
+            pattern,
         })
     }
 
@@ -202,6 +209,19 @@ impl Pattern {
                 }
             }
             _ => Ok(Pattern::Constant(expr.clone())),
+        }
+    }
+
+    fn identifiers(&self) -> Vec<Symbol> {
+        match self {
+            Pattern::Identifier(s) => vec![*s],
+            Pattern::List(patterns) => patterns.iter().flat_map(|p| p.identifiers()).collect(),
+            Pattern::ImproperList(patterns, tail) => {
+                let mut ids: Vec<_> = patterns.iter().flat_map(|p| p.identifiers()).collect();
+                ids.extend(tail.identifiers());
+                ids
+            }
+            _ => vec![],
         }
     }
 
@@ -269,17 +289,27 @@ impl Template {
     pub fn parse(
         expr: &Expression,
         literals: &[Symbol],
+        identifiers: &[Symbol],
         ellipsis: Symbol,
         env: &EnvRef,
     ) -> Result<Self> {
         match expr {
             Expression::Symbol(s) => {
+                if identifiers.contains(s) {
+                    Ok(Template::Identifier(*s))
+                } else {
+                    Ok(env
+                        .borrow()
+                        .lookup(s)
+                        .map(|x| Template::Constant(x))
+                        .unwrap_or_else(|| Template::Identifier(*s)))
+                }
                 /*Ok(env
                 .borrow()
                 .lookup(s)
                 .map(|x| Template::Constant(x))
                 .unwrap_or_else(|| Template::Identifier(*s)))*/
-                Ok(Template::Identifier(*s))
+                //Ok(Template::Identifier(*s))
                 //env.borrow().lookup(s).map(|x| Template::Constant(x)).ok_or_else(|| ErrorKind::Undefined(*s).into())
             }
             Expression::Pair(pair) => {
@@ -287,7 +317,13 @@ impl Template {
                 let mut cdr = &pair.cdr;
                 let mut list = vec![];
                 loop {
-                    list.push(Template::parse(&*car, literals, ellipsis, env)?);
+                    list.push(Template::parse(
+                        &*car,
+                        literals,
+                        identifiers,
+                        ellipsis,
+                        env,
+                    )?);
                     match cdr {
                         Expression::Nil => return Ok(Template::List(list)),
                         Expression::Pair(p) => {
@@ -297,7 +333,13 @@ impl Template {
                         _ => {
                             return Ok(Template::ImproperList(
                                 list,
-                                Box::new(Template::parse(&*cdr, literals, ellipsis, env)?),
+                                Box::new(Template::parse(
+                                    &*cdr,
+                                    literals,
+                                    identifiers,
+                                    ellipsis,
+                                    env,
+                                )?),
                             ))
                         }
                     }

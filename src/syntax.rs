@@ -40,12 +40,16 @@ pub fn expand(expr: &Expression, env: &EnvRef, state: &State) -> Result<Expressi
     }
 }
 
-pub fn car_to_special(list: &Expression, _env: &EnvRef, _state: &State) -> Result<Expression> {
+/*pub fn car_to_special(list: &Expression, _env: &EnvRef, _state: &State) -> Result<Expression> {
     if let Expression::Symbol(s) = list.car()? {
         Ok(cons(Expression::Special(*s), list.cdr().unwrap().clone()))
     } else {
         panic!("need symbol in car position")
     }
+}*/
+
+pub fn car_to_special(list: &Expression, s: symbol::Symbol) -> Result<Expression> {
+    Ok(cons(Expression::Special(s), list.cdr().unwrap().clone()))
 }
 
 pub fn expand_and(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
@@ -95,7 +99,7 @@ pub fn expand_cond(list: &Expression, env: &EnvRef, state: &State) -> Result<Exp
 }
 
 pub fn expand_define(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    assert_eq!(&scheme!(define), list.car()?);
+    //assert_eq!(&scheme!(define), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
     let definition = if signature.is_symbol() {
@@ -156,7 +160,7 @@ pub fn expand_include(list: &Expression, env: &EnvRef, state: &State) -> Result<
 }
 
 pub fn expand_lambda(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    assert_eq!(&scheme!(lambda), list.car()?);
+    //assert_eq!(&scheme!(lambda), list.car()?);
     let (signature, body) = list.cdr()?.decons().map_err(|_| ErrorKind::ArgumentError)?;
 
     let body = body.map_list(|e| expand(&e, env, state))?;
