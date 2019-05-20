@@ -5,7 +5,6 @@ use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
-use crate::lexer::Lexer;
 use crate::parser::read;
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
