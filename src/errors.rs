@@ -27,7 +27,7 @@ mod errors_impl {
 
         errors {
             GenericError(msg: String) {
-                display("Error: {}", msg)
+                display("{}", msg)
             }
 
             ArgumentError

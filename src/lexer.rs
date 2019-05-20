@@ -9,6 +9,7 @@ pub enum Token {
     Symbol(String),
     Quote,
     Dot,
+    Char(char),
     EOF,
 }
 
@@ -44,6 +45,7 @@ impl From<Token> for String {
             Token::EOF => "<EOF>".to_string(),
             Token::String(s) => format!("{:?}", s),
             Token::Symbol(s) => s,
+            Token::Char(ch) => ch.to_string(),
         }
     }
 }
@@ -205,8 +207,7 @@ impl Lexer {
         let end_idx = loop {
             match chars.peek() {
                 None => break last_idx + 1,
-                Some(&(idx, ch)) if ch.is_whitespace() => break idx,
-                Some(&(idx, ch)) if is_special_char(ch) => break idx,
+                Some(&(idx, ch)) if is_delimiter(ch) => break idx,
                 Some(&(idx, _)) => {
                     last_idx = idx;
                     buf.push(chars.next().unwrap().1);
@@ -232,12 +233,56 @@ impl Lexer {
                 self.comment_level += 1;
                 Ok(None)
             }
+            Some((_, '\\')) => self.read_char(start_idx, chars),
             Some((end_idx, ch)) => Ok(Some(PositionalToken {
                 start_idx,
                 end_idx,
                 token: Token::Symbol(format!("#{}", ch)),
             })),
         }
+    }
+
+    fn read_char(
+        &mut self,
+        start_idx: usize,
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
+        let mut buf = String::new();
+        let mut last_idx = start_idx;
+        let end_idx = loop {
+            match chars.peek() {
+                None => break last_idx + 1,
+                Some(&(idx, ch)) if is_delimiter(ch) => break idx,
+                Some(&(idx, _)) => {
+                    last_idx = idx;
+                    buf.push(chars.next().unwrap().1);
+                }
+            }
+        };
+
+        let chr = match buf.as_str() {
+            "" => ' ',
+            _ if buf.chars().count() == 1 => buf.chars().next().unwrap(),
+            // named characters required by R7RS
+            "alarm" => '\u{0007}',
+            "backspace" => '\u{0008}',
+            "delete" => '\u{007F}',
+            "escape" => '\u{001B}',
+            "newline" => '\u{000A}',
+            "null" => '\u{0000}',
+            "return" => '\u{000D}',
+            "space" => ' ',
+            "tab" => '\u{0009}',
+            _ => Err(ErrorKind::GenericError(
+                "Not implemented: parsing character from hex code".to_string(),
+            ))?,
+        };
+
+        Ok(Some(PositionalToken {
+            start_idx,
+            end_idx,
+            token: Token::Char(chr),
+        }))
     }
 
     fn read_block_comment(
@@ -273,4 +318,8 @@ fn is_special_char(ch: char) -> bool {
         '(' | ')' => true,
         _ => false,
     }
+}
+
+fn is_delimiter(ch: char) -> bool {
+    ch.is_whitespace() || is_special_char(ch)
 }
