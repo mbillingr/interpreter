@@ -691,6 +691,12 @@ impl From<bool> for Expression {
     }
 }
 
+impl From<Vec<Expression>> for Expression {
+    fn from(vec: Vec<Expression>) -> Self {
+        Expression::from_vec(vec)
+    }
+}
+
 impl FromIterator<Expression> for Expression {
     fn from_iter<I: IntoIterator<Item = Expression>>(iter: I) -> Self {
         let mut result = Expression::Nil;
