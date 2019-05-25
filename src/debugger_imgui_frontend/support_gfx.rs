@@ -12,9 +12,7 @@ pub fn run<F: FnMut(&Ui) -> bool>(
     clear_color: [f32; 4],
     mut run_ui: F,
 ) {
-    use gfx::{self, Device};
-    use gfx_window_glutin;
-    use glutin;
+    use gfx::Device;
 
     type ColorFormat = gfx::format::Rgba8;
     type DepthFormat = gfx::format::DepthStencil;
