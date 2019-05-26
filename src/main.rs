@@ -1,5 +1,5 @@
-#[macro_use]
-extern crate error_chain;
+#![recursion_limit = "128"]
+
 #[macro_use]
 mod scheme;
 
@@ -31,7 +31,6 @@ use crate::libraries::import_library;
 use crate::parser::parse_file;
 use crate::syntax::expand;
 use environment::EnvRef;
-use error_chain::ChainedError;
 use errors::*;
 use expression::Expression;
 use interpreter::eval;
@@ -126,16 +125,17 @@ fn main() {
         input.set_prompt(LINE_PROMPT);
         match repl(&mut input, &global) {
             Ok(_) => {}
-            Err(Error(ErrorKind::ReadlineError(rustyline::error::ReadlineError::Eof), _)) => {
-                println!("EOF");
-                break;
+            Err(e) => {
+                if let ErrorKind::ReadlineError(rustyline::error::ReadlineError::Eof) = e.kind() {
+                    println!("EOF");
+                    break;
+                }
+                report_error(e)
             }
-            Err(e) => report_error(e),
         }
     }
 }
 
 fn report_error(e: Error) {
     eprintln!("{}", e);
-    eprintln!("{}", e.display_chain().to_string());
 }

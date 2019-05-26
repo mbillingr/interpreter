@@ -200,9 +200,10 @@ impl Lexer {
         chars: &mut Peekable<impl Iterator<Item = CharI>>,
     ) -> Result<Option<PositionalToken>> {
         let mut buf = String::new();
-        let (start_idx, _) = *chars
-            .peek()
-            .ok_or_else(|| ErrorKind::UnexpectedToken("<EOF>".into(), "<identifier>".into()))?;
+        let (start_idx, _) = *chars.peek().ok_or_else(|| ErrorKind::UnexpectedToken {
+            found: "<EOF>".into(),
+            expected: "<identifier>".into(),
+        })?;
         let mut last_idx = start_idx;
         let end_idx = loop {
             match chars.peek() {

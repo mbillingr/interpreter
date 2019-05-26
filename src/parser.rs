@@ -89,7 +89,11 @@ fn parse_expression(input: &mut impl ParserInput) -> Result<Expression> {
         Token::Symbol(s) => Ok(Expression::from_literal(s)),
         Token::Quote => Ok(scheme!(quote, @parse_expression(input)?)),
         Token::Char(ch) => Ok(Expression::Char(ch)),
-        t => Err(ErrorKind::UnexpectedToken(t.into(), "<expression>".into()).into()),
+        t => Err(ErrorKind::UnexpectedToken {
+            found: t.into(),
+            expected: "<expression>".into(),
+        }
+        .into()),
     }
 }
 
@@ -98,7 +102,11 @@ fn expect_token(token: Token, input: &mut impl ParserInput) -> Result<Positional
     if t.token == token {
         Ok(t)
     } else {
-        Err(ErrorKind::UnexpectedToken(t.into(), token.into()).into())
+        Err(ErrorKind::UnexpectedToken {
+            found: t.into(),
+            expected: token.into(),
+        }
+        .into())
     }
 }
 

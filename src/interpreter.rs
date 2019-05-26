@@ -56,7 +56,7 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                 Return::Value(env
                     .borrow()
                     .lookup(&s)
-                    .ok_or_else(|| ErrorKind::Undefined(*s))?)
+                    .ok_or_else(|| ErrorKind::Unbound(*s))?)
             }
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
             | Procedure(_) | Macro(_) | Special(_)/*| Error(_)*/ => {
@@ -206,7 +206,7 @@ fn set_var(list: &Expression, env: &EnvRef) -> Result<Return> {
 
     env.borrow_mut()
         .set_value(symbol, value)
-        .ok_or_else(|| ErrorKind::Undefined(*symbol))?;
+        .ok_or_else(|| ErrorKind::Unbound(*symbol))?;
     Ok(Return::Value(Expression::Undefined))
 }
 

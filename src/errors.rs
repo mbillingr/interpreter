@@ -1,5 +1,6 @@
 use crate::expression::Expression;
-pub use errors_impl::*;
+use crate::symbol::Symbol;
+use rustyline::error::ReadlineError;
 
 pub trait IntoResultExpression {
     fn into_result(self) -> Result<Expression>;
@@ -17,6 +18,81 @@ impl IntoResultExpression for Result<Expression> {
     }
 }
 
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    ArgumentError,
+    FileNotFoundError(String),
+    GenericError(String),
+    TypeError(String),
+    Unbound(Symbol),
+    UndefinedExport(Symbol),
+    UndelimitedString,
+    UnexpectedEof,
+    UnexpectedToken { found: String, expected: String },
+
+    IoError(std::io::Error),
+    ReadlineError(ReadlineError),
+}
+
+// here we can add some context to the error
+#[derive(Debug)]
+pub struct Error {
+    kind: ErrorKind,
+}
+
+impl Error {
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unimplemented!()
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Error { kind }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(ioe: std::io::Error) -> Self {
+        Error {
+            kind: ErrorKind::IoError(ioe),
+        }
+    }
+}
+
+impl From<ReadlineError> for Error {
+    fn from(rle: ReadlineError) -> Self {
+        Error {
+            kind: ErrorKind::ReadlineError(rle),
+        }
+    }
+}
+
+impl From<String> for Error {
+    fn from(msg: String) -> Self {
+        Error {
+            kind: ErrorKind::GenericError(msg),
+        }
+    }
+}
+
+impl From<&str> for Error {
+    fn from(msg: &str) -> Self {
+        msg.to_string().into()
+    }
+}
+
+/*pub use errors_impl::*;
+
+
 #[allow(deprecated)]
 mod errors_impl {
     use crate::symbol::Symbol;
@@ -30,7 +106,15 @@ mod errors_impl {
                 display("{}", msg)
             }
 
-            ArgumentError
+            /*ArgumentError(proc: String, args: Vec<String>) {
+                display("Argument Error: {} {:?}", proc, args)
+            }*/
+
+            TooManyArguments
+
+            MissingArguments(msg: String) {
+                display("Missing Arguments: {}", msg)
+            }
 
             TypeError(msg: String) {
                 display("Error: {}", msg)
@@ -70,3 +154,4 @@ mod errors_impl {
     }
 
 }
+*/
