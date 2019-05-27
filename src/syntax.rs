@@ -17,8 +17,11 @@ impl State {
     }
 }
 
-// convert some syntactic forms, expand macros, check errors, ... (mostly to-do)
 pub fn expand(expr: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
+    inner_expand(expr, env, state).map_err(|e| e.with_context(expr.clone()))
+}
+
+pub fn inner_expand(expr: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     use Expression::*;
     match expr {
         Pair(pair) => {
