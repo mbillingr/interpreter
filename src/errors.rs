@@ -88,11 +88,7 @@ impl std::fmt::Display for Error {
             writeln!(f, "Context:")?;
         }
         for x in self.context.iter().rev() {
-            let mut sr = x.short_repr();
-            if sr.len() > 75 {
-                sr = sr[..70].to_string() + " ...";
-            }
-            writeln!(f, "    {}", sr)?;
+            writeln!(f, "    {}", x.short_repr())?;
         }
         writeln!(f, "{}", self.kind)?;
         Ok(())
