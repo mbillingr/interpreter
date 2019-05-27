@@ -451,6 +451,14 @@ pub fn default_env() -> EnvRef {
             Ok(string[start..end].into())
         });
 
+        env.insert_native("string-append", |args| {
+            let mut result = String::new();
+            for s in args.iter_list() {
+                result += s?.try_into()?;
+            }
+            Ok(result.into())
+        });
+
         // misc
 
         env.insert_native("runtime", |_| {

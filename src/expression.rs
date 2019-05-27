@@ -739,7 +739,7 @@ impl std::convert::TryFrom<&Expression> for f64 {
     fn try_from(x: &Expression) -> Result<f64> {
         match x {
             Expression::Float(f) => Ok(*f),
-            _ => Err(ErrorKind::TypeError(format!("Expected float: {:?}", x)).into()),
+            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
         }
     }
 }
