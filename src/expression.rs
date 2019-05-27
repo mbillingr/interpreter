@@ -711,6 +711,73 @@ impl FromIterator<Expression> for Expression {
     }
 }
 
+impl std::convert::TryFrom<&Expression> for Symbol {
+    type Error = crate::errors::Error;
+
+    fn try_from(x: &Expression) -> Result<Symbol> {
+        match x {
+            Expression::Symbol(s) => Ok(*s),
+            _ => Err(ErrorKind::TypeError(format!("Expected symbol: {:?}", x)).into()),
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Expression> for i64 {
+    type Error = crate::errors::Error;
+
+    fn try_from(x: &Expression) -> Result<i64> {
+        match x {
+            Expression::Integer(i) => Ok(*i),
+            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Expression> for f64 {
+    type Error = crate::errors::Error;
+
+    fn try_from(x: &Expression) -> Result<f64> {
+        match x {
+            Expression::Float(f) => Ok(*f),
+            _ => Err(ErrorKind::TypeError(format!("Expected float: {:?}", x)).into()),
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Expression> for usize {
+    type Error = crate::errors::Error;
+
+    fn try_from(x: &Expression) -> Result<usize> {
+        match x {
+            Expression::Integer(i) if *i >= 0 => Ok(*i as usize),
+            _ => Err(ErrorKind::TypeError(format!("Expected positive integer: {:?}", x)).into()),
+        }
+    }
+}
+
+impl<'a> std::convert::TryFrom<&'a Expression> for &'a str {
+    type Error = crate::errors::Error;
+
+    fn try_from(x: &'a Expression) -> Result<&'a str> {
+        match x {
+            Expression::String(s) => Ok(s),
+            _ => Err(ErrorKind::TypeError(format!("Expected string: {:?}", x)).into()),
+        }
+    }
+}
+
+impl std::convert::TryFrom<&Expression> for bool {
+    type Error = crate::errors::Error;
+
+    fn try_from(x: &Expression) -> Result<bool> {
+        match x {
+            Expression::True => Ok(true),
+            Expression::False => Ok(false),
+            _ => Err(ErrorKind::TypeError(format!("Expected boolean: {:?}", x)).into()),
+        }
+    }
+}
+
 impl std::ops::Add for Expression {
     type Output = Result<Expression>;
     fn add(self, other: Self) -> Self::Output {

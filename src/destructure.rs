@@ -1,3 +1,73 @@
+macro_rules! destructure {
+    ($x:expr => $car:ident) => {
+        $x.car()
+            .and_then(|a| convert!(a => $car))
+            .map(|a| combine!(a,))
+    };
+
+    ($x:expr => $car:ident, $($cdr:ident),*) => {
+        $x.car()
+            .and_then(|a| convert!(a => $car))
+            .and_then(|a| Ok(combine!(a, destructure!($x.cdr()? => $($cdr),*)?)))
+    };
+}
+
+macro_rules! convert {
+    ($x:expr => expr) => {{
+        let r: $crate::errors::Result<_> = Ok($x);
+        r
+    }};
+
+    ($x:expr => auto) => {
+        $x.try_into()
+    };
+}
+
+macro_rules! combine {
+    ($a:expr, $b:expr) => {
+        ($a, $b)
+    };
+    ($a:expr, ) => {
+        ($a,)
+    };
+}
+
+#[cfg(test)]
+mod test {
+    use crate::expression::Expression as X;
+    use std::convert::TryInto;
+
+    #[test]
+    fn destructure() {
+        let x = X::from_vec(vec![1.into(), 2.into(), 3.into()]);
+
+        assert_eq!((&X::Integer(1),), destructure!(x => expr).unwrap());
+        assert_eq!(
+            (&X::Integer(1), (&X::Integer(2),)),
+            destructure!(x => expr, expr).unwrap()
+        );
+        assert_eq!(
+            (&X::Integer(1), (&X::Integer(2), (&X::Integer(3),))),
+            destructure!(x => expr, expr, expr).unwrap()
+        );
+
+        assert_eq!((1_i64,), destructure!(x => auto).unwrap());
+        assert_eq!((1_i64, (2_i64,)), destructure!(x => auto, auto).unwrap());
+
+        let (a, (b, (c,))) = destructure!(x => auto, auto, auto).unwrap();
+        assert_eq!(1_i64, a);
+        assert_eq!(2_i64, b);
+        assert_eq!(3_i64, c);
+
+        let x = X::from_vec(vec![1.into(), "2".into(), true.into()]);
+
+        let (a, (b, (c,))): (i64, (&str, (bool,))) = destructure!(x => auto, auto, auto).unwrap();
+        assert_eq!(1_i64, a);
+        assert_eq!("2", b);
+        assert_eq!(true, c);
+    }
+}
+
 /*use crate::errors::*;
 use crate::expression::{Expression as X, List};
 

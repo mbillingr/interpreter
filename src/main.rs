@@ -1,6 +1,8 @@
 #![recursion_limit = "128"]
 
 #[macro_use]
+mod destructure;
+#[macro_use]
 mod scheme;
 
 #[cfg(test)]
@@ -9,7 +11,6 @@ mod tests;
 mod completer;
 mod debugger;
 mod debugger_imgui_frontend;
-mod destructure;
 mod environment;
 mod envref;
 mod errors;

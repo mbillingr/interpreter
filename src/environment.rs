@@ -13,6 +13,7 @@ use crate::syntax::{
 };
 use rand::Rng;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::ops::{Add, Div, Mul, Sub};
 use std::time::SystemTime;
 
@@ -420,6 +421,29 @@ pub fn default_env() -> EnvRef {
             } else {
                 Ok(x.atan2(car(y)?.try_as_float()?).into())
             }
+        });
+
+        // string library
+
+        env.insert_native("symbol->string", |args| {
+            let (s,): (Symbol,) = destructure!(args => auto)?;
+            Ok(s.name().into())
+        });
+
+        env.insert_native("string->symbol", |args| {
+            let (s,): (&str,) = destructure!(args => auto)?;
+            Ok(Symbol::new(s).into())
+        });
+
+        env.insert_native("string=?", |args| {
+            let (a, (b,)): (&str, (&str,)) = destructure!(args => auto, auto)?;
+            Ok((a == b).into())
+        });
+
+        env.insert_native("substring", |args| {
+            let (string, (start, (end,))): (&str, (usize, (usize,))) =
+                destructure!(args => auto, auto, auto)?;
+            Ok(string[start..end].into())
         });
 
         // misc
