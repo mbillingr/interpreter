@@ -435,6 +435,11 @@ pub fn default_env() -> EnvRef {
             Ok(Symbol::new(s).into())
         });
 
+        env.insert_native("string-length", |args| {
+            let (s,): (&str,) = destructure!(args => auto)?;
+            Ok((s.len() as i64).into())
+        });
+
         env.insert_native("string=?", |args| {
             let (a, (b,)): (&str, (&str,)) = destructure!(args => auto, auto)?;
             Ok((a == b).into())
