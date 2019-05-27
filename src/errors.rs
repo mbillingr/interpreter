@@ -84,7 +84,7 @@ impl Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.context.len() > 0 {
+        if !self.context.is_empty() {
             writeln!(f, "Context:")?;
         }
         for x in self.context.iter().rev() {

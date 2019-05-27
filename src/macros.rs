@@ -301,7 +301,7 @@ impl Template {
                     Ok(env
                         .borrow()
                         .lookup(s)
-                        .map(|x| Template::Constant(x))
+                        .map(Template::Constant)
                         .unwrap_or_else(|| Template::Identifier(*s)))
                 }
                 /*Ok(env
