@@ -61,47 +61,61 @@ impl std::fmt::Display for ErrorKind {
 #[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,
+    context: Vec<Expression>,
 }
 
 impl Error {
+    pub fn new(kind: ErrorKind) -> Self {
+        Error {
+            kind,
+            context: vec![],
+        }
+    }
+
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
+    }
+
+    pub fn with_context(mut self, expr: Expression) -> Self {
+        self.context.push(expr);
+        self
     }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.kind.fmt(f)
+        writeln!(f, "{}", self.kind)?;
+        if self.context.len() > 0 {
+            writeln!(f, "Context:")?;
+        }
+        for x in &self.context {
+            writeln!(f, "    {}", x.short_repr())?;
+        }
+        Ok(())
     }
 }
 
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {
-        Error { kind }
+        Error::new(kind)
     }
 }
 
 impl From<std::io::Error> for Error {
     fn from(ioe: std::io::Error) -> Self {
-        Error {
-            kind: ErrorKind::IoError(ioe),
-        }
+        Error::new(ErrorKind::IoError(ioe))
     }
 }
 
 impl From<ReadlineError> for Error {
     fn from(rle: ReadlineError) -> Self {
-        Error {
-            kind: ErrorKind::ReadlineError(rle),
-        }
+        Error::new(ErrorKind::ReadlineError(rle))
     }
 }
 
 impl From<String> for Error {
     fn from(msg: String) -> Self {
-        Error {
-            kind: ErrorKind::GenericError(msg),
-        }
+        Error::new(ErrorKind::GenericError(msg))
     }
 }
 

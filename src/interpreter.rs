@@ -25,7 +25,10 @@ pub fn eval(expr: &Expression, env: EnvRef) -> Result<Expression> {
     debug_hooks::enter_eval(expr, &env);
     let r = inner_eval(expr, env);
     debug_hooks::leave_eval(&r);
-    r
+    match r {
+        Ok(x) => Ok(x),
+        Err(e) => Err(e.with_context(expr.clone())),
+    }
 }
 
 pub enum Return {
@@ -146,6 +149,13 @@ pub fn prepare_apply(list: &Expression) -> Result<(Expression, Expression)> {
 }
 
 pub fn apply(proc: Expression, args: Expression, env: &EnvRef) -> Result<Return> {
+    match inner_apply(proc.clone(), args.clone(), env) {
+        Ok(r) => Ok(r),
+        Err(e) => Err(e.with_context(Expression::cons(proc, args))),
+    }
+}
+
+pub fn inner_apply(proc: Expression, args: Expression, env: &EnvRef) -> Result<Return> {
     match proc {
         Expression::Procedure(p) => {
             let e = p.new_local_env(args)?;
