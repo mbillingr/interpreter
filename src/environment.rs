@@ -430,6 +430,15 @@ pub fn default_env() -> EnvRef {
             Ok(s.name().into())
         });
 
+        env.insert_native("number->string", |args| {
+            let s = match args.car()? {
+                Expression::Integer(i) => format!("{}", i),
+                Expression::Float(f) => format!("{}", f),
+                x => Err(ErrorKind::TypeError(format!("Expected number: {:?}", x)))?,
+            };
+            Ok(s.into())
+        });
+
         env.insert_native("string->symbol", |args| {
             let (s,): (&str,) = destructure!(args => auto)?;
             Ok(Symbol::new(s).into())
