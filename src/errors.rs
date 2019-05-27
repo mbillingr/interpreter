@@ -36,6 +36,27 @@ pub enum ErrorKind {
     ReadlineError(ReadlineError),
 }
 
+impl std::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use ErrorKind::*;
+        match self {
+            ArgumentError => write!(f, "Argument Error"),
+            FileNotFoundError(file) => write!(f, "File not found: {}", file),
+            GenericError(msg) => write!(f, "{}", msg),
+            TypeError(msg) => write!(f, "Type Error: {}", msg),
+            Unbound(symbol) => write!(f, "Unbound symbol: {}", symbol),
+            UndefinedExport(symbol) => write!(f, "Unbound exported symbol: {}", symbol),
+            UndelimitedString => write!(f, "Undelimited string"),
+            UnexpectedEof => write!(f, "Undexpected end of file"),
+            UnexpectedToken { found, expected } => {
+                write!(f, "Found token '{}' but expected '{}'", found, expected)
+            }
+            IoError(e) => write!(f, "IO Error: {}", e),
+            ReadlineError(e) => write!(f, "Readline Error: {}", e),
+        }
+    }
+}
+
 // here we can add some context to the error
 #[derive(Debug)]
 pub struct Error {
@@ -50,7 +71,7 @@ impl Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        unimplemented!()
+        self.kind.fmt(f)
     }
 }
 
