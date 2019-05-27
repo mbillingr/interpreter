@@ -84,17 +84,17 @@ impl Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        writeln!(f, "{}", self.kind)?;
         if self.context.len() > 0 {
             writeln!(f, "Context:")?;
         }
-        for x in &self.context {
+        for x in self.context.iter().rev() {
             let mut sr = x.short_repr();
             if sr.len() > 75 {
                 sr = sr[..70].to_string() + " ...";
             }
             writeln!(f, "    {}", sr)?;
         }
+        writeln!(f, "{}", self.kind)?;
         Ok(())
     }
 }
