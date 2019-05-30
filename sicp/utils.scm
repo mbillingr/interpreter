@@ -8,7 +8,7 @@
           cons-stream cube
           debug-eval debug-print dec delay
           even?
-          false fixed-point force
+          false fixed-point force for-each
           gcd get get-coercion
           inc iterative-improve
           length
@@ -16,7 +16,7 @@
           nil
           power println printn put put-coercion
           stream-car stream-cdr stream-null? sqr sqrt symbol<?
-          the-empty-stream timeit trace true
+          tagged-list? the-empty-stream timeit trace true
           untrace
           xor)
 
@@ -184,6 +184,18 @@
 
     (define (length sequence)
       (accumulate (lambda (x y) (+ y 1)) 0 sequence))
+
+    (define (tagged-list? exp tag)
+      (if (pair? exp)
+          (eq? (car exp) tag)
+          false))
+
+    (define (for-each proc seq)
+      (cond ((null? seq)
+             'done)
+            (else
+              (proc (car seq))
+              (for-each proc (cdr seq)))))
 
     (define (map op . seqs)
       (if (null? (car seqs))
