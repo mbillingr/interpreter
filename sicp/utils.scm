@@ -2,7 +2,7 @@
 (define-library (sicp utils)
 
   (export <= >=
-          abs accumulate append average
+          abs accumulate append assoc average
           caar cadr cdar cddr caaar caadr caddr cadar cdadr cddar cdddr caaddr
           cadddr cddddr
           cons-stream cube
@@ -158,6 +158,10 @@
         (< (abs (- guess next)) tolerance))
       ((iterative-improve good-enough? f) first-guess))
 
+    (define (assoc key records)
+      (cond ((null? records) false)
+            ((equal? key (caar records)) (car records))
+            (else (assoc key (cdr records)))))
 
     (define (append list1 list2)
       (if (null? list1)
