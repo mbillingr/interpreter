@@ -8,7 +8,9 @@ pub enum Token {
     String(String),
     Symbol(String),
     Quote,
+    BackQuote,
     Dot,
+    Comma,
     Char(char),
     EOF,
 }
@@ -29,7 +31,9 @@ impl From<char> for Token {
             '(' => Token::ListOpen,
             ')' => Token::ListClose,
             '\'' => Token::Quote,
+            '`' => Token::BackQuote,
             '.' => Token::Dot,
+            ',' => Token::Comma,
             _ => panic!("Invalid token: {}", ch),
         }
     }
@@ -41,7 +45,9 @@ impl From<Token> for String {
             Token::ListOpen => "(".to_string(),
             Token::ListClose => ")".to_string(),
             Token::Quote => "'".to_string(),
+            Token::BackQuote => "`".to_string(),
             Token::Dot => ".".to_string(),
+            Token::Comma => ",".to_string(),
             Token::EOF => "<EOF>".to_string(),
             Token::String(s) => format!("{:?}", s),
             Token::Symbol(s) => s,
@@ -158,7 +164,7 @@ impl Lexer {
         chars: &mut Peekable<impl Iterator<Item = CharI>>,
     ) -> Result<Option<PositionalToken>> {
         match chars.peek().unwrap().1 {
-            '\'' | '.' => Ok(chars.next().map(PositionalToken::from)),
+            '\'' | '`' | '.' | ',' => Ok(chars.next().map(PositionalToken::from)),
             '(' => {
                 self.list_level += 1;
                 Ok(chars.next().map(PositionalToken::from))

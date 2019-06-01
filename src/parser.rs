@@ -91,6 +91,8 @@ fn parse_expression(input: &mut impl ParserInput) -> Result<Expression> {
         Token::String(s) => Ok(Expression::String(Ref::new(s))),
         Token::Symbol(s) => Ok(Expression::from_literal(s)),
         Token::Quote => Ok(scheme!(quote, @parse_expression(input)?)),
+        Token::BackQuote => Ok(scheme!(quasiquote, @parse_expression(input)?)),
+        Token::Comma => Ok(scheme!(unquote, @parse_expression(input)?)),
         Token::Char(ch) => Ok(Expression::Char(ch)),
         t => Err(ErrorKind::UnexpectedToken {
             found: t.into(),

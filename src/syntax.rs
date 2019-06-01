@@ -213,6 +213,23 @@ pub fn expand_or(list: &Expression, env: &EnvRef, state: &State) -> Result<Expre
     expand_cond(&scheme!(cond, ...mapped), env, state)
 }
 
+pub fn expand_quasiquote(exps: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
+    expand(&structure_to_cons(exps.cdr()?.car()?)?, env, state)
+}
+
+fn structure_to_cons(exp: &Expression) -> Result<Expression> {
+    Ok(match exp {
+        Expression::Pair(p) => {
+            if p.car == symbol::UNQUOTE {
+                p.cdr.car()?.clone()
+            } else {
+                scheme!(cons, @structure_to_cons(&p.car)?, @structure_to_cons(&p.cdr)?)
+            }
+        }
+        _ => scheme!(quote, @exp.clone()),
+    })
+}
+
 pub fn expand_setvar(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(symbol::SETVAR), list.car()?);
     Ok(cons(

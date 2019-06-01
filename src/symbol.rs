@@ -28,6 +28,7 @@ pub static INCLUDE: Symbol = Symbol { name: "include" };
 pub static LAMBDA: Symbol = Symbol { name: "lambda" };
 pub static LET: Symbol = Symbol { name: "let" };
 pub static OR: Symbol = Symbol { name: "or" };
+pub static QUASIQUOTE: Symbol = Symbol { name: "quasiquote" };
 pub static QUOTE: Symbol = Symbol { name: "quote" };
 pub static RENAME: Symbol = Symbol { name: "rename" };
 pub static SETVAR: Symbol = Symbol { name: "set!" };
@@ -35,6 +36,7 @@ pub static SYNTAX_RULES: Symbol = Symbol {
     name: "syntax-rules",
 };
 pub static UNDERSCORE: Symbol = Symbol { name: "_" };
+pub static UNQUOTE: Symbol = Symbol { name: "unquote" };
 
 pub static GREEK_LAMBDA: Symbol = Symbol { name: "\u{03BB}" };
 
@@ -96,11 +98,13 @@ impl Symbol {
             n if n == LAMBDA.name() => LAMBDA,
             n if n == LET.name() => LET,
             n if n == OR.name() => OR,
+            n if n == QUASIQUOTE.name() => QUASIQUOTE,
             n if n == QUOTE.name() => QUOTE,
             n if n == RENAME.name() => RENAME,
             n if n == SETVAR.name() => SETVAR,
             n if n == SYNTAX_RULES.name() => SYNTAX_RULES,
             n if n == UNDERSCORE.name() => UNDERSCORE,
+            n if n == UNQUOTE.name() => UNQUOTE,
             n if n == GREEK_LAMBDA.name() => GREEK_LAMBDA,
             _ => Symbol {
                 name: static_name(name),
