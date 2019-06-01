@@ -5,7 +5,8 @@ use crate::errors::*;
 use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
-use crate::parser::read;
+use crate::lexer::Lexer;
+use crate::parser::read_lex;
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
     car_to_special, expand_and, expand_begin, expand_cond, expand_define, expand_if,
@@ -288,8 +289,18 @@ pub fn default_env() -> EnvRef {
         );
 
         env.insert_native("read", |_| {
-            let line = ReplInput::new("").read_line()?;
-            read(line).map(Return::Value)
+            let mut input = ReplInput::new("");
+            let mut source = String::new();
+            loop {
+                source.push_str(&input.read_line()?);
+
+                let mut lexer = Lexer::new();
+                lexer.tokenize(&source)?;
+
+                if lexer.is_balanced() {
+                    return read_lex(&mut lexer).map(Into::into);
+                }
+            }
         });
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));

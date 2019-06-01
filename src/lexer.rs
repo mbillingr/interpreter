@@ -95,6 +95,7 @@ pub struct Lexer {
     comment_level: usize,
     token_stream: Vec<PositionalToken>,
     list_level: isize,
+    source: String,
 }
 
 impl Lexer {
@@ -103,11 +104,16 @@ impl Lexer {
             comment_level: 0,
             list_level: 0,
             token_stream: vec![],
+            source: String::new(),
         }
     }
 
     pub fn is_balanced(&self) -> bool {
         self.list_level <= 0
+    }
+
+    pub fn source(&self) -> &str {
+        &self.source
     }
 
     pub fn take(&mut self) -> Vec<PositionalToken> {
@@ -130,6 +136,7 @@ impl Lexer {
                 self.token_stream.extend(token);
             }
         }
+        self.source.push_str(input);
         Ok(self)
     }
 

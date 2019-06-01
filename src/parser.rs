@@ -66,13 +66,16 @@ pub fn parse(
     Ok(output)
 }
 
-pub fn read(src: String) -> Result<Expression> {
+/*pub fn read_str(src: String) -> Result<Expression> {
     let mut lexer = Lexer::new();
     lexer.tokenize(&src)?;
+    read_lex(&mut lexer)
+}*/
 
+pub fn read_lex(lexer: &mut Lexer) -> Result<Expression> {
     let mut input = SourceIter {
         iter: lexer.take().into_iter().peekable(),
-        src: src.into(),
+        src: lexer.source().to_owned().into(),
     };
 
     parse_expression(&mut input)
