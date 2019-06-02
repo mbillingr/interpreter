@@ -15,6 +15,7 @@
           map map1 memo-proc memq modulo
           nil
           power println printn put put-coercion
+          reverse
           stream-car stream-cdr stream-null? sqr sqrt symbol<?
           tagged-list? the-empty-stream timeit trace true
           untrace
@@ -157,6 +158,14 @@
       (define (good-enough? guess next)
         (< (abs (- guess next)) tolerance))
       ((iterative-improve good-enough? f) first-guess))
+
+    (define (reverse seq)
+      (define (iter in out)
+        (if (null? in)
+            out
+            (iter (cdr in)
+                  (cons (car in) out))))
+      (iter seq '()))
 
     (define (assoc key records)
       (cond ((null? records) false)
