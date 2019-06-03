@@ -10,6 +10,7 @@ mod tests;
 
 mod completer;
 mod debugger;
+#[cfg(feature = "debugging")]
 mod debugger_imgui_frontend;
 mod environment;
 mod envref;

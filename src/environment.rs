@@ -1,4 +1,6 @@
+#[cfg(feature = "debugging")]
 use crate::debugger::Debugger;
+#[cfg(feature = "debugging")]
 use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
@@ -528,6 +530,7 @@ pub fn default_env() -> EnvRef {
             a => Err(ErrorKind::TypeError(format!("not a procedure: {:?}", a)))?,
         });
 
+        #[cfg(feature = "debugging")]
         env.insert(
             "debug",
             Expression::NativeIntrusive(|args, env| {
