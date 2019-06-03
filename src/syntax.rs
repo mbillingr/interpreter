@@ -239,7 +239,7 @@ pub fn expand_setvar(list: &Expression, env: &EnvRef, state: &State) -> Result<E
 }
 
 /// super primitive implementation that does not attempt any search path and file extension magic.
-fn find_file(path: impl AsRef<Path>, state: &State) -> Option<PathBuf> {
+pub fn find_file(path: impl AsRef<Path>, state: &State) -> Option<PathBuf> {
     let path = path.as_ref();
     let mut candidates = vec![];
 

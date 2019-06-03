@@ -6,7 +6,7 @@ use crate::expression::{Args, Expression, NativeFn, Procedure};
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
-use crate::parser::read_lex;
+use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
     car_to_special, expand_and, expand_begin, expand_cond, expand_define, expand_if,
@@ -305,6 +305,11 @@ pub fn default_env() -> EnvRef {
                     return read_lex(&mut lexer).map(Into::into);
                 }
             }
+        });
+
+        env.insert_native("file-read", |args| {
+            let (filename,): (&str,) = destructure!(args => auto)?;
+            parse_file(filename).map(Into::into)
         });
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
