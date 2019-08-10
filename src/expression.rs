@@ -425,7 +425,10 @@ impl Expression {
             (Integer(a), Integer(b)) => a == b,
             (Float(a), Float(b)) => float_eq(*a, *b),
             (String(a), String(b)) => Ref::ptr_eq(a, b),
-            (Symbol(a), Symbol(b)) => a == b,
+            (Symbol(a), Symbol(b))
+            | (Symbol(a), Special(b))
+            | (Special(a), Symbol(b))
+            | (Special(a), Special(b)) => a == b,
             (Char(a), Char(b)) => a == b,
             (True, True) => true,
             (False, False) => true,
@@ -443,7 +446,10 @@ impl Expression {
             (Integer(a), Integer(b)) => a == b,
             (Float(a), Float(b)) => float_eq(*a, *b),
             (String(a), String(b)) => a == b,
-            (Symbol(a), Symbol(b)) => a == b,
+            (Symbol(a), Symbol(b))
+            | (Symbol(a), Special(b))
+            | (Special(a), Symbol(b))
+            | (Special(a), Special(b)) => a == b,
             (Char(a), Char(b)) => a == b,
             (True, True) => true,
             (False, False) => true,
