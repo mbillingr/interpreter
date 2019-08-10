@@ -1,10 +1,7 @@
-
 pub use dbg_impl::*;
 
 #[cfg(not(feature = "debugging"))]
-mod dbg_impl {
-
-}
+mod dbg_impl {}
 
 #[cfg(feature = "debugging")]
 mod dbg_impl {

@@ -11,7 +11,7 @@ use crate::lexer::Lexer;
 use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
-    car_to_special, expand_and, expand_begin, expand_cond, expand_define, expand_if,
+    car_to_special, expand_and, expand_begin, expand_case, expand_cond, expand_define, expand_if,
     expand_include, expand_lambda, expand_let, expand_or, expand_quasiquote, expand_setvar,
 };
 use rand::Rng;
@@ -252,6 +252,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert("and", Expression::NativeMacro(expand_and));
         env.insert("begin", Expression::NativeMacro(expand_begin));
+        env.insert("case", Expression::NativeMacro(expand_case));
         env.insert("cond", Expression::NativeMacro(expand_cond));
         env.insert("define", Expression::NativeMacro(expand_define));
         env.insert(

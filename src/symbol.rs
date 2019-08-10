@@ -8,6 +8,7 @@ use std::sync::Mutex;
 pub static AND: Symbol = Symbol { name: "and" };
 pub static APPLY: Symbol = Symbol { name: "apply" };
 pub static BEGIN: Symbol = Symbol { name: "begin" };
+pub static CASE: Symbol = Symbol { name: "case" };
 pub static COND: Symbol = Symbol { name: "cond" };
 pub static COND_APPLY: Symbol = Symbol { name: "=>" };
 pub static DEFINE: Symbol = Symbol { name: "define" };
@@ -21,6 +22,7 @@ pub static DOT: Symbol = Symbol { name: "." };
 pub static ELLIPSIS: Symbol = Symbol { name: "..." };
 pub static ELSE: Symbol = Symbol { name: "else" };
 pub static EVAL: Symbol = Symbol { name: "eval" };
+pub static IS_EQV: Symbol = Symbol { name: "eqv?" };
 pub static EXPORT: Symbol = Symbol { name: "export" };
 pub static IF: Symbol = Symbol { name: "if" };
 pub static IMPORT: Symbol = Symbol { name: "import" };
@@ -82,6 +84,7 @@ impl Symbol {
             n if n == AND.name() => AND,
             n if n == APPLY.name() => APPLY,
             n if n == BEGIN.name() => BEGIN,
+            n if n == CASE.name() => CASE,
             n if n == COND.name() => COND,
             n if n == COND_APPLY.name() => COND_APPLY,
             n if n == DEFINE.name() => DEFINE,
@@ -91,6 +94,7 @@ impl Symbol {
             n if n == ELLIPSIS.name() => ELLIPSIS,
             n if n == ELSE.name() => ELSE,
             n if n == EVAL.name() => EVAL,
+            n if n == IS_EQV.name() => IS_EQV,
             n if n == EXPORT.name() => EXPORT,
             n if n == IF.name() => IF,
             n if n == IMPORT.name() => IMPORT,

@@ -77,6 +77,34 @@ pub fn expand_begin(list: &Expression, env: &EnvRef, state: &State) -> Result<Ex
     Ok(cons(Expression::Special(symbol::BEGIN), body))
 }
 
+pub fn expand_case(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
+    let mut list = list.iter_list();
+
+    assert_eq!(Some(&scheme!(case)), list.next_expr()?);
+    let key = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?.clone();
+
+    let clauses: Vec<&Expression> = list.collect::<Result<_>>()?;
+
+    let mut body = Expression::Undefined;
+
+    for clause in clauses.into_iter().rev() {
+        let data = clause.car()?.clone();
+        let exprs = clause.cdr()?.clone();
+
+        if let Ok(&s) = data.try_as_symbol() {
+            if s == symbol::ELSE {
+                body = scheme!(begin, ...exprs);
+                continue;
+            }
+        }
+        let conds = data.map_list(|d| Ok(scheme!(@{symbol::IS_EQV}, x, @d.clone())))?;
+        body = scheme!(if, (or, ...conds), (begin, ...exprs), @body);
+    }
+
+    let body = scheme!(let, ((x, @key)), @body);
+    expand_let(&body, env, state)
+}
+
 pub fn expand_cond(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
