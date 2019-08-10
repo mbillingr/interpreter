@@ -192,11 +192,10 @@ impl Lexer {
                 match chars.next() {
                     None => break,
                     Some((_, 'n')) => ch = '\n',
+                    Some((_, '"')) => ch = '"',
                     _ => return Err("Illegal character in escape sequence")?,
                 }
-            }
-
-            if ch == delimiter {
+            } else if ch == delimiter {
                 return Ok(Some(PositionalToken {
                     start_idx,
                     end_idx: idx,
