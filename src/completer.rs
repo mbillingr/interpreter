@@ -1,6 +1,6 @@
 use crate::environment::EnvWeak;
 use crate::lexer::{Lexer, Token};
-use rustyline::{self, completion::Completer, highlight::Highlighter, hint::Hinter, Helper};
+use rustyline::{self, completion::Completer, highlight::Highlighter, hint::Hinter, Helper, Context};
 
 pub struct EnvHelper(EnvWeak);
 
@@ -13,7 +13,7 @@ impl EnvHelper {
 impl Helper for EnvHelper {}
 
 impl Hinter for EnvHelper {
-    fn hint(&self, _line: &str, _pos: usize) -> Option<String> {
+    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context) -> Option<String> {
         None
     }
 }
@@ -21,7 +21,7 @@ impl Hinter for EnvHelper {
 impl Completer for EnvHelper {
     type Candidate = String;
 
-    fn complete(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+    fn complete(&self, line: &str, pos: usize, _ctx: &Context) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
         if let Some(rc_env) = self.0.upgrade() {
             let mut lexer = Lexer::new();
             let tokens = match lexer.tokenize(line) {
