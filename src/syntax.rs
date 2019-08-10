@@ -97,7 +97,7 @@ pub fn expand_case(list: &Expression, env: &EnvRef, state: &State) -> Result<Exp
                 continue;
             }
         }
-        let conds = data.map_list(|d| Ok(scheme!(@{symbol::IS_EQV}, x, @d.clone())))?;
+        let conds = data.map_list(|d| Ok(scheme!(@{symbol::IS_EQV}, x, (quote, @d.clone()))))?;
         body = scheme!(if, (or, ...conds), (begin, ...exprs), @body);
     }
 
