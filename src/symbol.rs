@@ -116,6 +116,13 @@ impl Symbol {
         }
     }
 
+    pub fn new_uninterned<T: AsRef<str> + ToString>(name: T) -> Self {
+        let string_data = Box::new(name.to_string());
+        Symbol {
+            name: Box::leak(string_data),
+        }
+    }
+
     pub fn name(&self) -> &'static str {
         self.name
     }

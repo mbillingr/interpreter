@@ -18,7 +18,10 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ops::{Add, Div, Mul, Sub};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
+
+static SYMBOL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Clone)]
 pub enum Entry {
@@ -318,6 +321,15 @@ pub fn default_env() -> EnvRef {
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));
         env.insert_native("eqv?", |args| native_binary(args, Expression::eqv));
         env.insert_native("equal?", |args| native_binary(args, Expression::equal));
+
+        env.insert_native("gensym", |args| {
+            let base = args
+                .car()
+                .map(|x| format!("{}", x))
+                .unwrap_or("sym".to_string());
+            let name = format!("{}{}", base, SYMBOL_COUNTER.fetch_add(1, Ordering::Relaxed));
+            Ok(Symbol::new_uninterned(name).into())
+        });
 
         // types
 
