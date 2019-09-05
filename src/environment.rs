@@ -12,7 +12,8 @@ use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
     car_to_special, expand_and, expand_begin, expand_case, expand_cond, expand_define, expand_if,
-    expand_include, expand_lambda, expand_let, expand_or, expand_quasiquote, expand_setvar,
+    expand_include, expand_lambda, expand_let, expand_lets, expand_or, expand_quasiquote,
+    expand_setvar,
 };
 use rand::Rng;
 use std::collections::HashMap;
@@ -270,6 +271,7 @@ pub fn default_env() -> EnvRef {
         env.insert("include", Expression::NativeMacro(expand_include));
         env.insert("lambda", Expression::NativeMacro(expand_lambda));
         env.insert("let", Expression::NativeMacro(expand_let));
+        env.insert("let*", Expression::NativeMacro(expand_lets));
         env.insert("or", Expression::NativeMacro(expand_or));
         env.insert(
             symbol::QUOTE.name(),

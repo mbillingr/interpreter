@@ -233,6 +233,33 @@ pub fn expand_let(list: &Expression, env: &EnvRef, state: &State) -> Result<Expr
     expand(&exps, env, state)
 }
 
+pub fn expand_lets(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
+    let mut list = list.iter_list();
+
+    list.next_expr()?;
+
+    //assert_eq!(Some(&scheme!(let)), list.next_expr()?);
+
+    // need to get the tail first, because next_expr() advances the iterator into the tail
+    let body = list.tail()?;
+    let assignments = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
+
+    expand_let(&build_let_nest(assignments, body)?, env, state)
+}
+
+fn build_let_nest(assignments: &Expression, body: &Expression) -> Result<Expression> {
+    if assignments.is_nil() {
+        Ok(body.clone())
+    } else {
+        let (first, rest) = assignments.decons()?;
+        if rest.is_nil() {
+            Ok(scheme!(let, (@first.clone()), ...body.clone()))
+        } else {
+            Ok(scheme!(let, (@first.clone()), build_let_nest(rest, body)?))
+        }
+    }
+}
+
 pub fn expand_or(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let (cmd, args) = list.decons()?;
     assert_eq!(&scheme!(or), cmd);
