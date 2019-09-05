@@ -357,6 +357,9 @@ pub fn default_env() -> EnvRef {
         env.insert_native("symbol?", |args| {
             car(&args).map(Expression::is_symbol).map(Into::into)
         });
+        env.insert_native("vector?", |args| {
+            car(&args).map(Expression::is_vector).map(Into::into)
+        });
 
         // simple i/o
 
@@ -501,6 +504,53 @@ pub fn default_env() -> EnvRef {
                 result += s?.try_into()?;
             }
             Ok(result.into())
+        });
+
+        // vectors
+
+        env.insert_native("make-vector", |args| {
+            let (n,): (usize,) = destructure!(args => auto)?;
+            Ok(Expression::vector(n).into())
+        });
+
+        env.insert_native("vector-ref", |args| {
+            let (v, (i,)): (Expression, (usize,)) = destructure!(args => auto, auto)?;
+
+            if let Some(vs) = v.try_as_vector() {
+                if i >= vs.len() {
+                    Err(ErrorKind::GenericError(format!(
+                        "Index out of bounds {} >= {}",
+                        i,
+                        vs.len()
+                    ))
+                    .into())
+                } else {
+                    Ok(vs[i].clone().into())
+                }
+            } else {
+                Err(ErrorKind::TypeError(format!("not a vector {:?}", v)).into())
+            }
+        });
+
+        env.insert_native("vector-set!", |args| {
+            let (v, (i, (x,))): (Expression, (usize, (Expression,))) =
+                destructure!(args => auto, auto, auto)?;
+
+            if let Some(vs) = v.try_as_vector_mut() {
+                if i >= vs.len() {
+                    Err(ErrorKind::GenericError(format!(
+                        "Index out of bounds {} >= {}",
+                        i,
+                        vs.len()
+                    ))
+                    .into())
+                } else {
+                    vs[i] = x;
+                    Ok(Expression::Undefined.into())
+                }
+            } else {
+                Err(ErrorKind::TypeError(format!("not a vector {:?}", v)).into())
+            }
         });
 
         // misc

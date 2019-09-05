@@ -80,6 +80,7 @@ pub enum Expression {
     NativeMacro(MacroFn),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
+    Vector(Ref<Vec<Expression>>),
     //Error(Ref<List>),
 }
 
@@ -116,6 +117,10 @@ impl Expression {
             list = Expression::cons(x, list);
         }
         list
+    }
+
+    pub fn vector(size: usize) -> Self {
+        Expression::Vector(Ref::new(vec![Expression::Undefined; size]))
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
@@ -354,6 +359,31 @@ impl Expression {
         }
     }
 
+    pub fn is_vector(&self) -> bool {
+        match self {
+            Expression::Vector(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn try_as_vector(&self) -> Option<&[Self]> {
+        match self {
+            Expression::Vector(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_as_vector_mut(&self) -> Option<&mut [Self]> {
+        match self {
+            Expression::Vector(v) => unsafe {
+                // mutating shared data is unsafe in Rust but expected behavior in Scheme.
+                let v = &mut *(&**v as *const _ as *mut Vec<_>);
+                Some(v.as_mut_slice())
+            },
+            _ => None,
+        }
+    }
+
     /*pub fn try_as_integer(&self) -> Result<i64> {
         match self {
             Expression::Integer(i) => Ok(*i),
@@ -551,6 +581,10 @@ impl Expression {
             Expression::Macro(_) => "<syntax>".into(),
             Expression::NativeMacro(_) => "<native syntax>".into(),
             Expression::Native(_) | Expression::NativeIntrusive(_) => "<primitive>".into(),
+            Expression::Vector(v) => {
+                let items: String = v.iter().map(|x| x.short_repr()).collect();
+                format!("[{}]", items)
+            }
             //Expression::Error(_) => "<ERROR>".into(),
         }
     }
@@ -599,6 +633,7 @@ impl std::fmt::Debug for Expression {
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::NativeMacro(_) => write!(f, "<native macro>"),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
+            Expression::Vector(v) => write!(f, "{:?}", v),
             /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
@@ -646,13 +681,22 @@ impl std::fmt::Display for Expression {
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::NativeMacro(_) => write!(f, "<native macro>"),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
-            /*Expression::Error(l) => {
-                let tmp: Vec<_> = l
-                    .iter_list()
-                    .map(|item| format!("{}", item.unwrap()))
-                    .collect();
-                write!(f, "ERROR: {}", tmp.join(" "))
-            }*/
+            Expression::Vector(v) => {
+                write!(f, "[")?;
+                if !v.is_empty() {
+                    write!(f, "{}", v[0])?;
+                    for x in &v[1..] {
+                        write!(f, " {}", x)?;
+                    }
+                }
+                write!(f, "]")
+            } /*Expression::Error(l) => {
+                  let tmp: Vec<_> = l
+                      .iter_list()
+                      .map(|item| format!("{}", item.unwrap()))
+                      .collect();
+                  write!(f, "ERROR: {}", tmp.join(" "))
+              }*/
         }
     }
 }
@@ -781,6 +825,14 @@ impl std::convert::TryFrom<&Expression> for bool {
             Expression::False => Ok(false),
             _ => Err(ErrorKind::TypeError(format!("Expected boolean: {:?}", x)).into()),
         }
+    }
+}
+
+impl std::convert::TryFrom<&Expression> for Expression {
+    type Error = crate::errors::Error;
+
+    fn try_from(expr: &Expression) -> Result<Self> {
+        Ok(expr.clone())
     }
 }
 
