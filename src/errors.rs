@@ -93,7 +93,7 @@ impl std::fmt::Display for Error {
             if l < 120 {
                 writeln!(f, "    {}", s)?;
             } else {
-                writeln!(f, "    {} [...] {}", &s[..60], &s[l-60..])?;
+                writeln!(f, "    {} [...] {}", &s[..60], &s[l - 60..])?;
             }
         }
         writeln!(f, "{}", self.kind)?;

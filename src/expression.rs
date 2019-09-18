@@ -48,7 +48,7 @@ impl Pair {
     pub fn get_source(&self) -> Option<SourceView> {
         None
     }
-    pub fn set_source(&mut self, src: Option<SourceView>) {}
+    pub fn set_source(&mut self, _src: Option<SourceView>) {}
 }
 
 #[cfg(feature = "source-tracking")]
@@ -584,8 +584,7 @@ impl Expression {
             Expression::Vector(v) => {
                 let items: String = v.iter().map(|x| x.short_repr()).collect();
                 format!("[{}]", items)
-            }
-            //Expression::Error(_) => "<ERROR>".into(),
+            } //Expression::Error(_) => "<ERROR>".into(),
         }
     }
 }

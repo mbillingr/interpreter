@@ -10,10 +10,10 @@ use std::borrow::Cow;
 #[cfg(not(feature = "debugging"))]
 mod debug_hooks {
     use super::*;
-    pub fn enter_eval(expr: &Expression, env: &EnvRef) {}
-    pub fn leave_eval(res: &Result<Expression>) {}
-    pub fn predispatch(expr: &Expression, env: &EnvRef) {}
-    pub fn function_call(proc: &Expression, args: &Expression, expr: &Expression) {}
+    pub fn enter_eval(_expr: &Expression, _env: &EnvRef) {}
+    pub fn leave_eval(_res: &Result<Expression>) {}
+    pub fn predispatch(_expr: &Expression, _env: &EnvRef) {}
+    pub fn function_call(_proc: &Expression, _args: &Expression, _expr: &Expression) {}
 }
 
 #[cfg(feature = "debugging")]

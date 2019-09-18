@@ -16,6 +16,7 @@ mod environment;
 mod envref;
 mod errors;
 mod expression;
+#[cfg(feature = "debugging")]
 mod global_thread_state;
 mod interpreter;
 mod io;
