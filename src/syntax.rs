@@ -27,14 +27,16 @@ pub fn inner_expand(expr: &Expression, env: &EnvRef, state: &State) -> Result<Ex
         Pair(pair) => {
             let src = pair.get_source();
             let car = &pair.car;
-            if let Symbol(s) = car {
-                match env.borrow().lookup(s) {
+            match car {
+                Symbol(s) => match env.borrow().lookup(s) {
                     Some(Expression::Macro(m)) => {
-                        return m.expand(expr, env, state).map(|x| x.sourced(src))
+                        let expanded_macro = m.expand(expr, env, state).map(|x| x.sourced(src))?;
+                        return expand(&expanded_macro, env, state);
                     }
                     Some(Expression::NativeMacro(m)) => return m(expr, env, state),
                     _ => {}
-                }
+                },
+                _ => {}
             }
             expr.map_list(|e| expand(&e, env, state))
                 .map(|x| x.sourced(src))
@@ -56,8 +58,8 @@ pub fn car_to_special(list: &Expression, s: symbol::Symbol) -> Result<Expression
 }
 
 pub fn expand_and(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    let (cmd, args) = list.decons()?;
-    assert_eq!(&scheme!(and), cmd);
+    let (_, args) = list.decons()?;
+    //assert_eq!(&scheme!(and), cmd);
 
     match args {
         Expression::Nil => Ok(Expression::True),
@@ -72,7 +74,7 @@ pub fn expand_and(list: &Expression, env: &EnvRef, state: &State) -> Result<Expr
 }
 
 pub fn expand_begin(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    assert_eq!(&scheme!(begin), list.car()?);
+    //assert_eq!(&scheme!(begin), list.car()?);
     let body = list.cdr().unwrap().map_list(|e| expand(&e, env, state))?;
     Ok(cons(Expression::Special(symbol::BEGIN), body))
 }
@@ -80,7 +82,8 @@ pub fn expand_begin(list: &Expression, env: &EnvRef, state: &State) -> Result<Ex
 pub fn expand_case(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
 
-    assert_eq!(Some(&scheme!(case)), list.next_expr()?);
+    //assert_eq!(Some(&scheme!(case)), list.next_expr()?);
+    assert!(list.next_expr()?.is_some());
     let key = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?.clone();
 
     let clauses: Vec<&Expression> = list.collect::<Result<_>>()?;
@@ -106,7 +109,7 @@ pub fn expand_case(list: &Expression, env: &EnvRef, state: &State) -> Result<Exp
 }
 
 pub fn expand_cond(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    assert_eq!(&scheme!(cond), list.car()?);
+    //assert_eq!(&scheme!(cond), list.car()?);
     let body = list.cdr()?.map_list(|row| {
         let row = match row {
             Expression::Pair(pair) => {
@@ -159,7 +162,8 @@ pub fn expand_define(list: &Expression, env: &EnvRef, state: &State) -> Result<E
 pub fn expand_if(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
 
-    assert_eq!(Some(&scheme!(if)), list.next_expr()?);
+    //assert_eq!(Some(&scheme!(if)), list.next_expr()?);
+    assert!(list.next_expr()?.is_some());
     let cond = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
     let if_ = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
     let else_ = list.next_expr()?.unwrap_or(&Expression::Undefined);
@@ -174,7 +178,8 @@ pub fn expand_if(list: &Expression, env: &EnvRef, state: &State) -> Result<Expre
 
 pub fn expand_include(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
-    assert_eq!(Some(&scheme!(include)), list.next_expr()?);
+    //assert_eq!(Some(&scheme!(include)), list.next_expr()?);
+    assert!(list.next_expr()?.is_some());
 
     let mut result = scheme!((Expression::Special(symbol::BEGIN)));
 
@@ -204,7 +209,8 @@ pub fn expand_lambda(list: &Expression, env: &EnvRef, state: &State) -> Result<E
 pub fn expand_let(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
     let mut list = list.iter_list();
 
-    assert_eq!(Some(&scheme!(let)), list.next_expr()?);
+    //assert_eq!(Some(&scheme!(let)), list.next_expr()?);
+    assert!(list.next_expr()?.is_some());
 
     // need to get the tail first, because next_expr() advances the iterator into the tail
     let body = list.tail()?;
@@ -261,8 +267,8 @@ fn build_let_nest(assignments: &Expression, body: &Expression) -> Result<Express
 }
 
 pub fn expand_or(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    let (cmd, args) = list.decons()?;
-    assert_eq!(&scheme!(or), cmd);
+    let (_, args) = list.decons()?;
+    //assert_eq!(&scheme!(or), cmd);
     let mapped = args.map_list(|x| Ok(scheme!((@x.clone()))))?;
     let mapped = mapped.append(scheme!(((#t, #f))))?;
     expand_cond(&scheme!(cond, ...mapped), env, state)
@@ -286,7 +292,7 @@ fn structure_to_cons(exp: &Expression) -> Result<Expression> {
 }
 
 pub fn expand_setvar(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {
-    assert_eq!(&scheme!(symbol::SETVAR), list.car()?);
+    //assert_eq!(&scheme!(symbol::SETVAR), list.car()?);
     Ok(cons(
         Expression::Special(symbol::SETVAR),
         expand(list.cdr().unwrap(), env, state)?,
