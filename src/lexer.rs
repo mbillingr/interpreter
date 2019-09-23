@@ -164,7 +164,7 @@ impl Lexer {
         chars: &mut Peekable<impl Iterator<Item = CharI>>,
     ) -> Result<Option<PositionalToken>> {
         match chars.peek().unwrap().1 {
-            '\'' | '`' | '.' | ',' => Ok(chars.next().map(PositionalToken::from)),
+            '\'' | '`' | ',' => Ok(chars.next().map(PositionalToken::from)),
             '(' => {
                 self.list_level += 1;
                 Ok(chars.next().map(PositionalToken::from))
@@ -176,7 +176,33 @@ impl Lexer {
             '"' => self.read_string(chars),
             '#' => self.read_hash(chars),
             ';' => self.read_line_comment(chars),
+            '.' => self.read_dot(chars),
             _ => self.read_symbol(chars),
+        }
+    }
+
+    fn read_dot(
+        &mut self,
+        chars: &mut Peekable<impl Iterator<Item = CharI>>,
+    ) -> Result<Option<PositionalToken>> {
+        let (start_idx, _) = chars.next().unwrap();
+        match chars.peek() {
+            None => Ok(Some(PositionalToken::from((start_idx, '.')))),
+            Some((_, ch)) if ch.is_whitespace() => {
+                Ok(Some(PositionalToken::from((start_idx, '.'))))
+            }
+            _ => self.read_symbol(chars).map(|opt| {
+                opt.map(|token| {
+                    let start_idx = token.start_idx;
+                    let end_idx = token.end_idx;
+                    let s: String = token.into();
+                    PositionalToken {
+                        start_idx,
+                        end_idx,
+                        token: Token::Symbol(format!(".{}", s)),
+                    }
+                })
+            }),
         }
     }
 
