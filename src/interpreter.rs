@@ -2,7 +2,6 @@ use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Pair as PairType, Procedure, Ref};
 use crate::libraries::{define_library, store_library};
-use crate::macros;
 use crate::symbol;
 use crate::syntax;
 use std::borrow::Cow;
@@ -74,7 +73,6 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     Special(s) if *s == symbol::COND => cond(&cdr, &env)?,
                     Special(s) if *s == symbol::DEFINE => define(&cdr, &env)?,
                     Special(s) if *s == symbol::DEFINE_LIBRARY => def_library(&cdr)?,
-                    Special(s) if *s == symbol::DEFINE_SYNTAX => def_syntax(&cdr, &env)?,
                     Special(s) if *s == symbol::IF => if_form(&cdr, env.clone())?,
                     Special(s) if *s == symbol::LAMBDA => lambda(&cdr, &env)?,
                     Special(s) if *s == symbol::SETVAR => set_var(&cdr, &env)?,
@@ -193,13 +191,6 @@ fn def_library(list: &Expression) -> Result<Return> {
     let declarations = list.cdr()?;
     let lib = define_library(declarations, &syntax::State::default())?;
     store_library(name, lib)?;
-    Ok(Return::Value(Expression::Undefined))
-}
-
-fn def_syntax(list: &Expression, env: &EnvRef) -> Result<Return> {
-    let macro_ = macros::Macro::parse(list, &env)?;
-    env.borrow_mut()
-        .insert(macro_.name(), Expression::Macro(macro_));
     Ok(Return::Value(Expression::Undefined))
 }
 

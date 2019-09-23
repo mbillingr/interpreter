@@ -1,6 +1,7 @@
 use crate::environment::EnvRef;
 use crate::errors::*;
 use crate::expression::{cons, Expression, Pair};
+use crate::macros;
 use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
@@ -28,14 +29,23 @@ pub fn inner_expand(expr: &Expression, env: &EnvRef, state: &State) -> Result<Ex
             let src = pair.get_source();
             let car = &pair.car;
             match car {
-                Symbol(s) => match env.borrow().lookup(s) {
-                    Some(Expression::Macro(m)) => {
-                        let expanded_macro = m.expand(expr, env, state).map(|x| x.sourced(src))?;
-                        return expand(&expanded_macro, env, state);
+                Symbol(s) if s == &symbol::DEFINE_SYNTAX => {
+                    let macro_ = macros::Macro::parse(&pair.cdr, &env)?;
+                    env.borrow_mut().insert(macro_.name(), Macro(macro_));
+                    return Ok(Undefined);
+                }
+                Symbol(s) => {
+                    let v = env.borrow().lookup(s);
+                    match v {
+                        Some(Expression::Macro(m)) => {
+                            let expanded_macro =
+                                m.expand(expr, env, state).map(|x| x.sourced(src))?;
+                            return expand(&expanded_macro, env, state);
+                        }
+                        Some(Expression::NativeMacro(m)) => return m(expr, env, state),
+                        _ => {}
                     }
-                    Some(Expression::NativeMacro(m)) => return m(expr, env, state),
-                    _ => {}
-                },
+                }
                 _ => {}
             }
             expr.map_list(|e| expand(&e, env, state))
