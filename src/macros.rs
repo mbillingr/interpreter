@@ -177,39 +177,50 @@ enum Pattern {
     Constant(Expression),
     List(Vec<Pattern>),
     ImproperList(Vec<Pattern>, Box<Pattern>),
+    Ellipsis(Box<Pattern>),
 }
 
 impl Pattern {
     pub fn parse(expr: &Expression, literals: &[Symbol], ellipsis: Symbol) -> Result<Self> {
-        match expr {
-            Expression::Symbol(s) => Ok(if literals.contains(s) {
-                Pattern::Literal(*s)
-            } else {
-                Pattern::Identifier(*s)
-            }),
+        let pattern = match expr {
+            Expression::Symbol(s) => {
+                if literals.contains(s) {
+                    Pattern::Literal(*s)
+                } else {
+                    Pattern::Identifier(*s)
+                }
+            }
             Expression::Pair(pair) => {
                 let mut car = &pair.car;
                 let mut cdr = &pair.cdr;
                 let mut list = vec![];
                 loop {
-                    list.push(Pattern::parse(car, literals, ellipsis)?);
+                    match car {
+                        Expression::Symbol(x) if x == &ellipsis => {
+                            let last_subpattern = list.pop().unwrap();
+                            list.push(Pattern::Ellipsis(Box::new(last_subpattern)));
+                        }
+                        _ => list.push(Pattern::parse(car, literals, ellipsis)?),
+                    }
                     match cdr {
-                        Expression::Nil => return Ok(Pattern::List(list)),
+                        Expression::Nil => break Pattern::List(list),
                         Expression::Pair(p) => {
                             car = &p.car;
                             cdr = &p.cdr;
                         }
                         _ => {
-                            return Ok(Pattern::ImproperList(
+                            break Pattern::ImproperList(
                                 list,
                                 Box::new(Pattern::parse(&*cdr, literals, ellipsis)?),
-                            ))
+                            )
                         }
                     }
                 }
             }
-            _ => Ok(Pattern::Constant(expr.clone())),
-        }
+            _ => Pattern::Constant(expr.clone()),
+        };
+
+        Ok(pattern)
     }
 
     fn identifiers(&self) -> Vec<Symbol> {
@@ -258,6 +269,7 @@ impl Pattern {
                 }),
                 _ => None,
             },
+            Pattern::Ellipsis(_) => unimplemented!(),
         }
     }
 
@@ -283,6 +295,7 @@ enum Template {
     Constant(Expression),
     List(Vec<Template>),
     ImproperList(Vec<Template>, Box<Template>),
+    Ellipsis(Box<Template>),
 }
 
 impl Template {
@@ -293,16 +306,15 @@ impl Template {
         ellipsis: Symbol,
         env: &EnvRef,
     ) -> Result<Self> {
-        match expr {
+        let templ = match expr {
             Expression::Symbol(s) => {
                 if identifiers.contains(s) {
-                    Ok(Template::Identifier(*s))
+                    Template::Identifier(*s)
                 } else {
-                    Ok(env
-                        .borrow()
+                    env.borrow()
                         .lookup(s)
                         .map(Template::Constant)
-                        .unwrap_or_else(|| Template::Identifier(*s)))
+                        .unwrap_or_else(|| Template::Identifier(*s))
                 }
                 /*Ok(env
                 .borrow()
@@ -317,21 +329,27 @@ impl Template {
                 let mut cdr = &pair.cdr;
                 let mut list = vec![];
                 loop {
-                    list.push(Template::parse(
-                        &*car,
-                        literals,
-                        identifiers,
-                        ellipsis,
-                        env,
-                    )?);
+                    match car {
+                        Expression::Symbol(x) if x == &ellipsis => {
+                            let last_subtemplate = list.pop().unwrap();
+                            list.push(Template::Ellipsis(Box::new(last_subtemplate)));
+                        }
+                        _ => list.push(Template::parse(
+                            &*car,
+                            literals,
+                            identifiers,
+                            ellipsis,
+                            env,
+                        )?),
+                    }
                     match cdr {
-                        Expression::Nil => return Ok(Template::List(list)),
+                        Expression::Nil => break Template::List(list),
                         Expression::Pair(p) => {
                             car = &p.car;
                             cdr = &p.cdr;
                         }
                         _ => {
-                            return Ok(Template::ImproperList(
+                            break Template::ImproperList(
                                 list,
                                 Box::new(Template::parse(
                                     &*cdr,
@@ -340,13 +358,15 @@ impl Template {
                                     ellipsis,
                                     env,
                                 )?),
-                            ))
+                            )
                         }
                     }
                 }
             }
-            _ => Ok(Template::Constant(expr.clone())),
-        }
+            _ => Template::Constant(expr.clone()),
+        };
+
+        Ok(templ)
     }
 
     fn expand(
@@ -383,6 +403,7 @@ impl Template {
                 }
                 Ok(result)
             }
+            Template::Ellipsis(_) => unimplemented!(),
         }
     }
 }
