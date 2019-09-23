@@ -313,6 +313,10 @@ impl Template {
                 } else {
                     env.borrow()
                         .lookup(s)
+                        .filter(|x| match x {
+                            Expression::Macro(_) | Expression::NativeMacro(_) => false,
+                            _ => true,
+                        })
                         .map(Template::Constant)
                         .unwrap_or_else(|| Template::Identifier(*s))
                 }
@@ -388,12 +392,13 @@ impl Template {
                     let expr = sub.expand(bindings, env, state)?;
                     result = Expression::cons(expr, result);
                 }
-                let result = expand(&result, env, state)?;
+                /*let result = expand(&result, env, state)?;
                 match result.car() {
                     Ok(Expression::Macro(m)) => m.expand(&result, env, state),
                     Ok(Expression::NativeMacro(m)) => m(&result, env, state),
                     _ => Ok(result),
-                }
+                }*/
+                Ok(result)
             }
             Template::ImproperList(subs, tail) => {
                 let mut result = tail.expand(bindings, env, state)?;
