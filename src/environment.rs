@@ -555,6 +555,49 @@ pub fn default_env() -> EnvRef {
             }
         });
 
+        env.insert_native("vector-length", |args| {
+            let (v,): (Expression,) = destructure!(args => auto)?;
+
+            if let Some(vs) = v.try_as_vector() {
+                Ok((vs.len() as i64).into())
+            } else {
+                Err(ErrorKind::TypeError(format!("not a vector {:?}", v)).into())
+            }
+        });
+
+        env.insert_native("vector-copy!", |args| {
+            let (dst, (dstart, (src, (sstart, (len,))))): (
+                Expression,
+                (usize, (Expression, (usize, (usize,)))),
+            ) = destructure!(args => auto, auto, auto, auto, auto)?;
+
+            let dst = if let Some(v) = dst.try_as_vector_mut() {
+                v
+            } else {
+                return Err(ErrorKind::TypeError(format!("not a vector {:?}", dst)).into());
+            };
+
+            let src = if let Some(v) = src.try_as_vector_mut() {
+                v
+            } else {
+                return Err(ErrorKind::TypeError(format!("not a vector {:?}", src)).into());
+            };
+
+            if src.len() < len + sstart {
+                return Err(ErrorKind::GenericError(format!("Out of bounds")).into());
+            }
+
+            if dst.len() - dstart < len - sstart {
+                return Err(ErrorKind::GenericError(format!("destination vector too short")).into());
+            }
+
+            for (d, s) in dst[dstart..].iter_mut().zip(&src[sstart..sstart + len]) {
+                *d = s.clone();
+            }
+
+            Ok(Expression::Undefined.into())
+        });
+
         // misc
 
         env.insert_native("runtime", |_| {
