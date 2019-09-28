@@ -550,7 +550,7 @@ impl Expression {
     pub fn short_repr(&self) -> String {
         match self {
             Expression::Undefined => "#<unspecified>".into(),
-            Expression::Nil => "'()".into(),
+            Expression::Nil => "()".into(),
             Expression::Symbol(s) => format!("{}", s),
             Expression::Special(s) => format!("<{}>", s),
             Expression::String(s) => format!("{:?}", s),
