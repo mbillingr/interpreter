@@ -157,7 +157,7 @@ fn parse_list(input: &mut impl ParserInput) -> Result<Expression> {
 }
 
 fn parse_vector(input: &mut impl ParserInput) -> Result<Expression> {
-    let start = expect_token(Token::VecOpen, input)?.start_idx;
+    let _start = expect_token(Token::VecOpen, input)?.start_idx;
 
     let mut vector = vec![];
     loop {
@@ -173,7 +173,7 @@ fn parse_vector(input: &mut impl ParserInput) -> Result<Expression> {
         }
     }
 
-    let end = expect_token(Token::ListClose, input)?.end_idx;
+    let _end = expect_token(Token::ListClose, input)?.end_idx;
 
     Ok(Expression::Vector(Ref::new(vector)))
 }

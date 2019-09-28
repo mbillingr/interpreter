@@ -2,7 +2,7 @@ use crate::envref::EnvRef;
 use crate::errors::*;
 use crate::expression::{Expression, Ref};
 use crate::symbol::{self, Symbol};
-use crate::syntax::{self, expand};
+use crate::syntax;
 use std::collections::HashMap;
 
 macro_rules! hashmap(
