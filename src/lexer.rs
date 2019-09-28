@@ -5,6 +5,7 @@ use std::iter::Peekable;
 pub enum Token {
     ListOpen,
     ListClose,
+    VecOpen,
     String(String),
     Symbol(String),
     Quote,
@@ -44,6 +45,7 @@ impl From<Token> for String {
         match token {
             Token::ListOpen => "(".to_string(),
             Token::ListClose => ")".to_string(),
+            Token::VecOpen => "#(".to_string(),
             Token::Quote => "'".to_string(),
             Token::BackQuote => "`".to_string(),
             Token::Dot => ".".to_string(),
@@ -273,6 +275,11 @@ impl Lexer {
                 Ok(None)
             }
             Some((_, '\\')) => self.read_char(start_idx, chars),
+            Some((end_idx, '(')) => Ok(Some(PositionalToken {
+                start_idx,
+                end_idx,
+                token: Token::VecOpen,
+            })),
             Some((end_idx, ch)) => Ok(Some(PositionalToken {
                 start_idx,
                 end_idx,

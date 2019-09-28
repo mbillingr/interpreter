@@ -588,7 +588,9 @@ pub fn default_env() -> EnvRef {
             }
 
             if dst.len() - dstart < len - sstart {
-                return Err(ErrorKind::GenericError(format!("destination vector too short")).into());
+                return Err(
+                    ErrorKind::GenericError(format!("destination vector too short")).into(),
+                );
             }
 
             for (d, s) in dst[dstart..].iter_mut().zip(&src[sstart..sstart + len]) {

@@ -86,6 +86,9 @@ fn parse_expression(input: &mut impl ParserInput) -> Result<Expression> {
         if pt.token == Token::ListOpen {
             return parse_list(input);
         }
+        if pt.token == Token::VecOpen {
+            return parse_vector(input);
+        }
     }
     match input.next_token().token {
         Token::String(s) => Ok(Expression::String(Ref::new(s))),
@@ -151,4 +154,26 @@ fn parse_list(input: &mut impl ParserInput) -> Result<Expression> {
     }
 
     Ok(list)
+}
+
+fn parse_vector(input: &mut impl ParserInput) -> Result<Expression> {
+    let start = expect_token(Token::VecOpen, input)?.start_idx;
+
+    let mut vector = vec![];
+    loop {
+        if let Some(pt) = input.peek_token() {
+            match pt.token {
+                Token::ListClose => break,
+                _ => {
+                    vector.push(parse_expression(input)?);
+                }
+            }
+        } else {
+            Err(ErrorKind::UnexpectedEof)?
+        }
+    }
+
+    let end = expect_token(Token::ListClose, input)?.end_idx;
+
+    Ok(Expression::Vector(Ref::new(vector)))
 }
