@@ -5,6 +5,7 @@ use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
 use crate::syntax;
+use std::fs::File;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "thread-safe")]
@@ -81,6 +82,7 @@ pub enum Expression {
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
     Vector(Ref<Vec<Expression>>),
+    File(Ref<Option<File>>),
     //Error(Ref<List>),
 }
 
@@ -582,9 +584,11 @@ impl Expression {
             Expression::NativeMacro(_) => "<native syntax>".into(),
             Expression::Native(_) | Expression::NativeIntrusive(_) => "<primitive>".into(),
             Expression::Vector(v) => {
-                let items: String = v.iter().map(|x| x.short_repr()).collect();
-                format!("[{}]", items)
-            } //Expression::Error(_) => "<ERROR>".into(),
+                let items: Vec<_> = v.iter().map(|x| x.short_repr()).collect();
+                format!("#({})", items.join(" "))
+            }
+            Expression::File(f) => format!("<file: {:?}>", f),
+            //Expression::Error(_) => "<ERROR>".into(),
         }
     }
 }
@@ -633,6 +637,7 @@ impl std::fmt::Debug for Expression {
             Expression::NativeMacro(_) => write!(f, "<native macro>"),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             Expression::Vector(v) => write!(f, "{:?}", v),
+            Expression::File(fh) => write!(f, "<file: {:?}>", fh),
             /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
                     .iter_list()
@@ -689,13 +694,15 @@ impl std::fmt::Display for Expression {
                     }
                 }
                 write!(f, "]")
-            } /*Expression::Error(l) => {
-                  let tmp: Vec<_> = l
-                      .iter_list()
-                      .map(|item| format!("{}", item.unwrap()))
-                      .collect();
-                  write!(f, "ERROR: {}", tmp.join(" "))
-              }*/
+            }
+            Expression::File(fh) => write!(f, "<file: {:?}>", fh),
+            /*Expression::Error(l) => {
+                let tmp: Vec<_> = l
+                    .iter_list()
+                    .map(|item| format!("{}", item.unwrap()))
+                    .collect();
+                write!(f, "ERROR: {}", tmp.join(" "))
+            }*/
         }
     }
 }
