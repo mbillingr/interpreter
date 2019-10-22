@@ -82,6 +82,7 @@ pub enum Expression {
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
     Vector(Ref<Vec<Expression>>),
+    OpaqueVector(Ref<Vec<Expression>>),
     File(Ref<Option<File>>),
     //Error(Ref<List>),
 }
@@ -123,6 +124,10 @@ impl Expression {
 
     pub fn vector(size: usize) -> Self {
         Expression::Vector(Ref::new(vec![Expression::Undefined; size]))
+    }
+
+    pub fn opaque_vector(size: usize) -> Self {
+        Expression::OpaqueVector(Ref::new(vec![Expression::Undefined; size]))
     }
 
     pub fn cons(car: impl Into<Expression>, cdr: impl Into<Expression>) -> Self {
@@ -364,6 +369,7 @@ impl Expression {
     pub fn is_vector(&self) -> bool {
         match self {
             Expression::Vector(_) => true,
+            Expression::OpaqueVector(_) => true,
             _ => false,
         }
     }
@@ -371,13 +377,14 @@ impl Expression {
     pub fn try_as_vector(&self) -> Option<&[Self]> {
         match self {
             Expression::Vector(v) => Some(v),
+            Expression::OpaqueVector(v) => Some(v),
             _ => None,
         }
     }
 
     pub fn try_as_vector_mut(&self) -> Option<&mut [Self]> {
         match self {
-            Expression::Vector(v) => unsafe {
+            Expression::OpaqueVector(v) | Expression::Vector(v) => unsafe {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 let v = &mut *(&**v as *const _ as *mut Vec<_>);
                 Some(v.as_mut_slice())
@@ -466,6 +473,7 @@ impl Expression {
             (False, False) => true,
             (Nil, Nil) => true,
             (Pair(a), Pair(b)) => Ref::ptr_eq(a, b),
+            (Vector(a), Vector(b)) | (OpaqueVector(a), OpaqueVector(b)) => Ref::ptr_eq(a, b),
             (Procedure(a), Procedure(b)) => a.eqv(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -487,6 +495,18 @@ impl Expression {
             (False, False) => true,
             (Nil, Nil) => true,
             (Pair(a), Pair(b)) => a.car == b.car && a.cdr == b.cdr,
+            (Vector(a), Vector(b)) | (OpaqueVector(a), OpaqueVector(b)) => {
+                if a.len() != b.len() {
+                    false
+                } else {
+                    for (ai, bi) in a.iter().zip(b.iter()) {
+                        if ai != bi {
+                            return false;
+                        }
+                    }
+                    true
+                }
+            }
             (Procedure(a), Procedure(b)) => a.equal(b),
             (Native(a), Native(b)) => a == b,
             _ => false,
@@ -587,6 +607,7 @@ impl Expression {
                 let items: Vec<_> = v.iter().map(|x| x.short_repr()).collect();
                 format!("#({})", items.join(" "))
             }
+            Expression::OpaqueVector(v) => format!("<opaque vector with {} elements>", v.len()),
             Expression::File(f) => format!("<file: {:?}>", f),
             //Expression::Error(_) => "<ERROR>".into(),
         }
@@ -637,6 +658,7 @@ impl std::fmt::Debug for Expression {
             Expression::NativeMacro(_) => write!(f, "<native macro>"),
             Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
             Expression::Vector(v) => write!(f, "{:?}", v),
+            Expression::OpaqueVector(v) => write!(f, "<opaque vector with {} elements>", v.len()),
             Expression::File(fh) => write!(f, "<file: {:?}>", fh),
             /*Expression::Error(l) => {
                 let tmp: Vec<_> = l
@@ -695,6 +717,7 @@ impl std::fmt::Display for Expression {
                 }
                 write!(f, "]")
             }
+            Expression::OpaqueVector(v) => write!(f, "<opaque vector with {} elements>", v.len()),
             Expression::File(fh) => write!(f, "<file: {:?}>", fh),
             /*Expression::Error(l) => {
                 let tmp: Vec<_> = l

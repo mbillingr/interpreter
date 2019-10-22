@@ -18,11 +18,11 @@ use crate::syntax::{
 use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fs::File;
+use std::io::Write;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
-use std::fs::File;
-use std::io::Write;
 
 static SYMBOL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -338,20 +338,23 @@ pub fn default_env() -> EnvRef {
         // files
 
         env.insert_native("file-open", |args| {
-            let (name, (flag, )): (Expression, (Expression, )) = destructure!(args => auto, auto)?;
+            let (name, (flag,)): (Expression, (Expression,)) = destructure!(args => auto, auto)?;
 
             let name = name.try_as_str()?;
             let file = match flag {
                 Expression::Symbol(s) if s.name() == "r" => File::open(name)?,
                 Expression::Symbol(s) if s.name() == "w" => File::create(name)?,
-                _ => Err(ErrorKind::GenericError(format!("Unknown file mode: {}", flag)))?,
+                _ => Err(ErrorKind::GenericError(format!(
+                    "Unknown file mode: {}",
+                    flag
+                )))?,
             };
 
             Ok(Expression::File(Ref::new(Some(file))).into())
         });
 
         env.insert_native("file?", |args| {
-            let (f, ): (Expression, ) = destructure!(args => auto)?;
+            let (f,): (Expression,) = destructure!(args => auto)?;
             if let Expression::File(_) = f {
                 Ok(true.into())
             } else {
@@ -360,7 +363,7 @@ pub fn default_env() -> EnvRef {
         });
 
         env.insert_native("file-close!", |args| {
-            let (f, ): (Expression, ) = destructure!(args => auto)?;
+            let (f,): (Expression,) = destructure!(args => auto)?;
             if let Expression::File(inner) = f {
                 let handler: &mut Option<File> = unsafe { &mut *(&*inner as *const _ as *mut _) };
                 *handler = None;
@@ -374,7 +377,7 @@ pub fn default_env() -> EnvRef {
                 if let Some(fh) = &*fref {
                     let fh: &mut File = unsafe { &mut *(fh as *const _ as *mut _) };
                     write!(fh, "{}", obj)?;
-                    return Ok(Expression::Undefined.into())
+                    return Ok(Expression::Undefined.into());
                 }
             }
             Err(ErrorKind::GenericError(format!("can only write to open files")).into())
@@ -386,7 +389,7 @@ pub fn default_env() -> EnvRef {
                 if let Some(fh) = &*fref {
                     let fh: &mut File = unsafe { &mut *(fh as *const _ as *mut _) };
                     write!(fh, "{}", obj.short_repr())?;
-                    return Ok(Expression::Undefined.into())
+                    return Ok(Expression::Undefined.into());
                 }
             }
             Err(ErrorKind::GenericError(format!("can only write to open files")).into())
@@ -572,6 +575,11 @@ pub fn default_env() -> EnvRef {
         env.insert_native("make-vector", |args| {
             let (n,): (usize,) = destructure!(args => auto)?;
             Ok(Expression::vector(n).into())
+        });
+
+        env.insert_native("make-opaque-vector", |args| {
+            let (n,): (usize,) = destructure!(args => auto)?;
+            Ok(Expression::opaque_vector(n).into())
         });
 
         env.insert_native("vector-ref", |args| {

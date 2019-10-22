@@ -54,20 +54,19 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
     loop {
         debug_hooks::predispatch(&expr, &env);
         let retval = match *expr {
-            Symbol(ref s) => {
-                Return::Value(env
-                    .borrow()
+            Symbol(ref s) => Return::Value(
+                env.borrow()
                     .lookup(&s)
-                    .ok_or_else(|| ErrorKind::Unbound(*s))?)
-            }
+                    .ok_or_else(|| ErrorKind::Unbound(*s))?,
+            ),
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
-            | Procedure(_) | Macro(_) | Special(_) | Vector(_) | File(_) /*| Error(_)*/ => {
+            | Procedure(_) | Macro(_) | Special(_) | Vector(_) | OpaqueVector(_) | File(_) => {
                 Return::Value(expr.into_owned())
             }
             Native(_) | NativeIntrusive(_) => Return::Value(expr.into_owned()),
             NativeMacro(_) => Return::Value(expr.into_owned()),
             Pair(ref pair) => {
-                let PairType{car, cdr, ..} = &**pair;
+                let PairType { car, cdr, .. } = &**pair;
                 match car {
                     Special(s) if *s == symbol::BEGIN => eval_sequence(&cdr, &env)?,
                     Special(s) if *s == symbol::COND => cond(&cdr, &env)?,
