@@ -4,7 +4,7 @@ use crate::debugger::Debugger;
 use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
-use crate::expression::{Args, Expression, NativeFn, Procedure, Ref};
+use crate::expression::{define_class, Args, Class, Expression, NativeFn, Procedure, Ref};
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
@@ -334,6 +334,51 @@ pub fn default_env() -> EnvRef {
             let name = format!("{}{}", base, SYMBOL_COUNTER.fetch_add(1, Ordering::Relaxed));
             Ok(Symbol::new_uninterned(name).into())
         });
+
+        // object system
+
+        env.insert(
+            "Object",
+            Expression::Class(Ref::new(Class::new(
+                symbol::Symbol::new("Object"),
+                None,
+                vec![],
+            ))),
+        );
+
+        env.insert(
+            "define-class",
+            Expression::NativeMacro(|expr, env, state| {
+                let (_, tail) = expr.decons()?;
+                let (name, tail) = tail.decons()?;
+                let (base, tail) = tail.decons()?;
+                let (fields, tail) = tail.decons()?;
+
+                println!("{:?}", fields);
+
+                let mut env = env.borrow_mut();
+
+                let name = name.try_as_symbol()?;
+
+                let base = env
+                    .lookup(base.try_as_symbol()?)
+                    .and_then(|x| x.try_as_class().cloned())
+                    .ok_or_else(|| ErrorKind::TypeError(format!("base must be a class")))?;
+
+                let cls = Ref::new(Class::new(
+                    *name,
+                    Some(base.clone()),
+                    fields
+                        .iter_list()
+                        .map(|x| Ok(*x?.try_as_symbol()?))
+                        .collect::<Result<_>>()?,
+                ));
+
+                define_class(&mut env, cls);
+
+                Ok(Expression::Undefined.into())
+            }),
+        );
 
         // files
 

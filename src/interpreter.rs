@@ -60,10 +60,9 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     .ok_or_else(|| ErrorKind::Unbound(*s))?,
             ),
             Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
-            | Procedure(_) | Macro(_) | Special(_) | Vector(_) | OpaqueVector(_) | File(_) => {
-                Return::Value(expr.into_owned())
-            }
-            Native(_) | NativeIntrusive(_) => Return::Value(expr.into_owned()),
+            | Procedure(_) | Macro(_) | Special(_) | Vector(_) | OpaqueVector(_) | File(_)
+            | Class(_) | Instance(_) => Return::Value(expr.into_owned()),
+            Native(_) | NativeIntrusive(_) | NativeClosure(_) => Return::Value(expr.into_owned()),
             NativeMacro(_) => Return::Value(expr.into_owned()),
             Pair(ref pair) => {
                 let PairType { car, cdr, .. } = &**pair;
@@ -160,6 +159,7 @@ pub fn inner_apply(proc: Expression, args: Expression, env: &EnvRef) -> Result<R
         }
         Expression::Native(func) => func(args),
         Expression::NativeIntrusive(func) => func(args, env),
+        Expression::NativeClosure(func) => func(args),
         x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
     }
 }

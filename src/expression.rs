@@ -19,6 +19,7 @@ pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
 pub type MacroFn = fn(&Expression, &EnvRef, &syntax::State) -> Result<Expression>;
+pub type NativeClosure = Ref<dyn Fn(Args) -> Result<Return>>;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -81,10 +82,13 @@ pub enum Expression {
     NativeMacro(MacroFn),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
+    NativeClosure(NativeClosure),
     Vector(Ref<Vec<Expression>>),
     OpaqueVector(Ref<Vec<Expression>>),
     File(Ref<Option<File>>),
-    //Error(Ref<List>),
+
+    Class(Ref<Class>),
+    Instance(Ref<Instance>),
 }
 
 impl Expression {
@@ -423,6 +427,20 @@ impl Expression {
         }
     }
 
+    pub fn try_as_class(&self) -> Option<&Ref<Class>> {
+        match self {
+            Expression::Class(c) => Some(c),
+            _ => None,
+        }
+    }
+
+    pub fn try_as_instance(&self) -> Option<&Ref<Instance>> {
+        match self {
+            Expression::Instance(o) => Some(o),
+            _ => None,
+        }
+    }
+
     /*pub fn try_into_symbol(self) -> Result<Symbol> {
         match self {
             Expression::Symbol(s) => Ok(s),
@@ -602,7 +620,9 @@ impl Expression {
             Expression::Procedure(p) => format!("{}", p.name()),
             Expression::Macro(_) => "<syntax>".into(),
             Expression::NativeMacro(_) => "<native syntax>".into(),
-            Expression::Native(_) | Expression::NativeIntrusive(_) => "<primitive>".into(),
+            Expression::Native(_)
+            | Expression::NativeIntrusive(_)
+            | Expression::NativeClosure(_) => "<primitive>".into(),
             Expression::Vector(v) => {
                 let items: Vec<_> = v.iter().map(|x| x.short_repr()).collect();
                 format!("#({})", items.join(" "))
@@ -610,6 +630,8 @@ impl Expression {
             Expression::OpaqueVector(v) => format!("<opaque vector with {} elements>", v.len()),
             Expression::File(f) => format!("<file: {:?}>", f),
             //Expression::Error(_) => "<ERROR>".into(),
+            Expression::Class(cls) => format!("<class {}>", cls.name),
+            Expression::Instance(obj) => format!("<instance of {} {:p}>", obj.base.name, &**obj),
         }
     }
 }
@@ -656,17 +678,14 @@ impl std::fmt::Debug for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::NativeMacro(_) => write!(f, "<native macro>"),
-            Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
+            Expression::Native(_)
+            | Expression::NativeIntrusive(_)
+            | Expression::NativeClosure(_) => write!(f, "<native>"),
             Expression::Vector(v) => write!(f, "{:?}", v),
             Expression::OpaqueVector(v) => write!(f, "<opaque vector with {} elements>", v.len()),
             Expression::File(fh) => write!(f, "<file: {:?}>", fh),
-            /*Expression::Error(l) => {
-                let tmp: Vec<_> = l
-                    .iter_list()
-                    .map(|item| format!("{:?}", item.unwrap()))
-                    .collect();
-                write!(f, "ERROR: {}", tmp.join(" "))
-            }*/
+            Expression::Class(cls) => write!(f, "<class {}>", cls.name),
+            Expression::Instance(obj) => write!(f, "<instance of {} {:p}>", obj.base.name, &**obj),
         }
     }
 }
@@ -706,7 +725,9 @@ impl std::fmt::Display for Expression {
             Expression::Procedure(p) => write!(f, "#<procedure {:p} {}>", p, p.params_ex()),
             Expression::Macro(m) => write!(f, "#<macro {}>", m.name()),
             Expression::NativeMacro(_) => write!(f, "<native macro>"),
-            Expression::Native(_) | Expression::NativeIntrusive(_) => write!(f, "<native>"),
+            Expression::Native(_)
+            | Expression::NativeIntrusive(_)
+            | Expression::NativeClosure(_) => write!(f, "<native>"),
             Expression::Vector(v) => {
                 write!(f, "[")?;
                 if !v.is_empty() {
@@ -719,13 +740,8 @@ impl std::fmt::Display for Expression {
             }
             Expression::OpaqueVector(v) => write!(f, "<opaque vector with {} elements>", v.len()),
             Expression::File(fh) => write!(f, "<file: {:?}>", fh),
-            /*Expression::Error(l) => {
-                let tmp: Vec<_> = l
-                    .iter_list()
-                    .map(|item| format!("{}", item.unwrap()))
-                    .collect();
-                write!(f, "ERROR: {}", tmp.join(" "))
-            }*/
+            Expression::Class(cls) => write!(f, "<class {}>", cls.name),
+            Expression::Instance(obj) => write!(f, "<instance of {} {:p}>", obj.base.name, &**obj),
         }
     }
 }
@@ -1144,4 +1160,124 @@ impl<'a> Iterator for ListIterator<'a> {
 
 pub fn cons(a: Expression, d: Expression) -> Expression {
     Expression::cons(a, d)
+}
+
+#[derive(Debug)]
+pub struct Class {
+    name: Symbol,
+    base: Option<Ref<Class>>,
+    n_fields: usize,
+    field_names: Vec<Symbol>,
+}
+
+impl Class {
+    pub fn new(name: Symbol, base: Option<Ref<Self>>, fields: Vec<Symbol>) -> Self {
+        let n_fields = fields.len() + base.as_ref().map(|cls| cls.n_fields).unwrap_or(0);
+        println!("{:?} {}", fields, n_fields);
+        Class {
+            name,
+            base,
+            n_fields,
+            field_names: fields,
+        }
+    }
+
+    pub fn n_base_fields(&self) -> usize {
+        self.base.as_ref().map(|cls| cls.n_fields).unwrap_or(0)
+    }
+
+    pub fn all_field_names(&self) -> Vec<Symbol> {
+        let mut names = self
+            .base
+            .as_ref()
+            .map(|cls| cls.field_names.clone())
+            .unwrap_or(vec![]);
+        names.extend(&self.field_names);
+        names
+    }
+
+    pub fn instantiate(cls: Ref<Self>, field_values: Vec<Expression>) -> Result<Instance> {
+        println!("{:?}", cls);
+        println!("{} ? {:?}", cls.n_fields, field_values);
+        if field_values.len() != cls.n_fields {
+            return Err(ErrorKind::ArgumentError.into());
+        }
+        Ok(Instance {
+            base: cls,
+            field_values,
+        })
+    }
+}
+
+pub struct Instance {
+    base: Ref<Class>,
+    field_values: Vec<Expression>,
+}
+
+impl Instance {
+    pub fn is_instance(&self, cls: &Ref<Class>) -> bool {
+        let mut base = &self.base;
+        loop {
+            if Ref::ptr_eq(&base, cls) {
+                return true;
+            }
+            match base.base {
+                Some(ref b) => base = b,
+                None => return false,
+            }
+        }
+    }
+}
+
+pub fn define_class(env: &mut Environment, class: Ref<Class>) {
+    env.insert(class.name, Expression::Class(class.clone()));
+
+    let cls = class.clone();
+    env.insert(
+        format!("make-{}", cls.name).as_str(),
+        Expression::NativeClosure(Ref::new(move |args| {
+            Ok(Expression::Instance(Ref::new(Class::instantiate(
+                cls.clone(),
+                args.iter_list()
+                    .map(|x| Ok(x?.clone()))
+                    .collect::<Result<_>>()?,
+            )?))
+            .into())
+        })),
+    );
+
+    let cls = class.clone();
+    env.insert(
+        format!("{}?", cls.name).as_str(),
+        Expression::NativeClosure(Ref::new(move |args| {
+            let obj = args.car()?;
+
+            Ok(obj
+                .try_as_instance()
+                .map(|o| o.is_instance(&cls))
+                .unwrap_or(false)
+                .into())
+        })),
+    );
+
+    for (i, field) in class.all_field_names().iter().enumerate() {
+        let cls = class.clone();
+        let idx = cls.n_base_fields() + i;
+        env.insert(
+            format!("{}-{}", cls.name, field).as_str(),
+            Expression::NativeClosure(Ref::new(move |args| {
+                let obj = args.car()?;
+
+                Ok(obj
+                    .try_as_instance()
+                    .filter(|o| o.is_instance(&cls))
+                    .map(|o| o.field_values[idx].clone())
+                    .ok_or(ErrorKind::TypeError(format!(
+                        "Expected instance of {}",
+                        cls.name
+                    )))?
+                    .into())
+            })),
+        );
+    }
 }
