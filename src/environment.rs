@@ -4,7 +4,9 @@ use crate::debugger::Debugger;
 use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
-use crate::expression::{define_class, Args, Class, Expression, NativeFn, Procedure, Ref};
+use crate::expression::{
+    define_class, define_method, Args, Class, Expression, NativeFn, Procedure, Ref,
+};
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
@@ -354,8 +356,6 @@ pub fn default_env() -> EnvRef {
                 let (base, tail) = tail.decons()?;
                 let (fields, tail) = tail.decons()?;
 
-                println!("{:?}", fields);
-
                 let mut env = env.borrow_mut();
 
                 let name = name.try_as_symbol()?;
@@ -375,6 +375,65 @@ pub fn default_env() -> EnvRef {
                 ));
 
                 define_class(&mut env, cls);
+
+                Ok(Expression::Undefined.into())
+            }),
+        );
+
+        env.insert(
+            "define-generic",
+            Expression::NativeMacro(|expr, env, state| {
+                let (_, definition) = expr.decons()?;
+                let (name_and_params, body) = definition.decons()?;
+                let (name, params) = name_and_params.decons()?;
+
+                let name = name.try_as_symbol()?.clone();
+                let environment = env.clone();
+
+                env.borrow_mut().insert(
+                    name.clone(),
+                    Expression::NativeClosure(Ref::new(move |args| {
+                        let obj = args.car()?;
+                        let obj = obj
+                            .try_as_instance()
+                            .ok_or_else(|| ErrorKind::TypeError(format!("not an object")))?;
+                        obj.invoke_method(name, args.clone(), environment.clone())
+                    })),
+                );
+
+                let class = env
+                    .borrow()
+                    .lookup(&Symbol::new("Object"))
+                    .and_then(|x| x.try_as_class().cloned())
+                    .ok_or_else(|| {
+                        ErrorKind::TypeError(format!("Object is not a class in the current scope"))
+                    })?;
+
+                define_method(class, name, params.clone(), body.clone(), env.clone());
+
+                Ok(Expression::Undefined.into())
+            }),
+        );
+
+        env.insert(
+            "define-method",
+            Expression::NativeMacro(|expr, env, state| {
+                let (_, tail) = expr.decons()?;
+                let (name, tail) = tail.decons()?;
+                let (class, tail) = tail.decons()?;
+                let (params, body) = tail.decons()?;
+
+                let name = name.try_as_symbol()?.clone();
+
+                let class = env
+                    .borrow()
+                    .lookup(class.try_as_symbol()?)
+                    .and_then(|x| x.try_as_class().cloned())
+                    .ok_or_else(|| {
+                        ErrorKind::TypeError(format!("method must be defined on a class"))
+                    })?;
+
+                define_method(class, name, params.clone(), body.clone(), env.clone());
 
                 Ok(Expression::Undefined.into())
             }),

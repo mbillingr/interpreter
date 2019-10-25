@@ -11,6 +11,7 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "thread-safe")]
 pub use std::sync::{Arc as Ref, Weak};
 
+use std::collections::HashMap;
 use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
@@ -1168,17 +1169,18 @@ pub struct Class {
     base: Option<Ref<Class>>,
     n_fields: usize,
     field_names: Vec<Symbol>,
+    methods: HashMap<Symbol, Expression>,
 }
 
 impl Class {
     pub fn new(name: Symbol, base: Option<Ref<Self>>, fields: Vec<Symbol>) -> Self {
         let n_fields = fields.len() + base.as_ref().map(|cls| cls.n_fields).unwrap_or(0);
-        println!("{:?} {}", fields, n_fields);
         Class {
             name,
             base,
             n_fields,
             field_names: fields,
+            methods: HashMap::new(),
         }
     }
 
@@ -1196,9 +1198,11 @@ impl Class {
         names
     }
 
+    pub fn add_method(&mut self, name: Symbol, callable: Expression) {
+        self.methods.insert(name, callable);
+    }
+
     pub fn instantiate(cls: Ref<Self>, field_values: Vec<Expression>) -> Result<Instance> {
-        println!("{:?}", cls);
-        println!("{} ? {:?}", cls.n_fields, field_values);
         if field_values.len() != cls.n_fields {
             return Err(ErrorKind::ArgumentError.into());
         }
@@ -1206,6 +1210,17 @@ impl Class {
             base: cls,
             field_values,
         })
+    }
+
+    pub fn invoke_method(&self, method: Symbol, args: Expression, env: EnvRef) -> Result<Return> {
+        match self.methods.get(&method) {
+            Some(m) => return Ok(Return::TailCall(Expression::cons(m.clone(), args), env)),
+            None => {}
+        }
+        match self.base {
+            Some(ref bc) => bc.invoke_method(method, args, env),
+            None => Err(ErrorKind::TypeError(format!("method {} not found", method)).into()),
+        }
     }
 }
 
@@ -1226,6 +1241,10 @@ impl Instance {
                 None => return false,
             }
         }
+    }
+
+    pub fn invoke_method(&self, method: Symbol, args: Expression, env: EnvRef) -> Result<Return> {
+        self.base.invoke_method(method, args, env)
     }
 }
 
@@ -1280,4 +1299,18 @@ pub fn define_class(env: &mut Environment, class: Ref<Class>) {
             })),
         );
     }
+}
+
+pub fn define_method(
+    class: Ref<Class>,
+    name: Symbol,
+    params: Expression,
+    body: Expression,
+    env: EnvRef,
+) {
+    let the_method = Expression::Procedure(Procedure::new(Ref::new(params), Ref::new(body), env));
+
+    let class = unsafe { &mut *(&*class as *const Class as *mut Class) };
+
+    class.add_method(name, the_method);
 }
