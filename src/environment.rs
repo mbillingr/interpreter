@@ -13,9 +13,9 @@ use crate::lexer::Lexer;
 use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
-    car_to_special, expand_and, expand_begin, expand_case, expand_cond, expand_define, expand_if,
-    expand_include, expand_lambda, expand_let, expand_lets, expand_or, expand_quasiquote,
-    expand_setvar,
+    car_to_special, expand, expand_and, expand_begin, expand_case, expand_cond, expand_define,
+    expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
+    expand_quasiquote, expand_setvar,
 };
 use rand::Rng;
 use std::collections::HashMap;
@@ -351,11 +351,11 @@ pub fn default_env() -> EnvRef {
         // Form: (define-class class superclass (fields...))
         env.insert(
             "define-class",
-            Expression::NativeMacro(|expr, env, state| {
+            Expression::NativeMacro(|expr, env, _| {
                 let (_, tail) = expr.decons()?;
                 let (name, tail) = tail.decons()?;
                 let (base, tail) = tail.decons()?;
-                let (fields, tail) = tail.decons()?;
+                let (fields, _) = tail.decons()?;
 
                 let mut env = env.borrow_mut();
 
@@ -416,7 +416,8 @@ pub fn default_env() -> EnvRef {
                         ErrorKind::TypeError(format!("Object is not a class in the current scope"))
                     })?;
 
-                define_method(class, name, params, body.clone(), env.clone());
+                let body = expand(body, env, state)?;
+                define_method(class, name, params, body, env.clone());
 
                 Ok(Expression::Undefined.into())
             }),
@@ -445,7 +446,8 @@ pub fn default_env() -> EnvRef {
                         ErrorKind::TypeError(format!("method must be defined on a class"))
                     })?;
 
-                define_method(class, name, params, body.clone(), env.clone());
+                let body = expand(body, env, state)?;
+                define_method(class, name, params, body, env.clone());
 
                 Ok(Expression::Undefined.into())
             }),
