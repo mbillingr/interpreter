@@ -1282,6 +1282,7 @@ pub fn define_class(env: &mut Environment, class: Ref<Class>) {
     for (i, field) in class.all_field_names().iter().enumerate() {
         let cls = class.clone();
         let idx = cls.n_base_fields() + i;
+
         env.insert(
             format!("{}-{}", cls.name, field).as_str(),
             Expression::NativeClosure(Ref::new(move |args| {
@@ -1296,6 +1297,29 @@ pub fn define_class(env: &mut Environment, class: Ref<Class>) {
                         cls.name
                     )))?
                     .into())
+            })),
+        );
+
+        let cls = class.clone();
+        env.insert(
+            format!("set-{}-{}!", cls.name, field).as_str(),
+            Expression::NativeClosure(Ref::new(move |args| {
+                let obj = args.car()?;
+                let value = args.cdr()?.car()?;
+
+                let obj = obj
+                    .try_as_instance()
+                    .filter(|o| o.is_instance(&cls))
+                    .ok_or(ErrorKind::TypeError(format!(
+                        "Expected instance of {}",
+                        cls.name
+                    )))?;
+
+                let obj = unsafe { &mut *(&**obj as *const Instance as *mut Instance) };
+
+                obj.field_values[idx] = value.clone();
+
+                Ok(Expression::Undefined.into())
             })),
         );
     }
