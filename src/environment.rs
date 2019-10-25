@@ -348,6 +348,7 @@ pub fn default_env() -> EnvRef {
             ))),
         );
 
+        // Form: (define-class class superclass (fields...))
         env.insert(
             "define-class",
             Expression::NativeMacro(|expr, env, state| {
@@ -380,14 +381,20 @@ pub fn default_env() -> EnvRef {
             }),
         );
 
+        // Form: (define-generic (function (obj) params...) body...)
         env.insert(
             "define-generic",
             Expression::NativeMacro(|expr, env, state| {
                 let (_, definition) = expr.decons()?;
                 let (name_and_params, body) = definition.decons()?;
                 let (name, params) = name_and_params.decons()?;
+                let (obj, params) = params.decons()?;
+                let obj = obj.car()?;
+
+                let params = Expression::cons(obj.clone(), params.clone());
 
                 let name = name.try_as_symbol()?.clone();
+
                 let environment = env.clone();
 
                 env.borrow_mut().insert(
@@ -409,19 +416,24 @@ pub fn default_env() -> EnvRef {
                         ErrorKind::TypeError(format!("Object is not a class in the current scope"))
                     })?;
 
-                define_method(class, name, params.clone(), body.clone(), env.clone());
+                define_method(class, name, params, body.clone(), env.clone());
 
                 Ok(Expression::Undefined.into())
             }),
         );
 
+        // Form: (define-method (function (obj class) params...) body...)
         env.insert(
             "define-method",
             Expression::NativeMacro(|expr, env, state| {
                 let (_, tail) = expr.decons()?;
-                let (name, tail) = tail.decons()?;
-                let (class, tail) = tail.decons()?;
-                let (params, body) = tail.decons()?;
+                let (name_and_params, body) = tail.decons()?;
+                let (name, params) = name_and_params.decons()?;
+                let (obj_and_class, params) = params.decons()?;
+                let obj = obj_and_class.car()?;
+                let class = obj_and_class.cdr()?.car()?;
+
+                let params = Expression::cons(obj.clone(), params.clone());
 
                 let name = name.try_as_symbol()?.clone();
 
@@ -433,7 +445,7 @@ pub fn default_env() -> EnvRef {
                         ErrorKind::TypeError(format!("method must be defined on a class"))
                     })?;
 
-                define_method(class, name, params.clone(), body.clone(), env.clone());
+                define_method(class, name, params, body.clone(), env.clone());
 
                 Ok(Expression::Undefined.into())
             }),
