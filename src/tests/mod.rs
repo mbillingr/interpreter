@@ -1,3 +1,4 @@
+mod misc;
 mod r7rs_6_2_equivalence_predicates;
 mod r7rs_procedure_apply;
 

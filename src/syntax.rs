@@ -222,15 +222,21 @@ pub fn expand_let(list: &Expression, env: &EnvRef, state: &State) -> Result<Expr
     //assert_eq!(Some(&scheme!(let)), list.next_expr()?);
     assert!(list.next_expr()?.is_some());
 
+    let name = if list.head()?.is_symbol() {
+        list.next_expr()?
+    } else {
+        None
+    };
+
     // need to get the tail first, because next_expr() advances the iterator into the tail
     let body = list.tail()?;
     let assignments = list.next_expr()?.ok_or(ErrorKind::ArgumentError)?;
 
     let mut vars = Expression::Nil;
-    let mut exps = Expression::Nil;
+    let mut args = Expression::Nil;
 
     let mut var_cursor = &mut vars;
-    let mut exp_cursor = &mut exps;
+    let mut exp_cursor = &mut args;
 
     for vx in assignments.iter_list() {
         let mut vx = vx?.iter_list();
@@ -245,8 +251,33 @@ pub fn expand_let(list: &Expression, env: &EnvRef, state: &State) -> Result<Expr
     }
 
     let lambda_form = scheme!(lambda, @vars, ...body.clone());
-    exps = Expression::cons(lambda_form, exps);
-    expand(&exps, env, state)
+
+    if let Some(name) = name {
+        // (let name ((var arg) ...) body)
+        // =>
+        // (let ((name *undef*))
+        //   (set! name (lambda (var ...) body))
+        //   (name arg ...)
+        // =>
+        // ((lambda (name)
+        //    (set! name (lambda (var ...) body))
+        //    (name arg ...))
+        //  *undef*)
+        let outer_lambda = scheme!(lambda, (@name.clone()),
+                                     (symbol::SETVAR, @name.clone(), @lambda_form),
+                                     (@name.clone(), ...args));
+        let application = Expression::cons(
+            outer_lambda,
+            Expression::cons(Expression::Undefined, Expression::Nil),
+        );
+        expand(&application, env, state)
+    } else {
+        // (let ((var arg) ...) body)
+        // =>
+        // ((lambda (var ...) body) arg ...)
+        let application = Expression::cons(lambda_form, args);
+        expand(&application, env, state)
+    }
 }
 
 pub fn expand_lets(list: &Expression, env: &EnvRef, state: &State) -> Result<Expression> {

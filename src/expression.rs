@@ -1136,6 +1136,14 @@ impl<'a> ListIterator<'a> {
         self.next().transpose()
     }
 
+    pub fn head(&self) -> Result<&'a Expression> {
+        match self.next_pair {
+            Expression::Nil => Ok(self.next_pair),
+            Expression::Pair(pair) => Ok(&pair.car),
+            _ => Err(ErrorKind::TypeError("not a list".into()))?,
+        }
+    }
+
     pub fn tail(&self) -> Result<&'a Expression> {
         match self.next_pair {
             Expression::Nil => Ok(self.next_pair),
