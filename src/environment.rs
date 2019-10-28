@@ -5,7 +5,7 @@ use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{
-    define_class, define_method, Args, Class, Expression, NativeFn, Procedure, Ref,
+    define_class, define_method, Args, Class, Expression, Instance, NativeFn, Procedure, Ref,
 };
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
@@ -453,11 +453,53 @@ pub fn default_env() -> EnvRef {
             }),
         );
 
+        env.insert_native("class-fields", |args| {
+            let (cls,): (Expression,) = destructure!(args => auto)?;
+
+            if let Some(c) = cls.try_as_class() {
+                let list: Expression = c
+                    .all_field_names()
+                    .iter()
+                    .map(|name| name.clone().into())
+                    .collect();
+                Ok(list.into())
+            } else {
+                Err(ErrorKind::TypeError(format!("not a class")).into())
+            }
+        });
+
         env.insert_native("object->class", |args| {
             let (obj,): (Expression,) = destructure!(args => auto)?;
 
             if let Some(o) = obj.try_as_instance() {
                 Ok(Expression::Class(o.base().clone()).into())
+            } else {
+                Err(ErrorKind::TypeError(format!("not an object")).into())
+            }
+        });
+
+        env.insert_native("field-value", |args| {
+            let (obj, (field,)): (Expression, (Expression,)) = destructure!(args => auto, auto)?;
+
+            if let Some(o) = obj.try_as_instance() {
+                o.get_field_value(field.try_as_symbol()?)
+                    .cloned()
+                    .map(|value| value.into())
+                    .ok_or_else(|| ErrorKind::ArgumentError.into())
+            } else {
+                Err(ErrorKind::TypeError(format!("not an object")).into())
+            }
+        });
+
+        env.insert_native("set-field-value!", |args| {
+            let (obj, (value, (field,))): (Expression, (Expression, (Expression,))) =
+                destructure!(args => auto, auto, auto)?;
+
+            if let Some(o) = obj.try_as_instance() {
+                let o = unsafe { &mut *(&**o as *const Instance as *mut Instance) };
+                o.set_field_value(field.try_as_symbol()?, value)
+                    .ok_or_else(|| ErrorKind::ArgumentError)?;
+                Ok(Expression::Undefined.into())
             } else {
                 Err(ErrorKind::TypeError(format!("not an object")).into())
             }

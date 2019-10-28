@@ -1196,6 +1196,10 @@ impl Class {
         self.base.as_ref().map(|cls| cls.n_fields).unwrap_or(0)
     }
 
+    fn field_offset(&self) -> usize {
+        self.n_base_fields()
+    }
+
     pub fn all_field_names(&self) -> Vec<Symbol> {
         let mut names = self
             .base
@@ -1218,6 +1222,16 @@ impl Class {
             base: cls,
             field_values,
         })
+    }
+
+    pub fn get_field_index(&self, name: &Symbol) -> Option<usize> {
+        for (i, n) in self.field_names.iter().enumerate() {
+            if n == name {
+                return Some(i + self.field_offset());
+            }
+        }
+
+        self.base.as_ref().and_then(|b| b.get_field_index(name))
     }
 
     pub fn invoke_method(&self, method: Symbol, args: Expression, env: EnvRef) -> Result<Return> {
@@ -1253,6 +1267,18 @@ impl Instance {
 
     pub fn base(&self) -> &Ref<Class> {
         &self.base
+    }
+
+    pub fn get_field_value(&self, name: &Symbol) -> Option<&Expression> {
+        self.base
+            .get_field_index(name)
+            .map(|idx| &self.field_values[idx])
+    }
+
+    pub fn set_field_value(&mut self, name: &Symbol, value: Expression) -> Option<()> {
+        self.base
+            .get_field_index(name)
+            .map(|idx| self.field_values[idx] = value)
     }
 
     pub fn invoke_method(&self, method: Symbol, args: Expression, env: EnvRef) -> Result<Return> {
