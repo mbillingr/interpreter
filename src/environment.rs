@@ -453,6 +453,16 @@ pub fn default_env() -> EnvRef {
             }),
         );
 
+        env.insert_native("object->class", |args| {
+            let (obj,): (Expression,) = destructure!(args => auto)?;
+
+            if let Some(o) = obj.try_as_instance() {
+                Ok(Expression::Class(o.base().clone()).into())
+            } else {
+                Err(ErrorKind::TypeError(format!("not an object")).into())
+            }
+        });
+
         // files
 
         env.insert_native("file-open", |args| {

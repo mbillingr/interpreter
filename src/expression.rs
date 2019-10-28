@@ -1251,6 +1251,10 @@ impl Instance {
         }
     }
 
+    pub fn base(&self) -> &Ref<Class> {
+        &self.base
+    }
+
     pub fn invoke_method(&self, method: Symbol, args: Expression, env: EnvRef) -> Result<Return> {
         self.base.invoke_method(method, args, env)
     }
