@@ -1200,7 +1200,7 @@ impl Class {
         let mut names = self
             .base
             .as_ref()
-            .map(|cls| cls.field_names.clone())
+            .map(|cls| cls.all_field_names())
             .unwrap_or(vec![]);
         names.extend(&self.field_names);
         names
@@ -1287,9 +1287,8 @@ pub fn define_class(env: &mut Environment, class: Ref<Class>) {
         })),
     );
 
-    for (i, field) in class.all_field_names().iter().enumerate() {
+    for (idx, field) in class.all_field_names().iter().enumerate() {
         let cls = class.clone();
-        let idx = cls.n_base_fields() + i;
 
         env.insert(
             format!("{}-{}", cls.name, field).as_str(),
