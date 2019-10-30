@@ -1,6 +1,6 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
-use crate::interpreter::Return;
+use crate::interpreter::{apply, Return};
 use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
@@ -1236,7 +1236,7 @@ impl Class {
 
     pub fn invoke_method(&self, method: Symbol, args: Expression, env: EnvRef) -> Result<Return> {
         match self.methods.get(&method) {
-            Some(m) => return Ok(Return::TailCall(Expression::cons(m.clone(), args), env)),
+            Some(m) => return apply(m.clone(), args, &env),
             None => {}
         }
         match self.base {
