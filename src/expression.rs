@@ -495,6 +495,8 @@ impl Expression {
             (Vector(a), Vector(b)) | (OpaqueVector(a), OpaqueVector(b)) => Ref::ptr_eq(a, b),
             (Procedure(a), Procedure(b)) => a.eqv(b),
             (Native(a), Native(b)) => a == b,
+            (Class(a), Class(b)) => Ref::ptr_eq(a, b),
+            (Instance(a), Instance(b)) => Ref::ptr_eq(a, b),
             _ => false,
         }
     }
