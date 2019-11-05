@@ -321,7 +321,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("file-read", |args| {
             let (filename,): (&str,) = destructure!(args => auto)?;
-            parse_file(filename).map(Into::into)
+            parse_file(&filename).map(Into::into)
         });
 
         env.insert_native("eq?", |args| native_binary(args, Expression::eqv));

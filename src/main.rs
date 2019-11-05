@@ -68,8 +68,8 @@ fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
     }
 }
 
-fn run_file(path: impl AsRef<Path>, env: &EnvRef) -> Result<()> {
-    let prog = parse_file(path.as_ref())?;
+fn run_file(path: &impl AsRef<Path>, env: &EnvRef) -> Result<()> {
+    let prog = parse_file(path)?;
     run_program(&prog, env, Some(path.as_ref().to_path_buf()))?;
     Ok(())
 }
@@ -113,7 +113,7 @@ fn main() {
     for arg in env::args().skip(1) {
         match arg {
             _ => {
-                if let Err(e) = run_file(arg, &global) {
+                if let Err(e) = run_file(&arg, &global) {
                     report_error(e);
                     return;
                 }

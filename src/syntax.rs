@@ -6,7 +6,7 @@ use crate::parser::parse_file;
 use crate::symbol;
 use std::path::{Path, PathBuf};
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct State {
     current_file: Option<PathBuf>,
 }
@@ -197,8 +197,15 @@ pub fn expand_include(list: &Expression, env: &EnvRef, state: &State) -> Result<
         let filename = filename?.try_as_str()?;
         let path = find_file(filename, state)
             .ok_or_else(|| ErrorKind::FileNotFoundError(filename.to_owned()))?;
-        let expr = parse_file(path)?;
-        let expr = expand(&expr, env, state)?;
+        let expr = parse_file(&path)?;
+
+        let expr = expand(
+            &expr,
+            env,
+            &State {
+                current_file: Some(path),
+            },
+        )?;
         result = result.append(expr)?;
     }
 

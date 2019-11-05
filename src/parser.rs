@@ -35,7 +35,7 @@ impl<I: Iterator<Item = PositionalToken>> ParserInput for SourceIter<I> {
     }
 }
 
-pub fn parse_file(path: impl AsRef<Path>) -> Result<Expression> {
+pub fn parse_file(path: &impl AsRef<Path>) -> Result<Expression> {
     let src = fs::read_to_string(path)?;
     let mut lexer = Lexer::new();
 
