@@ -398,13 +398,13 @@ impl Expression {
         }
     }
 
-    /*pub fn try_as_integer(&self) -> Result<i64> {
+    pub fn try_as_integer(&self) -> Result<i64> {
         match self {
             Expression::Integer(i) => Ok(*i),
             Expression::Float(f) if float_eq(*f, f.trunc()) => Ok(*f as i64),
             _ => Err(ErrorKind::TypeError(format!("{} is not an integer.", self)).into()),
         }
-    }*/
+    }
 
     pub fn try_as_float(&self) -> Result<f64> {
         match self {

@@ -864,6 +864,108 @@ pub fn default_env() -> EnvRef {
             X::Procedure(Procedure::build(X::Nil, scheme!(((display, "\n"))), &defenv).unwrap()),
         );
 
+        env.insert_native(
+            "format",
+            |args| {
+                let (destination, args) = args.decons()?;
+                let (control_string, args) = args.decons()?;
+
+                let control_string = control_string.try_as_str()?;
+                let mut args = args.clone();
+
+                let mut output = String::new();
+
+                let mut input = control_string.chars().peekable();
+
+                let mut next_arg = |args: &mut Expression| {
+                    let (car, cdr) = args.decons().unwrap();
+                    let car = car.clone();
+                    *args = cdr.clone();
+                    car
+                };
+
+                let mut parse_parameter = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| {
+                    match input.peek() {
+                        Some('v') => {
+                            input.next();
+                            next_arg(args).try_as_integer().ok()
+                        },
+                        Some(ch) if ch.is_ascii_digit() => {
+                            let mut i = 0;
+                            while input.peek().unwrap_or(&'x').is_ascii_digit() {
+                                i = i * 10 + input.next().unwrap().to_digit(10).unwrap();
+                            }
+                            Some(i as i64)
+                        }
+                        _ => None,
+                    }
+                };
+
+                let mut parse_directive = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| {
+                    let param = parse_parameter(input, output, args);
+                    let mut left_pad = false;
+                    while let Some(ch) = input.next() {
+                        match ch {
+                            '@' => left_pad = true,
+                            '~' => {
+                                for _ in 0..param.unwrap_or(1) { output.push('~') }
+                                return
+                            }
+                            '%' => {
+                                output.push('\n');
+                                return
+                            }
+                            'A' | 'a' | 'S' | 's' => {
+                                let x = match ch {
+                                    'A' | 'a' => format!("{}", next_arg(args)),
+                                    'S' | 's' => format!("{:?}", next_arg(args)),
+                                    _ => unreachable!(),
+                                };
+                                if let Some(width) = param {
+                                    let width = width as usize;
+                                    if x.len() < width {
+                                        let pad = " ".repeat(width - x.len());
+                                        if left_pad {
+                                            output.push_str(&pad);
+                                            output.push_str(&x);
+                                        } else {
+                                            output.push_str(&x);
+                                            output.push_str(&pad);
+
+                                        }
+                                    } else {
+                                        output.push_str(&x);
+                                    }
+                                } else {
+                                    output.push_str(&x);
+                                }
+                                return
+                            }
+                            _ => unimplemented!()
+                        }
+                    }
+                };
+
+                let mut parse = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| loop {
+                    match input.next() {
+                        Some('~') => parse_directive(input, output, args),
+                        Some(ch) => output.push(ch),
+                        None => break,
+                    }
+                };
+
+                parse(&mut input, &mut output, &mut args);
+
+                match destination {
+                    Expression::True => println!("{}", output),
+                    Expression::False => return Ok(Expression::from(output).into()),
+                    _ => return Err(ErrorKind::GenericError(format!("Invalid destination")).into())
+                }
+
+                Ok(Expression::Undefined.into())
+            }
+        );
+
         env.insert(
             "print-env",
             Expression::NativeIntrusive(|_, env| {
