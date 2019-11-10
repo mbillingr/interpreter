@@ -957,7 +957,7 @@ pub fn default_env() -> EnvRef {
                 parse(&mut input, &mut output, &mut args);
 
                 match destination {
-                    Expression::True => println!("{}", output),
+                    Expression::True => print!("{}", output),
                     Expression::False => return Ok(Expression::from(output).into()),
                     _ => return Err(ErrorKind::GenericError(format!("Invalid destination")).into())
                 }
