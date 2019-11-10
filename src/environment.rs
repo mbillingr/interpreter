@@ -877,14 +877,14 @@ pub fn default_env() -> EnvRef {
 
                 let mut input = control_string.chars().peekable();
 
-                let mut next_arg = |args: &mut Expression| {
+                let next_arg = |args: &mut Expression| {
                     let (car, cdr) = args.decons().unwrap();
                     let car = car.clone();
                     *args = cdr.clone();
                     car
                 };
 
-                let mut parse_parameter = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| {
+                let parse_parameter = |input: &mut std::iter::Peekable<std::str::Chars>, args: &mut Expression| {
                     match input.peek() {
                         Some('v') => {
                             input.next();
@@ -901,8 +901,8 @@ pub fn default_env() -> EnvRef {
                     }
                 };
 
-                let mut parse_directive = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| {
-                    let param = parse_parameter(input, output, args);
+                let parse_directive = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| {
+                    let param = parse_parameter(input, args);
                     let mut left_pad = false;
                     while let Some(ch) = input.next() {
                         match ch {
@@ -946,7 +946,7 @@ pub fn default_env() -> EnvRef {
                     }
                 };
 
-                let mut parse = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| loop {
+                let parse = |input: &mut std::iter::Peekable<std::str::Chars>, output: &mut String, args: &mut Expression| loop {
                     match input.next() {
                         Some('~') => parse_directive(input, output, args),
                         Some(ch) => output.push(ch),
