@@ -11,7 +11,7 @@ debugging = ["thread-safe", "source-tracking"]
 source-tracking = []
 
 [dependencies]
-gfx = "0.18"
+gfx = "0.18.1"
 gfx_window_glutin = "0.31"
 glutin = "0.21"
 imgui = "0.0.23"
