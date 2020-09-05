@@ -15,7 +15,7 @@ fn apply() {
     });
 
     assert_eq!(
-        Expression::Integer(7),
+        Expression::int(7),
         run_in_env("(apply +  (list 3 4))", &env).unwrap()
     );
 

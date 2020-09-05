@@ -18,6 +18,7 @@ use crate::syntax::{
     expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
     expand_quasiquote, expand_setvar,
 };
+use num_bigint::{RandBigInt, Sign};
 use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -881,12 +882,13 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_micros();
-            Ok(Expression::Integer(t as i64).into())
+            Ok(Expression::Integer(t.into()).into())
         });
 
         env.insert_native("random", |args| match car(&args)? {
             Expression::Integer(n) => {
-                Ok(Expression::Integer(rand::thread_rng().gen_range(0, n)).into())
+                //Ok(Expression::Integer(rand::thread_rng().gen_range(0, n)).into())
+                Ok(Expression::Integer(rand::thread_rng().gen_bigint_range(&0.into(), n)).into())
             }
             Expression::Float(n) => {
                 Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n)).into())
@@ -924,14 +926,19 @@ pub fn default_env() -> EnvRef {
                 match input.peek() {
                     Some('v') => {
                         input.next();
-                        next_arg(args).try_as_integer().ok()
+                        next_arg(args)
+                            .try_as_integer()
+                            .ok()
+                            .map(|x| x.to_u32_digits())
+                            .filter(|(sign, _)| *sign == Sign::Plus)
+                            .map(|(_, digits)| digits[0])
                     }
                     Some(ch) if ch.is_ascii_digit() => {
                         let mut i = 0;
                         while input.peek().unwrap_or(&'x').is_ascii_digit() {
                             i = i * 10 + input.next().unwrap().to_digit(10).unwrap();
                         }
-                        Some(i as i64)
+                        Some(i.into())
                     }
                     _ => None,
                 }

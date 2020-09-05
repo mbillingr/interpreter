@@ -34,35 +34,38 @@ macro_rules! combine {
 
 #[cfg(test)]
 mod test {
-    use crate::expression::Expression as X;
+    use crate::expression::{Expression as X, Int};
     use std::convert::TryInto;
 
     #[test]
     fn destructure() {
         let x = X::from_vec(vec![1.into(), 2.into(), 3.into()]);
 
-        assert_eq!((&X::Integer(1),), destructure!(x => expr).unwrap());
+        assert_eq!((&X::Integer(1.into()),), destructure!(x => expr).unwrap());
         assert_eq!(
-            (&X::Integer(1), (&X::Integer(2),)),
+            (&X::int(1), (&X::int(2),)),
             destructure!(x => expr, expr).unwrap()
         );
         assert_eq!(
-            (&X::Integer(1), (&X::Integer(2), (&X::Integer(3),))),
+            (&X::int(1), (&X::int(2), (&X::int(3),))),
             destructure!(x => expr, expr, expr).unwrap()
         );
 
-        assert_eq!((1_i64,), destructure!(x => auto).unwrap());
-        assert_eq!((1_i64, (2_i64,)), destructure!(x => auto, auto).unwrap());
+        assert_eq!((Int::from(1),), destructure!(x => auto).unwrap());
+        assert_eq!(
+            (Int::from(1), (Int::from(2),)),
+            destructure!(x => auto, auto).unwrap()
+        );
 
         let (a, (b, (c,))) = destructure!(x => auto, auto, auto).unwrap();
-        assert_eq!(1_i64, a);
-        assert_eq!(2_i64, b);
-        assert_eq!(3_i64, c);
+        assert_eq!(Int::from(1), a);
+        assert_eq!(Int::from(2), b);
+        assert_eq!(Int::from(3), c);
 
         let x = X::from_vec(vec![1.into(), "2".into(), true.into()]);
 
-        let (a, (b, (c,))): (i64, (&str, (bool,))) = destructure!(x => auto, auto, auto).unwrap();
-        assert_eq!(1_i64, a);
+        let (a, (b, (c,))): (Int, (&str, (bool,))) = destructure!(x => auto, auto, auto).unwrap();
+        assert_eq!(Int::from(1), a);
         assert_eq!("2", b);
         assert_eq!(true, c);
     }
