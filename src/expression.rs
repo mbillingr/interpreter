@@ -11,6 +11,7 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "thread-safe")]
 pub use std::sync::{Arc as Ref, Weak};
 
+use std::any::Any;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
@@ -20,7 +21,7 @@ pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
 pub type MacroFn = fn(&Expression, &EnvRef, &syntax::State) -> Result<Expression>;
-pub type NativeClosure = Ref<dyn Fn(Args) -> Result<Return>>;
+//pub type NativeClosure = Ref<dyn Fn(Args) -> Result<Return>>;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -83,7 +84,7 @@ pub enum Expression {
     NativeMacro(MacroFn),
     Native(NativeFn),
     NativeIntrusive(NativeIntrusiveFn),
-    NativeClosure(NativeClosure),
+    NativeClosure(Ref<NativeClosure>),
     Vector(Ref<Vec<Expression>>),
     OpaqueVector(Ref<Vec<Expression>>),
     File(Ref<Option<File>>),
@@ -1291,75 +1292,85 @@ impl Instance {
 pub fn define_class(env: &mut Environment, class: Ref<Class>) {
     env.insert(class.name, Expression::Class(class.clone()));
 
-    let cls = class.clone();
     env.insert(
-        format!("make-{}", cls.name).as_str(),
-        Expression::NativeClosure(Ref::new(move |args| {
-            Ok(Expression::Instance(Ref::new(Class::instantiate(
-                cls.clone(),
-                args.iter_list()
-                    .map(|x| Ok(x?.clone()))
-                    .collect::<Result<_>>()?,
-            )?))
-            .into())
-        })),
-    );
-
-    let cls = class.clone();
-    env.insert(
-        format!("{}?", cls.name).as_str(),
-        Expression::NativeClosure(Ref::new(move |args| {
-            let obj = args.car()?;
-
-            Ok(obj
-                .try_as_instance()
-                .map(|o| o.is_instance(&cls))
-                .unwrap_or(false)
+        format!("make-{}", class.name).as_str(),
+        Expression::NativeClosure(Ref::new(NativeClosure::new(
+            vec![Box::new(class.clone())],
+            |args, vars| {
+                let cls = vars[0].downcast_ref::<Ref<Class>>().unwrap().clone();
+                Ok(Expression::Instance(Ref::new(Class::instantiate(
+                    cls,
+                    args.iter_list()
+                        .map(|x| Ok(x?.clone()))
+                        .collect::<Result<_>>()?,
+                )?))
                 .into())
-        })),
+            },
+        ))),
     );
 
-    for (idx, field) in class.all_field_names().iter().enumerate() {
-        let cls = class.clone();
-
-        env.insert(
-            format!("{}-{}", cls.name, field).as_str(),
-            Expression::NativeClosure(Ref::new(move |args| {
+    env.insert(
+        format!("{}?", class.name).as_str(),
+        Expression::NativeClosure(Ref::new(NativeClosure::new(
+            vec![Box::new(class.clone())],
+            |args, vars| {
+                let cls = vars[0].downcast_ref::<Ref<Class>>().unwrap();
                 let obj = args.car()?;
 
                 Ok(obj
                     .try_as_instance()
-                    .filter(|o| o.is_instance(&cls))
-                    .map(|o| o.field_values[idx].clone())
-                    .ok_or(ErrorKind::TypeError(format!(
-                        "Expected instance of {}",
-                        cls.name
-                    )))?
+                    .map(|o| o.is_instance(cls))
+                    .unwrap_or(false)
                     .into())
-            })),
+            },
+        ))),
+    );
+
+    for (idx, field) in class.all_field_names().iter().enumerate() {
+        env.insert(
+            format!("{}-{}", class.name, field).as_str(),
+            Expression::NativeClosure(Ref::new(NativeClosure::new(
+                vec![Box::new(class.clone()), Box::new(idx)],
+                |args, vars| {
+                    let cls = vars[0].downcast_ref::<Ref<Class>>().unwrap();
+                    let idx = *vars[1].downcast_ref::<usize>().unwrap();
+                    let obj = args.car()?;
+
+                    Ok(obj
+                        .try_as_instance()
+                        .filter(|o| o.is_instance(cls))
+                        .map(|o| o.field_values[idx].clone())
+                        .ok_or(ErrorKind::TypeError(format!(
+                            "Expected instance of {}",
+                            cls.name
+                        )))?
+                        .into())
+                },
+            ))),
         );
 
         let cls = class.clone();
         env.insert(
             format!("set-{}-{}!", cls.name, field).as_str(),
-            Expression::NativeClosure(Ref::new(move |args| {
-                let obj = args.car()?;
-                let value = args.cdr()?.car()?;
+            Expression::NativeClosure(Ref::new(NativeClosure::new(
+                vec![Box::new(class.clone()), Box::new(idx)],
+                |args, vars| {
+                    let cls = vars[0].downcast_ref::<Ref<Class>>().unwrap();
+                    let idx = *vars[1].downcast_ref::<usize>().unwrap();
+                    let obj = args.car()?;
+                    let value = args.cdr()?.car()?;
 
-                let obj = obj
-                    .try_as_instance()
-                    .filter(|o| o.is_instance(&cls))
-                    .ok_or(ErrorKind::TypeError(format!(
-                        "Expected instance of {}",
-                        cls.name
-                    )))?;
+                    let obj = obj.try_as_instance().filter(|o| o.is_instance(cls)).ok_or(
+                        ErrorKind::TypeError(format!("Expected instance of {}", cls.name)),
+                    )?;
 
-                let obj = unsafe { &mut *(&**obj as *const Instance as *mut Instance) };
+                    let obj = unsafe { &mut *(&**obj as *const Instance as *mut Instance) };
 
-                obj.field_values[idx] = value.clone();
+                    obj.field_values[idx] = value.clone();
 
-                Ok(Expression::Undefined.into())
-            })),
+                    Ok(Expression::Undefined.into())
+                },
+            ))),
         );
     }
 }
@@ -1376,4 +1387,25 @@ pub fn define_method(
     let class = unsafe { &mut *(&*class as *const Class as *mut Class) };
 
     class.add_method(name, the_method);
+}
+
+pub struct NativeClosure {
+    function: fn(Args, &[Box<dyn Any + Send + Sync>]) -> Result<Return>,
+    variables: Vec<Box<dyn Any + Send + Sync>>,
+}
+
+impl NativeClosure {
+    pub fn new(
+        variables: Vec<Box<dyn Any + Send + Sync>>,
+        function: fn(Args, &[Box<dyn Any + Send + Sync>]) -> Result<Return>,
+    ) -> Self {
+        NativeClosure {
+            function,
+            variables,
+        }
+    }
+
+    pub fn invoke(&self, args: Args) -> Result<Return> {
+        (self.function)(args, &self.variables)
+    }
 }

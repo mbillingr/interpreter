@@ -5,7 +5,8 @@ use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{
-    define_class, define_method, Args, Class, Expression, Instance, NativeFn, Procedure, Ref,
+    define_class, define_method, Args, Class, Expression, Instance, NativeClosure, NativeFn,
+    Procedure, Ref,
 };
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
@@ -399,13 +400,18 @@ pub fn default_env() -> EnvRef {
 
                 env.borrow_mut().insert(
                     name.clone(),
-                    Expression::NativeClosure(Ref::new(move |args| {
-                        let obj = args.car()?;
-                        let obj = obj
-                            .try_as_instance()
-                            .ok_or_else(|| ErrorKind::TypeError(format!("not an object")))?;
-                        obj.invoke_method(name, args.clone(), environment.clone())
-                    })),
+                    Expression::NativeClosure(Ref::new(NativeClosure::new(
+                        vec![Box::new(name), Box::new(environment)],
+                        |args, vars| {
+                            let name = *vars[0].downcast_ref::<Symbol>().unwrap();
+                            let env = vars[1].downcast_ref::<EnvRef>().unwrap().clone();
+                            let obj = args.car()?;
+                            let obj = obj
+                                .try_as_instance()
+                                .ok_or_else(|| ErrorKind::TypeError(format!("not an object")))?;
+                            obj.invoke_method(name, args.clone(), env)
+                        },
+                    ))),
                 );
 
                 let class = env

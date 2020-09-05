@@ -159,7 +159,7 @@ pub fn inner_apply(proc: Expression, args: Expression, env: &EnvRef) -> Result<R
         }
         Expression::Native(func) => func(args),
         Expression::NativeIntrusive(func) => func(args, env),
-        Expression::NativeClosure(func) => func(args),
+        Expression::NativeClosure(nc) => nc.invoke(args),
         x => Err(ErrorKind::TypeError(format!("not callable: {:?}", x)))?,
     }
 }
