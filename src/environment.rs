@@ -8,6 +8,7 @@ use crate::expression::{
     define_class, define_method, Args, Class, Expression, Instance, NativeClosure, NativeFn,
     Procedure, Ref,
 };
+use crate::integer::Int;
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
@@ -18,7 +19,6 @@ use crate::syntax::{
     expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
     expand_quasiquote, expand_setvar,
 };
-use num_bigint::{RandBigInt, Sign};
 use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -887,8 +887,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("random", |args| match car(&args)? {
             Expression::Integer(n) => {
-                //Ok(Expression::Integer(rand::thread_rng().gen_range(0, n)).into())
-                Ok(Expression::Integer(rand::thread_rng().gen_bigint_range(&0.into(), n)).into())
+                Ok(Expression::Integer(Int::rand_range(&Int::zero(), n)).into())
             }
             Expression::Float(n) => {
                 Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n)).into())
@@ -928,17 +927,18 @@ pub fn default_env() -> EnvRef {
                         input.next();
                         next_arg(args)
                             .try_as_integer()
+                            .map(|i| i.to_usize().unwrap())
                             .ok()
-                            .map(|x| x.to_u32_digits())
-                            .filter(|(sign, _)| *sign == Sign::Plus)
-                            .map(|(_, digits)| digits[0])
+                        //.map(|x| x.to_u32_digits())
+                        //.filter(|(sign, _)| *sign == Sign::Plus)
+                        //.map(|(_, digits)| digits[0])
                     }
                     Some(ch) if ch.is_ascii_digit() => {
-                        let mut i = 0;
+                        let mut i: usize = 0;
                         while input.peek().unwrap_or(&'x').is_ascii_digit() {
-                            i = i * 10 + input.next().unwrap().to_digit(10).unwrap();
+                            i = i * 10 + input.next().unwrap().to_digit(10).unwrap() as usize;
                         }
-                        Some(i.into())
+                        Some(i)
                     }
                     _ => None,
                 }

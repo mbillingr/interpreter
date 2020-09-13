@@ -18,6 +18,7 @@ mod errors;
 mod expression;
 #[cfg(feature = "debugging")]
 mod global_thread_state;
+mod integer;
 mod interpreter;
 mod io;
 mod lexer;

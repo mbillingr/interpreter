@@ -1,11 +1,11 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
+pub use crate::integer::Int;
 use crate::interpreter::{apply, Return};
 use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
 use crate::syntax;
-use num_bigint::{BigInt, Sign};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 
@@ -22,8 +22,6 @@ pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
 pub type MacroFn = fn(&Expression, &EnvRef, &syntax::State) -> Result<Expression>;
-
-pub type Int = BigInt;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -415,7 +413,7 @@ impl Expression {
 
     pub fn try_as_float(&self) -> Result<f64> {
         match self {
-            Expression::Integer(i) => Ok(int_to_float(i)),
+            Expression::Integer(i) => Ok(i.to_float()),
             Expression::Float(f) => Ok(*f),
             _ => Err(ErrorKind::TypeError(format!("{} is not a number.", self)).into()),
         }
@@ -552,17 +550,17 @@ impl Expression {
     pub fn truncate_quotient(&self, other: &Self) -> Result<Self> {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a / b)),
+            (Integer(a), Integer(b)) => Ok(Integer(a.div(b))),
             (Integer(a), Float(b)) => {
                 if other.is_integer() {
-                    Ok(Float(int_to_float(a) / b))
+                    Ok(Float(a.to_float() / b))
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
                 }
             }
             (Float(a), Integer(b)) => {
                 if self.is_integer() {
-                    Ok(Float(a / int_to_float(b)))
+                    Ok(Float(a / b.to_float()))
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
                 }
@@ -575,17 +573,17 @@ impl Expression {
     pub fn truncate_remainder(&self, other: &Self) -> Result<Self> {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a % b)),
+            (Integer(a), Integer(b)) => Ok(Integer(Int::rem(a, b))),
             (Integer(a), Float(b)) => {
                 if other.is_integer() {
-                    Ok(Float(int_to_float(a) % b))
+                    Ok(Float(a.to_float() % b))
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
                 }
             }
             (Float(a), Integer(b)) => {
                 if self.is_integer() {
-                    Ok(Float(a % int_to_float(b)))
+                    Ok(Float(a % b.to_float()))
                 } else {
                     Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
                 }
@@ -865,7 +863,7 @@ impl std::convert::TryFrom<&Expression> for usize {
 
     fn try_from(x: &Expression) -> Result<usize> {
         match x {
-            Expression::Integer(i) if *i >= Int::from(0) => int_to_usize(i).ok_or_else(|| {
+            Expression::Integer(i) if *i >= Int::from(0) => i.to_usize().ok_or_else(|| {
                 ErrorKind::TypeError("Integer out of range for usize".to_owned()).into()
             }),
             _ => Err(ErrorKind::TypeError(format!("Expected positive integer: {:?}", x)).into()),
@@ -909,9 +907,9 @@ impl std::ops::Add for Expression {
     fn add(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a + b)),
-            (Integer(a), Float(b)) => Ok(Float(int_to_float(&a) + b)),
-            (Float(a), Integer(b)) => Ok(Float(a + int_to_float(&b))),
+            (Integer(a), Integer(b)) => Ok(Integer(a.add(&b))),
+            (Integer(a), Float(b)) => Ok(Float(a.to_float() + b)),
+            (Float(a), Integer(b)) => Ok(Float(a + b.to_float())),
             (Float(a), Float(b)) => Ok(Float(a + b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot add {} + {}", a, b)).into()),
         }
@@ -923,9 +921,9 @@ impl std::ops::Mul for Expression {
     fn mul(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a * b)),
-            (Integer(a), Float(b)) => Ok(Float(int_to_float(&a) * b)),
-            (Float(a), Integer(b)) => Ok(Float(a * int_to_float(&b))),
+            (Integer(a), Integer(b)) => Ok(Integer(a.mul(&b))),
+            (Integer(a), Float(b)) => Ok(Float(a.to_float() * b)),
+            (Float(a), Integer(b)) => Ok(Float(a * b.to_float())),
             (Float(a), Float(b)) => Ok(Float(a * b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot multiply {} * {}", a, b)).into()),
         }
@@ -937,9 +935,9 @@ impl std::ops::Sub for Expression {
     fn sub(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a - b)),
-            (Integer(a), Float(b)) => Ok(Float(int_to_float(&a) - b)),
-            (Float(a), Integer(b)) => Ok(Float(a - int_to_float(&b))),
+            (Integer(a), Integer(b)) => Ok(Integer(a.sub(&b))),
+            (Integer(a), Float(b)) => Ok(Float(a.to_float() - b)),
+            (Float(a), Integer(b)) => Ok(Float(a - b.to_float())),
             (Float(a), Float(b)) => Ok(Float(a - b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot subtract {} - {}", a, b)).into()),
         }
@@ -951,9 +949,9 @@ impl std::ops::Div for Expression {
     fn div(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Float(int_to_float(&a) / int_to_float(&b))),
-            (Integer(a), Float(b)) => Ok(Float(int_to_float(&a) / b)),
-            (Float(a), Integer(b)) => Ok(Float(a / int_to_float(&b))),
+            (Integer(a), Integer(b)) => Ok(Float(a.to_float() / b.to_float())),
+            (Integer(a), Float(b)) => Ok(Float(a.to_float() / b)),
+            (Float(a), Integer(b)) => Ok(Float(a / b.to_float())),
             (Float(a), Float(b)) => Ok(Float(a / b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
         }
@@ -965,9 +963,9 @@ impl std::ops::Rem for Expression {
     fn rem(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a % b)),
-            (Integer(a), Float(b)) => Ok(Float(int_to_float(&a) % b)),
-            (Float(a), Integer(b)) => Ok(Float(a % int_to_float(&b))),
+            (Integer(a), Integer(b)) => Ok(Integer(a.rem(&b))),
+            (Integer(a), Float(b)) => Ok(Float(a.to_float() % b)),
+            (Float(a), Integer(b)) => Ok(Float(a % b.to_float())),
             (Float(a), Float(b)) => Ok(Float(a % b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
         }
@@ -979,8 +977,8 @@ impl std::cmp::PartialOrd for Expression {
         use Expression::*;
         match (self, rhs) {
             (Integer(a), Integer(b)) => a.partial_cmp(b),
-            (Integer(a), Float(b)) => int_to_float(&a).partial_cmp(b),
-            (Float(a), Integer(b)) => a.partial_cmp(&int_to_float(b)),
+            (Integer(a), Float(b)) => a.to_float().partial_cmp(b),
+            (Float(a), Integer(b)) => a.partial_cmp(&b.to_float()),
             (Float(a), Float(b)) => a.partial_cmp(b),
             (String(a), String(b)) => a.partial_cmp(b),
             (Symbol(a), Symbol(b)) => a.partial_cmp(b),
@@ -994,8 +992,8 @@ impl std::cmp::PartialEq for Expression {
         use Expression::*;
         match (self, rhs) {
             (Integer(a), Integer(b)) => a == b,
-            (Integer(a), Float(b)) => int_to_float(a) == *b,
-            (Float(a), Integer(b)) => *a == int_to_float(b),
+            (Integer(a), Float(b)) => a.to_float() == *b,
+            (Float(a), Integer(b)) => *a == b.to_float(),
             (Float(a), Float(b)) => a == b,
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b)) => a == b,
@@ -1427,33 +1425,4 @@ impl NativeClosure {
     pub fn invoke(&self, args: Args) -> Result<Return> {
         (self.function)(args, &self.variables)
     }
-}
-
-fn int_to_float(i: &Int) -> f64 {
-    let (sign, digits) = i.to_u32_digits();
-
-    let mut f = 0.0;
-    for d in digits.into_iter().rev() {
-        f *= u32::MAX as f64;
-        f += d as f64;
-    }
-
-    match sign {
-        Sign::NoSign | Sign::Plus => f,
-        Sign::Minus => -f,
-    }
-}
-
-fn int_to_usize(i: &Int) -> Option<usize> {
-    let (sign, digits) = i.to_u32_digits();
-
-    if let Sign::Minus = sign {
-        return None;
-    }
-
-    if digits.len() > 2 {
-        return None;
-    }
-
-    Some(digits[0] as usize + digits[1] as usize * u32::MAX as usize)
 }
