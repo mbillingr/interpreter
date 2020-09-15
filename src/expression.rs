@@ -6,13 +6,13 @@ use crate::macros::Macro;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
 use crate::syntax;
+use crate::native_closure::NativeClosure;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "thread-safe")]
 pub use std::sync::{Arc as Ref, Weak};
 
-use std::any::Any;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
@@ -1406,25 +1406,4 @@ pub fn define_method(
     let class = unsafe { &mut *(&*class as *const Class as *mut Class) };
 
     class.add_method(name, the_method);
-}
-
-pub struct NativeClosure {
-    function: fn(Args, &[Box<dyn Any + Send + Sync>]) -> Result<Return>,
-    variables: Vec<Box<dyn Any + Send + Sync>>,
-}
-
-impl NativeClosure {
-    pub fn new(
-        variables: Vec<Box<dyn Any + Send + Sync>>,
-        function: fn(Args, &[Box<dyn Any + Send + Sync>]) -> Result<Return>,
-    ) -> Self {
-        NativeClosure {
-            function,
-            variables,
-        }
-    }
-
-    pub fn invoke(&self, args: Args) -> Result<Return> {
-        (self.function)(args, &self.variables)
-    }
 }
