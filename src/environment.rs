@@ -5,15 +5,14 @@ use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{
-    define_class, define_method, Args, Class, Expression, Instance, NativeFn,
-    Procedure, Ref,
+    define_class, define_method, Args, Class, Expression, Instance, NativeFn, Procedure, Ref,
 };
 use crate::integer::Int;
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
-use crate::parser::{parse_file, read_lex};
 use crate::native_closure::NativeClosure;
+use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
     car_to_special, expand, expand_and, expand_begin, expand_case, expand_cond, expand_define,

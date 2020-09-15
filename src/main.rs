@@ -25,6 +25,7 @@ mod lexer;
 mod libraries;
 mod macros;
 mod native_closure;
+mod number;
 mod parser;
 mod sourcecode;
 mod symbol;

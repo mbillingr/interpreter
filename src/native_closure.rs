@@ -1,7 +1,7 @@
-use std::any::Any;
-use crate::interpreter::Return;
-use crate::expression::Args;
 use crate::errors::Result;
+use crate::expression::Args;
+use crate::interpreter::Return;
+use std::any::Any;
 
 pub use implementation::NativeClosure;
 

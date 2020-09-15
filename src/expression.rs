@@ -3,16 +3,17 @@ use crate::errors::*;
 pub use crate::integer::Int;
 use crate::interpreter::{apply, Return};
 use crate::macros::Macro;
+use crate::native_closure::NativeClosure;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
 use crate::syntax;
-use crate::native_closure::NativeClosure;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "thread-safe")]
 pub use std::sync::{Arc as Ref, Weak};
 
+use crate::number::Number;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
@@ -76,6 +77,7 @@ pub enum Expression {
     Char(char),
     Integer(Int),
     Float(f64),
+    Number(Number),
     True,
     False,
     Pair(Ref<Pair>),
@@ -604,6 +606,7 @@ impl Expression {
             Expression::String(s) => format!("{:?}", s),
             Expression::Integer(i) => format!("{}", i),
             Expression::Float(i) => format!("{}", i),
+            Expression::Number(n) => format!("{}", n),
             Expression::Char(ch) => format!("{:?}", ch),
             Expression::True => "#t".into(),
             Expression::False => "#f".into(),
@@ -663,6 +666,7 @@ impl std::fmt::Debug for Expression {
             Expression::String(s) => write!(f, "{:?}", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
+            Expression::Number(n) => write!(f, "{}", n),
             Expression::Char(ch) => write!(f, "{:?}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
@@ -710,6 +714,7 @@ impl std::fmt::Display for Expression {
             Expression::Special(s) => write!(f, "<{}>", s),
             Expression::Integer(i) => write!(f, "{}", i),
             Expression::Float(i) => write!(f, "{}", i),
+            Expression::Number(n) => write!(f, "{}", n),
             Expression::Char(ch) => write!(f, "{}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),

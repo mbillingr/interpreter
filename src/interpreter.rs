@@ -59,9 +59,9 @@ pub fn inner_eval(expr: &Expression, mut env: EnvRef) -> Result<Expression> {
                     .lookup(&s)
                     .ok_or_else(|| ErrorKind::Unbound(*s))?,
             ),
-            Undefined | Nil | Integer(_) | Float(_) | String(_) | Char(_) | True | False
-            | Procedure(_) | Macro(_) | Special(_) | Vector(_) | OpaqueVector(_) | File(_)
-            | Class(_) | Instance(_) => Return::Value(expr.into_owned()),
+            Undefined | Nil | Integer(_) | Float(_) | Number(_) | String(_) | Char(_) | True
+            | False | Procedure(_) | Macro(_) | Special(_) | Vector(_) | OpaqueVector(_)
+            | File(_) | Class(_) | Instance(_) => Return::Value(expr.into_owned()),
             Native(_) | NativeIntrusive(_) | NativeClosure(_) => Return::Value(expr.into_owned()),
             NativeMacro(_) => Return::Value(expr.into_owned()),
             Pair(ref pair) => {
