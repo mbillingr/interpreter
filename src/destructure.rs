@@ -41,7 +41,7 @@ mod test {
     fn destructure() {
         let x = X::from_vec(vec![1.into(), 2.into(), 3.into()]);
 
-        assert_eq!((&X::Integer(1.into()),), destructure!(x => expr).unwrap());
+        assert_eq!((&X::Number(1.into()),), destructure!(x => expr).unwrap());
         assert_eq!(
             (&X::int(1), (&X::int(2),)),
             destructure!(x => expr, expr).unwrap()

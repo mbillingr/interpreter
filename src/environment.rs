@@ -7,11 +7,11 @@ use crate::errors::*;
 use crate::expression::{
     define_class, define_method, Args, Class, Expression, Instance, NativeFn, Procedure, Ref,
 };
-use crate::integer::Int;
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
 use crate::native_closure::NativeClosure;
+use crate::number::Number;
 use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
@@ -19,7 +19,6 @@ use crate::syntax::{
     expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
     expand_quasiquote, expand_setvar,
 };
-use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
@@ -711,8 +710,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("number->string", |args| {
             let s = match args.car()? {
-                Expression::Integer(i) => format!("{}", i),
-                Expression::Float(f) => format!("{}", f),
+                Expression::Number(n) => format!("{}", n),
                 x => Err(ErrorKind::TypeError(format!("Expected number: {:?}", x)))?,
             };
             Ok(s.into())
@@ -882,15 +880,12 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_micros();
-            Ok(Expression::Integer(Int::from_u128(t)).into())
+            Ok(Expression::Number(t.into()).into())
         });
 
         env.insert_native("random", |args| match car(&args)? {
-            Expression::Integer(n) => {
-                Ok(Expression::Integer(Int::rand_range(&Int::zero(), n)).into())
-            }
-            Expression::Float(n) => {
-                Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n)).into())
+            Expression::Number(n) => {
+                Ok(Expression::Number(Number::rand_range(&Number::zero(), n)).into())
             }
             x => {
                 Err(ErrorKind::TypeError(format!("Invalid upper limit for random: {:?}", x)).into())
