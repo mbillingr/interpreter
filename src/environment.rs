@@ -882,7 +882,7 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_micros();
-            Ok(Expression::Integer(t.into()).into())
+            Ok(Expression::Integer(Int::from_u128(t)).into())
         });
 
         env.insert_native("random", |args| match car(&args)? {

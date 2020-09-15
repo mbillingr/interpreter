@@ -542,7 +542,9 @@ impl Expression {
     pub fn round(&self) -> Result<Self> {
         match self {
             Expression::Integer(_) => Ok(self.clone()),
-            Expression::Float(f) => Ok(Expression::int(f.round() as i128)),
+            Expression::Float(f) => Ok(Int::from_f64(f.round())
+                .map(Expression::int)
+                .unwrap_or(Expression::Float(f.round()))),
             _ => Err(ErrorKind::TypeError(format!("not a number: {}", self)).into()),
         }
     }
@@ -566,7 +568,7 @@ impl Expression {
                 }
             }
             (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a / b)),
-            (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
+            (a, b) => Err(ErrorKind::TypeError(format!("not integer: {}, {}", a, b)).into()),
         }
     }
 
@@ -589,7 +591,7 @@ impl Expression {
                 }
             }
             (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a % b)),
-            (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
+            (a, b) => Err(ErrorKind::TypeError(format!("not integer: {}, {}", a, b)).into()),
         }
     }
 
