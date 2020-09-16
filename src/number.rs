@@ -69,6 +69,56 @@ impl FromPrimitive for Number {
     }
 }
 
+impl ToPrimitive for Number {
+    fn to_i64(&self) -> Option<i64> {
+        match self {
+            Number::Integer(i) => i.to_i64(),
+            Number::Rational(r) => r.to_i64(),
+            Number::Float(f) => f.to_i64(),
+        }
+    }
+
+    fn to_i128(&self) -> Option<i128> {
+        match self {
+            Number::Integer(i) => i.to_i128(),
+            Number::Rational(r) => r.to_i128(),
+            Number::Float(f) => f.to_i128(),
+        }
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            Number::Integer(i) => i.to_u64(),
+            Number::Rational(r) => r.to_u64(),
+            Number::Float(f) => f.to_u64(),
+        }
+    }
+
+    fn to_u128(&self) -> Option<u128> {
+        match self {
+            Number::Integer(i) => i.to_u128(),
+            Number::Rational(r) => r.to_u128(),
+            Number::Float(f) => f.to_u128(),
+        }
+    }
+
+    fn to_f32(&self) -> Option<f32> {
+        match self {
+            Number::Integer(i) => i.to_f32(),
+            Number::Rational(r) => r.to_f32(),
+            Number::Float(f) => f.to_f32(),
+        }
+    }
+
+    fn to_f64(&self) -> Option<f64> {
+        match self {
+            Number::Integer(i) => i.to_f64(),
+            Number::Rational(r) => r.to_f64(),
+            Number::Float(f) => Some(*f),
+        }
+    }
+}
+
 impl Number {
     pub fn is_integer(&self) -> bool {
         match self {
@@ -88,6 +138,15 @@ impl Number {
     pub fn try_as_integer(&self) -> Option<&Int> {
         match self {
             Number::Integer(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn to_integer(&self) -> Option<Int> {
+        match self {
+            Number::Integer(i) => Some(i.clone()),
+            Number::Rational(r) if r.is_integer() => Some(r.to_integer()),
+            Number::Float(f) if *f == f.trunc() => Int::from_f64(*f),
             _ => None,
         }
     }
@@ -341,41 +400,6 @@ impl std::cmp::PartialEq for Number {
             (Rational(a), Integer(b)) if a.is_integer() => &a.to_integer() == b,
             (Rational(_), Integer(_)) => false,
             (Rational(a), Float(b)) => a.to_f64().unwrap() == *b,
-        }
-    }
-}
-
-impl std::convert::TryFrom<&Number> for Int {
-    type Error = crate::errors::Error;
-
-    fn try_from(x: &Number) -> Result<Int> {
-        match x {
-            Number::Integer(i) => Ok(i.clone()),
-            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
-        }
-    }
-}
-
-impl std::convert::TryFrom<&Number> for f64 {
-    type Error = crate::errors::Error;
-
-    fn try_from(x: &Number) -> Result<f64> {
-        match x {
-            Number::Float(f) => Ok(*f),
-            _ => Err(ErrorKind::TypeError(format!("Expected fleat: {:?}", x)).into()),
-        }
-    }
-}
-
-impl std::convert::TryFrom<&Number> for usize {
-    type Error = crate::errors::Error;
-
-    fn try_from(x: &Number) -> Result<usize> {
-        match x {
-            Number::Integer(i) if *i >= Int::from(0) => i.to_usize().ok_or_else(|| {
-                ErrorKind::TypeError("Integer out of range for usize".to_owned()).into()
-            }),
-            _ => Err(ErrorKind::TypeError(format!("Expected positive integer: {:?}", x)).into()),
         }
     }
 }

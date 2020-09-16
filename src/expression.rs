@@ -14,9 +14,9 @@ use std::hash::{Hash, Hasher};
 pub use std::sync::{Arc as Ref, Weak};
 
 use crate::number::Number;
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
@@ -796,10 +796,10 @@ impl TryFrom<&Expression> for Int {
     type Error = crate::errors::Error;
 
     fn try_from(x: &Expression) -> Result<Int> {
-        match x {
-            Expression::Number(n) => n.try_into(),
-            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
-        }
+        x.try_as_number().and_then(|n| {
+            n.to_integer()
+                .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
+        })
     }
 }
 
@@ -807,10 +807,10 @@ impl std::convert::TryFrom<&Expression> for f64 {
     type Error = crate::errors::Error;
 
     fn try_from(x: &Expression) -> Result<f64> {
-        match x {
-            Expression::Number(n) => n.try_into(),
-            _ => Err(ErrorKind::TypeError(format!("Expected float: {:?}", x)).into()),
-        }
+        x.try_as_number().and_then(|n| {
+            n.to_f64()
+                .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
+        })
     }
 }
 
@@ -818,10 +818,10 @@ impl std::convert::TryFrom<&Expression> for usize {
     type Error = crate::errors::Error;
 
     fn try_from(x: &Expression) -> Result<usize> {
-        match x {
-            Expression::Number(n) => n.try_into(),
-            _ => Err(ErrorKind::TypeError(format!("Expected positive integer: {:?}", x)).into()),
-        }
+        x.try_as_number().and_then(|n| {
+            n.to_usize()
+                .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
+        })
     }
 }
 
