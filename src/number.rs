@@ -1,12 +1,17 @@
 use crate::errors::{ErrorKind, Result};
 use crate::integer::Int;
-use num_traits::{FromPrimitive, One, Zero};
+#[cfg(feature = "bigint")]
+use num_rational::BigRational as Ratio;
+#[cfg(not(feature = "bigint"))]
+use num_rational::Rational64 as Ratio;
+use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 use rand::{thread_rng, Rng};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 #[derive(Clone, Debug)]
 pub enum Number {
     Integer(Int),
+    Rational(Ratio),
     Float(f64),
 }
 
@@ -14,6 +19,7 @@ impl std::fmt::Display for Number {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Number::Integer(i) => write!(f, "{}", i),
+            Number::Rational(r) => write!(f, "{}", r),
             Number::Float(x) => write!(f, "{}", x),
         }
     }
@@ -88,7 +94,8 @@ impl Number {
 
     pub fn to_float(&self) -> f64 {
         match self {
-            Number::Integer(i) => i.to_float(),
+            Number::Integer(i) => i.to_f64().unwrap(),
+            Number::Rational(r) => r.to_f64().unwrap(),
             Number::Float(f) => *f,
         }
     }
@@ -105,6 +112,7 @@ impl Number {
     pub fn round(&self) -> Self {
         match self {
             Number::Integer(_) => self.clone(),
+            Number::Rational(r) => Number::Integer(Int::new(r.round().to_integer())),
             Number::Float(f) => Int::from_f64(f.round())
                 .map(Number::Integer)
                 .unwrap_or(Number::Float(f.round())),
@@ -164,6 +172,8 @@ impl Number {
             (Float(a), Float(b)) => Float(thread_rng().gen_range(a, b)),
             (Integer(a), Float(_)) => Self::rand_range(&Float(a.to_float()), hi),
             (Float(_), Integer(b)) => Self::rand_range(lo, &Float(b.to_float())),
+            (Rational(a), _) => Self::rand_range(&Float(a.to_f64().unwrap()), hi),
+            (_, Rational(b)) => Self::rand_range(lo, &Float(b.to_f64().unwrap())),
         }
     }
 }
@@ -176,6 +186,7 @@ impl Zero for Number {
     fn is_zero(&self) -> bool {
         match self {
             Number::Integer(n) => n.is_zero(),
+            Number::Rational(r) => r.is_zero(),
             Number::Float(x) => x.is_zero(),
         }
     }
@@ -193,9 +204,17 @@ impl Add for Number {
         use Number::*;
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a + b),
-            (Integer(a), Float(b)) => Float(a.to_float() + b),
-            (Float(a), Integer(b)) => Float(a + b.to_float()),
             (Float(a), Float(b)) => Float(a + b),
+            (Rational(a), Rational(b)) => Rational(a + b),
+
+            (Integer(a), Rational(b)) => Rational(Ratio::from_integer(a.into_inner()) + b),
+            (Integer(a), Float(b)) => Float(a.to_f64().unwrap() + b),
+
+            (Float(a), Integer(b)) => Float(a + b.to_f64().unwrap()),
+            (Float(a), Rational(b)) => Float(a + b.to_f64().unwrap()),
+
+            (Rational(a), Integer(b)) => Rational(a + Ratio::from_integer(b.into_inner())),
+            (Rational(a), Float(b)) => Float(a.to_f64().unwrap() + b),
         }
     }
 }
@@ -206,9 +225,17 @@ impl Mul for Number {
         use Number::*;
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a * b),
-            (Integer(a), Float(b)) => Float(a.to_float() * b),
-            (Float(a), Integer(b)) => Float(a * b.to_float()),
             (Float(a), Float(b)) => Float(a * b),
+            (Rational(a), Rational(b)) => Rational(a * b),
+
+            (Integer(a), Rational(b)) => Rational(Ratio::from_integer(a.into_inner()) * b),
+            (Integer(a), Float(b)) => Float(a.to_f64().unwrap() * b),
+
+            (Float(a), Integer(b)) => Float(a * b.to_f64().unwrap()),
+            (Float(a), Rational(b)) => Float(a * b.to_f64().unwrap()),
+
+            (Rational(a), Integer(b)) => Rational(a * Ratio::from_integer(b.into_inner())),
+            (Rational(a), Float(b)) => Float(a.to_f64().unwrap() * b),
         }
     }
 }
@@ -219,9 +246,17 @@ impl Sub for Number {
         use Number::*;
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a - b),
-            (Integer(a), Float(b)) => Float(a.to_float() - b),
-            (Float(a), Integer(b)) => Float(a - b.to_float()),
             (Float(a), Float(b)) => Float(a - b),
+            (Rational(a), Rational(b)) => Rational(a - b),
+
+            (Integer(a), Rational(b)) => Rational(Ratio::from_integer(a.into_inner()) - b),
+            (Integer(a), Float(b)) => Float(a.to_f64().unwrap() - b),
+
+            (Float(a), Integer(b)) => Float(a - b.to_f64().unwrap()),
+            (Float(a), Rational(b)) => Float(a - b.to_f64().unwrap()),
+
+            (Rational(a), Integer(b)) => Rational(a - Ratio::from_integer(b.into_inner())),
+            (Rational(a), Float(b)) => Float(a.to_f64().unwrap() - b),
         }
     }
 }
@@ -231,10 +266,20 @@ impl Div for Number {
     fn div(self, other: Self) -> Self::Output {
         use Number::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Float(a.to_float() / b.to_float()),
-            (Integer(a), Float(b)) => Float(a.to_float() / b),
-            (Float(a), Integer(b)) => Float(a / b.to_float()),
+            (Integer(a), Integer(b)) => {
+                Rational(Ratio::from_integer(a.into_inner()) / Ratio::from_integer(b.into_inner()))
+            }
             (Float(a), Float(b)) => Float(a / b),
+            (Rational(a), Rational(b)) => Rational(a / b),
+
+            (Integer(a), Rational(b)) => Rational(Ratio::from_integer(a.into_inner()) / b),
+            (Integer(a), Float(b)) => Float(a.to_f64().unwrap() / b),
+
+            (Float(a), Integer(b)) => Float(a / b.to_f64().unwrap()),
+            (Float(a), Rational(b)) => Float(a / b.to_f64().unwrap()),
+
+            (Rational(a), Integer(b)) => Rational(a / Ratio::from_integer(b.into_inner())),
+            (Rational(a), Float(b)) => Float(a.to_f64().unwrap() / b),
         }
     }
 }
@@ -245,9 +290,17 @@ impl Rem for Number {
         use Number::*;
         match (self, other) {
             (Integer(a), Integer(b)) => Integer(a % b),
-            (Integer(a), Float(b)) => Float(a.to_float() % b),
-            (Float(a), Integer(b)) => Float(a % b.to_float()),
             (Float(a), Float(b)) => Float(a % b),
+            (Rational(a), Rational(b)) => Rational(a % b),
+
+            (Integer(a), Rational(b)) => Rational(Ratio::from_integer(a.into_inner()) % b),
+            (Integer(a), Float(b)) => Float(a.to_f64().unwrap() % b),
+
+            (Float(a), Integer(b)) => Float(a % b.to_f64().unwrap()),
+            (Float(a), Rational(b)) => Float(a % b.to_f64().unwrap()),
+
+            (Rational(a), Integer(b)) => Rational(a % Ratio::from_integer(b.into_inner())),
+            (Rational(a), Float(b)) => Float(a.to_f64().unwrap() % b),
         }
     }
 }
@@ -257,9 +310,17 @@ impl std::cmp::PartialOrd for Number {
         use Number::*;
         match (self, rhs) {
             (Integer(a), Integer(b)) => a.partial_cmp(b),
-            (Integer(a), Float(b)) => a.to_float().partial_cmp(b),
-            (Float(a), Integer(b)) => a.partial_cmp(&b.to_float()),
             (Float(a), Float(b)) => a.partial_cmp(b),
+            (Rational(a), Rational(b)) => a.partial_cmp(b),
+
+            (Integer(a), Rational(b)) => Ratio::from_integer(a.as_inner().clone()).partial_cmp(b),
+            (Integer(a), Float(b)) => a.to_f64().unwrap().partial_cmp(b),
+
+            (Float(a), Integer(b)) => a.partial_cmp(&b.to_f64().unwrap()),
+            (Float(a), Rational(b)) => a.partial_cmp(&b.to_f64().unwrap()),
+
+            (Rational(a), Integer(b)) => a.partial_cmp(&Ratio::from_integer(b.as_inner().clone())),
+            (Rational(a), Float(b)) => a.to_f64().unwrap().partial_cmp(&b),
         }
     }
 }
@@ -269,9 +330,17 @@ impl std::cmp::PartialEq for Number {
         use Number::*;
         match (self, rhs) {
             (Integer(a), Integer(b)) => a == b,
-            (Integer(a), Float(b)) => a.to_float() == *b,
-            (Float(a), Integer(b)) => *a == b.to_float(),
             (Float(a), Float(b)) => a == b,
+            (Rational(a), Rational(b)) => a == b,
+
+            (Integer(a), Rational(b)) => &Ratio::from_integer(a.as_inner().clone()) == b,
+            (Integer(a), Float(b)) => a.to_f64().unwrap() == *b,
+
+            (Float(a), Integer(b)) => *a == b.to_f64().unwrap(),
+            (Float(a), Rational(b)) => a == &b.to_f64().unwrap(),
+
+            (Rational(a), Integer(b)) => a == &Ratio::from_integer(b.as_inner().clone()),
+            (Rational(a), Float(b)) => a.to_f64().unwrap() == *b,
         }
     }
 }

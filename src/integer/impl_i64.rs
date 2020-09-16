@@ -11,6 +11,18 @@ pub struct Int(i64);
 impl_numeric_traits!();
 
 impl Int {
+    pub fn new(n: i64) -> Self {
+        Int(n)
+    }
+
+    pub fn as_inner(&self) -> &i64 {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> i64 {
+        self.0
+    }
+
     pub fn to_float(&self) -> f64 {
         self.0 as f64
     }

@@ -10,6 +10,18 @@ pub struct Int(BigInt);
 impl_numeric_traits!();
 
 impl Int {
+    pub fn new(n: BigInt) -> Self {
+        Int(n)
+    }
+
+    pub fn as_inner(&self) -> &BigInt {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> BigInt {
+        self.0
+    }
+
     pub fn to_float(&self) -> f64 {
         let (sign, digits) = self.0.to_u32_digits();
 

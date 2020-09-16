@@ -93,3 +93,15 @@ pub use impl_bigint::Int;
 
 #[cfg(not(feature = "bigint"))]
 pub use impl_i64::Int;
+
+use num_traits::ToPrimitive;
+
+impl ToPrimitive for Int {
+    fn to_i64(&self) -> Option<i64> {
+        self.as_inner().to_i64()
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        self.as_inner().to_u64()
+    }
+}
