@@ -14,6 +14,7 @@ use std::hash::{Hash, Hasher};
 pub use std::sync::{Arc as Ref, Weak};
 
 use crate::number::Number;
+use num_traits::FromPrimitive;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::iter::FromIterator;
@@ -791,17 +792,6 @@ impl std::convert::TryFrom<&Expression> for Symbol {
     }
 }
 
-/*impl std::convert::TryFrom<&Expression> for i64 {
-    type Error = crate::errors::Error;
-
-    fn try_from(x: &Expression) -> Result<i64> {
-        match x {
-            Expression::Integer(i) => Ok(*i),
-            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
-        }
-    }
-}*/
-
 impl TryFrom<&Expression> for Int {
     type Error = crate::errors::Error;
 
@@ -863,6 +853,32 @@ impl std::convert::TryFrom<&Expression> for Expression {
 
     fn try_from(expr: &Expression) -> Result<Self> {
         Ok(expr.clone())
+    }
+}
+
+impl FromPrimitive for Expression {
+    fn from_i64(n: i64) -> Option<Self> {
+        Number::from_i64(n).map(Expression::Number)
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        Number::from_u64(n).map(Expression::Number)
+    }
+
+    fn from_i128(n: i128) -> Option<Self> {
+        Number::from_i128(n).map(Expression::Number)
+    }
+
+    fn from_u128(n: u128) -> Option<Self> {
+        Number::from_u128(n).map(Expression::Number)
+    }
+
+    fn from_f32(n: f32) -> Option<Self> {
+        Number::from_f32(n).map(Expression::Number)
+    }
+
+    fn from_f64(n: f64) -> Option<Self> {
+        Number::from_f64(n).map(Expression::Number)
     }
 }
 

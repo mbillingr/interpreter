@@ -19,6 +19,7 @@ use crate::syntax::{
     expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
     expand_quasiquote, expand_setvar,
 };
+use num_traits::{FromPrimitive, Zero};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
@@ -880,7 +881,9 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_micros();
-            Ok(Expression::Number(t.into()).into())
+            Ok(Expression::from_u128(t)
+                .expect("System time out of representable range")
+                .into())
         });
 
         env.insert_native("random", |args| match car(&args)? {

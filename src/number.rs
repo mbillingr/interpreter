@@ -1,6 +1,8 @@
 use crate::errors::{ErrorKind, Result};
 use crate::integer::Int;
+use num_traits::{FromPrimitive, One, Zero};
 use rand::{thread_rng, Rng};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
 #[derive(Clone, Debug)]
 pub enum Number {
@@ -17,29 +19,51 @@ impl std::fmt::Display for Number {
     }
 }
 
-macro_rules! impl_from {
-    ($t:ty, $variant:ident) => {
-        impl From<$t> for Number {
-            fn from(x: $t) -> Self {
-                Number::$variant(x.into())
-            }
-        }
-    };
+impl From<Int> for Number {
+    fn from(n: Int) -> Self {
+        Number::Integer(n)
+    }
 }
 
-impl_from!(Int, Integer);
-impl_from!(i32, Integer);
-impl_from!(i64, Integer);
-impl_from!(i128, Integer);
-impl_from!(u128, Integer);
-impl_from!(f32, Float);
-impl_from!(f64, Float);
+impl From<i64> for Number {
+    fn from(n: i64) -> Self {
+        Number::from_i64(n).unwrap()
+    }
+}
 
-impl Number {
-    pub fn zero() -> Self {
-        Number::Integer(Int::zero())
+impl From<f64> for Number {
+    fn from(n: f64) -> Self {
+        Number::from_f64(n).unwrap()
+    }
+}
+
+impl FromPrimitive for Number {
+    fn from_i64(n: i64) -> Option<Self> {
+        Int::from_i64(n).map(Number::Integer)
     }
 
+    fn from_i128(n: i128) -> Option<Self> {
+        Int::from_i128(n).map(Number::Integer)
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        Int::from_u64(n).map(Number::Integer)
+    }
+
+    fn from_u128(n: u128) -> Option<Self> {
+        Int::from_u128(n).map(Number::Integer)
+    }
+
+    fn from_f32(n: f32) -> Option<Self> {
+        Some(Number::Float(n as f64))
+    }
+
+    fn from_f64(n: f64) -> Option<Self> {
+        Some(Number::Float(n))
+    }
+}
+
+impl Number {
     pub fn is_integer(&self) -> bool {
         match self {
             Number::Integer(_) => true,
@@ -90,7 +114,7 @@ impl Number {
     pub fn truncate_quotient(&self, other: &Self) -> Result<Self> {
         use Number::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a.div(b))),
+            (Integer(a), Integer(b)) => Ok(Integer(a / b)),
             (Integer(a), Float(b)) => {
                 if other.is_integer() {
                     Ok(Float(a.to_float() / b))
@@ -144,12 +168,31 @@ impl Number {
     }
 }
 
-impl std::ops::Add for Number {
+impl Zero for Number {
+    fn zero() -> Self {
+        Number::Integer(Int::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        match self {
+            Number::Integer(n) => n.is_zero(),
+            Number::Float(x) => x.is_zero(),
+        }
+    }
+}
+
+impl One for Number {
+    fn one() -> Self {
+        Number::Integer(Int::one())
+    }
+}
+
+impl Add for Number {
     type Output = Number;
     fn add(self, other: Self) -> Self::Output {
         use Number::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Integer(a.add(&b)),
+            (Integer(a), Integer(b)) => Integer(a + b),
             (Integer(a), Float(b)) => Float(a.to_float() + b),
             (Float(a), Integer(b)) => Float(a + b.to_float()),
             (Float(a), Float(b)) => Float(a + b),
@@ -157,12 +200,12 @@ impl std::ops::Add for Number {
     }
 }
 
-impl std::ops::Mul for Number {
+impl Mul for Number {
     type Output = Number;
     fn mul(self, other: Self) -> Self::Output {
         use Number::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Integer(a.mul(&b)),
+            (Integer(a), Integer(b)) => Integer(a * b),
             (Integer(a), Float(b)) => Float(a.to_float() * b),
             (Float(a), Integer(b)) => Float(a * b.to_float()),
             (Float(a), Float(b)) => Float(a * b),
@@ -170,12 +213,12 @@ impl std::ops::Mul for Number {
     }
 }
 
-impl std::ops::Sub for Number {
+impl Sub for Number {
     type Output = Number;
     fn sub(self, other: Self) -> Self::Output {
         use Number::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Integer(a.sub(&b)),
+            (Integer(a), Integer(b)) => Integer(a - b),
             (Integer(a), Float(b)) => Float(a.to_float() - b),
             (Float(a), Integer(b)) => Float(a - b.to_float()),
             (Float(a), Float(b)) => Float(a - b),
@@ -183,7 +226,7 @@ impl std::ops::Sub for Number {
     }
 }
 
-impl std::ops::Div for Number {
+impl Div for Number {
     type Output = Number;
     fn div(self, other: Self) -> Self::Output {
         use Number::*;
@@ -196,12 +239,12 @@ impl std::ops::Div for Number {
     }
 }
 
-impl std::ops::Rem for Number {
+impl Rem for Number {
     type Output = Number;
     fn rem(self, other: Self) -> Self::Output {
         use Number::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Integer(a.rem(&b)),
+            (Integer(a), Integer(b)) => Integer(a % b),
             (Integer(a), Float(b)) => Float(a.to_float() % b),
             (Float(a), Integer(b)) => Float(a % b.to_float()),
             (Float(a), Float(b)) => Float(a % b),

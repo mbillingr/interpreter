@@ -1,61 +1,16 @@
+use num_traits::{FromPrimitive, One, Zero};
 use rand::thread_rng;
 use rand::Rng;
 use std::num::ParseIntError;
+use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Int(i64);
 
+impl_numeric_traits!();
+
 impl Int {
-    pub fn zero() -> Self {
-        Int(0)
-    }
-
-    pub fn one() -> Self {
-        Int(1)
-    }
-
-    pub fn minus_one() -> Self {
-        Int(-1)
-    }
-
-    pub fn from_u128(x: u128) -> Self {
-        if x > i64::MAX as u128 {
-            panic!("{} is too large for the built-in integer type", x)
-        }
-        Int(x as i64)
-    }
-
-    pub fn from_f64(x: f64) -> Option<Self> {
-        if x > i64::MAX as f64 {
-            None
-        } else if x < i64::MIN as f64 {
-            None
-        } else {
-            Some(Int(x as i64))
-        }
-    }
-
-    pub fn add(&self, x: &Int) -> Self {
-        Int(self.0.wrapping_add(x.0))
-    }
-
-    pub fn sub(&self, x: &Int) -> Self {
-        Int(self.0.wrapping_sub(x.0))
-    }
-
-    pub fn mul(&self, x: &Int) -> Self {
-        Int(self.0.wrapping_mul(x.0))
-    }
-
-    pub fn div(&self, x: &Int) -> Self {
-        Int(self.0.wrapping_div(x.0))
-    }
-
-    pub fn rem(&self, x: &Int) -> Self {
-        Int(self.0.wrapping_rem(x.0))
-    }
-
     pub fn to_float(&self) -> f64 {
         self.0 as f64
     }
@@ -73,12 +28,38 @@ impl Int {
     }
 }
 
+impl Zero for Int {
+    fn zero() -> Self {
+        Int(i64::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl One for Int {
+    fn one() -> Self {
+        Int(i64::one())
+    }
+}
+
 impl<T> From<T> for Int
 where
     T: Into<i64>,
 {
     fn from(x: T) -> Self {
         Int(x.into())
+    }
+}
+
+impl FromPrimitive for Int {
+    fn from_i64(n: i64) -> Option<Self> {
+        Some(Int(n))
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        i64::from_u64(n).map(Int)
     }
 }
 

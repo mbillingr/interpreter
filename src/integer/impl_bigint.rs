@@ -1,51 +1,15 @@
-use num_bigint::{BigInt, ParseBigIntError, RandBigInt, Sign, ToBigInt};
+use num_bigint::{BigInt, ParseBigIntError, RandBigInt, Sign};
+use num_traits::{FromPrimitive, One, Zero};
 use rand::thread_rng;
+use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Int(BigInt);
 
+impl_numeric_traits!();
+
 impl Int {
-    pub fn zero() -> Self {
-        Int(0.into())
-    }
-
-    pub fn one() -> Self {
-        Int(1.into())
-    }
-
-    pub fn minus_one() -> Self {
-        Int((-1).into())
-    }
-
-    pub fn from_u128(x: u128) -> Self {
-        Int(x.into())
-    }
-
-    pub fn from_f64(x: f64) -> Option<Self> {
-        x.to_bigint().map(Int)
-    }
-
-    pub fn add(&self, x: &Int) -> Self {
-        Int(&self.0 + &x.0)
-    }
-
-    pub fn sub(&self, x: &Int) -> Self {
-        Int(&self.0 - &x.0)
-    }
-
-    pub fn mul(&self, x: &Int) -> Self {
-        Int(&self.0 * &x.0)
-    }
-
-    pub fn div(&self, x: &Int) -> Self {
-        Int(&self.0 / &x.0)
-    }
-
-    pub fn rem(&self, x: &Int) -> Self {
-        Int(&self.0 % &x.0)
-    }
-
     pub fn to_float(&self) -> f64 {
         let (sign, digits) = self.0.to_u32_digits();
 
@@ -77,6 +41,48 @@ impl Int {
 
     pub fn rand_range(lo: &Int, hi: &Int) -> Self {
         Int(thread_rng().gen_bigint_range(&lo.0, &hi.0))
+    }
+}
+
+impl Zero for Int {
+    fn zero() -> Self {
+        Int(BigInt::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl One for Int {
+    fn one() -> Self {
+        Int(BigInt::one())
+    }
+}
+
+impl FromPrimitive for Int {
+    fn from_i64(n: i64) -> Option<Self> {
+        BigInt::from_i64(n).map(Int)
+    }
+
+    fn from_i128(n: i128) -> Option<Self> {
+        BigInt::from_i128(n).map(Int)
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        BigInt::from_u64(n).map(Int)
+    }
+
+    fn from_u128(n: u128) -> Option<Self> {
+        BigInt::from_u128(n).map(Int)
+    }
+
+    fn from_f32(n: f32) -> Option<Self> {
+        BigInt::from_f32(n).map(Int)
+    }
+
+    fn from_f64(n: f64) -> Option<Self> {
+        BigInt::from_f64(n).map(Int)
     }
 }
 
