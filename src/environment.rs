@@ -19,7 +19,7 @@ use crate::syntax::{
     expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
     expand_quasiquote, expand_setvar,
 };
-use num_traits::{FromPrimitive, Zero};
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
