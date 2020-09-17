@@ -424,7 +424,9 @@ impl Expression {
 
     pub fn try_as_float(&self) -> Result<f64> {
         match self {
-            Expression::Number(n) => Ok(n.to_float()),
+            Expression::Number(n) => n.to_f64().ok_or_else(|| {
+                ErrorKind::TypeError(format!("cannot convert {} to float.", self)).into()
+            }),
             _ => Err(ErrorKind::TypeError(format!("{} is not a number.", self)).into()),
         }
     }
@@ -761,6 +763,12 @@ impl From<bool> for Expression {
     }
 }
 
+impl From<Number> for Expression {
+    fn from(n: Number) -> Self {
+        Expression::Number(n)
+    }
+}
+
 impl From<Vec<Expression>> for Expression {
     fn from(vec: Vec<Expression>) -> Self {
         Expression::from_vec(vec)
@@ -798,6 +806,7 @@ impl TryFrom<&Expression> for Int {
     fn try_from(x: &Expression) -> Result<Int> {
         x.try_as_number().and_then(|n| {
             n.to_integer()
+                .and_then(Number::try_into_integer)
                 .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
         })
     }
