@@ -1,7 +1,9 @@
 use crate::environment::{EnvRef, EnvWeak, Environment};
 use crate::errors::*;
+pub use crate::integer::Int;
 use crate::interpreter::{apply, Return};
 use crate::macros::Macro;
+use crate::native_closure::NativeClosure;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
 use crate::syntax;
@@ -11,8 +13,10 @@ use std::hash::{Hash, Hasher};
 #[cfg(feature = "thread-safe")]
 pub use std::sync::{Arc as Ref, Weak};
 
-use std::any::Any;
+use crate::number::Number;
+use num_traits::{FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::iter::FromIterator;
 #[cfg(not(feature = "thread-safe"))]
 pub use std::rc::{Rc as Ref, Weak};
@@ -21,7 +25,6 @@ pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
 pub type MacroFn = fn(&Expression, &EnvRef, &syntax::State) -> Result<Expression>;
-//pub type NativeClosure = Ref<dyn Fn(Args) -> Result<Return>>;
 
 #[derive(Debug)]
 pub struct Pair {
@@ -74,8 +77,7 @@ pub enum Expression {
     Special(Symbol),
     String(Ref<String>),
     Char(char),
-    Integer(i64),
-    Float(f64),
+    Number(Number),
     True,
     False,
     Pair(Ref<Pair>),
@@ -95,11 +97,20 @@ pub enum Expression {
 
 impl Expression {
     pub fn zero() -> Self {
-        Expression::Integer(0)
+        Expression::int(0)
     }
 
     pub fn one() -> Self {
-        Expression::Integer(1)
+        Expression::int(1)
+    }
+
+    pub fn int(x: impl Into<Int>) -> Self {
+        let x: Int = x.into();
+        Expression::Number(x.into())
+    }
+
+    pub fn number(x: impl Into<Number>) -> Self {
+        Expression::Number(x.into())
     }
 
     pub fn from_literal<T: AsRef<str> + ToString>(s: T) -> Self {
@@ -109,12 +120,12 @@ impl Expression {
             _ => {}
         }
 
-        if let Ok(i) = s.as_ref().parse() {
-            return Expression::Integer(i);
+        if let Ok(i) = s.as_ref().parse::<Int>() {
+            return Expression::Number(i.into());
         }
 
-        if let Ok(f) = s.as_ref().parse() {
-            return Expression::Float(f);
+        if let Ok(f) = s.as_ref().parse::<f64>() {
+            return Expression::Number(f.into());
         }
 
         Expression::Symbol(Symbol::new(s))
@@ -306,23 +317,21 @@ impl Expression {
 
     pub fn is_number(&self) -> bool {
         match self {
-            Expression::Integer(_) => true,
-            Expression::Float(_) => true,
+            Expression::Number(_) => true,
             _ => false,
         }
     }
 
     pub fn is_integer(&self) -> bool {
         match self {
-            Expression::Integer(_) => true,
-            Expression::Float(f) if float_eq(*f, f.trunc()) => true,
+            Expression::Number(n) => n.is_integer(),
             _ => false,
         }
     }
 
     pub fn is_exact(&self) -> bool {
         match self {
-            Expression::Integer(_) => true,
+            Expression::Number(n) => n.is_exact(),
             _ => false,
         }
     }
@@ -399,18 +408,23 @@ impl Expression {
         }
     }
 
-    pub fn try_as_integer(&self) -> Result<i64> {
+    pub fn try_as_integer(&self) -> Result<&Int> {
+        self.try_as_number().and_then(|n| {
+            n.try_as_integer()
+                .ok_or_else(|| ErrorKind::TypeError(format!("{} is not an integer.", self)).into())
+        })
+    }
+
+    pub fn try_as_number(&self) -> Result<&Number> {
         match self {
-            Expression::Integer(i) => Ok(*i),
-            Expression::Float(f) if float_eq(*f, f.trunc()) => Ok(*f as i64),
-            _ => Err(ErrorKind::TypeError(format!("{} is not an integer.", self)).into()),
+            Expression::Number(n) => Ok(n),
+            _ => Err(ErrorKind::TypeError(format!("{} is not a number.", self)).into()),
         }
     }
 
     pub fn try_as_float(&self) -> Result<f64> {
         match self {
-            Expression::Integer(i) => Ok(*i as f64),
-            Expression::Float(f) => Ok(*f),
+            Expression::Number(n) => Ok(n.to_float()),
             _ => Err(ErrorKind::TypeError(format!("{} is not a number.", self)).into()),
         }
     }
@@ -481,8 +495,7 @@ impl Expression {
     pub fn eqv(&self, rhs: &Self) -> bool {
         use Expression::*;
         match (self, rhs) {
-            (Integer(a), Integer(b)) => a == b,
-            (Float(a), Float(b)) => float_eq(*a, *b),
+            (Number(a), Number(b)) => a.eqv(b),
             (String(a), String(b)) => Ref::ptr_eq(a, b),
             (Symbol(a), Symbol(b))
             | (Symbol(a), Special(b))
@@ -505,8 +518,7 @@ impl Expression {
     pub fn equal(&self, rhs: &Self) -> bool {
         use Expression::*;
         match (self, rhs) {
-            (Integer(a), Integer(b)) => a == b,
-            (Float(a), Float(b)) => float_eq(*a, *b),
+            (Number(a), Number(b)) => a.eqv(b),
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b))
             | (Symbol(a), Special(b))
@@ -537,8 +549,7 @@ impl Expression {
 
     pub fn round(&self) -> Result<Self> {
         match self {
-            Expression::Integer(i) => Ok(Expression::Integer(*i)),
-            Expression::Float(f) => Ok(Expression::Integer(f.round() as i64)),
+            Expression::Number(n) => Ok(Expression::Number(n.round())),
             _ => Err(ErrorKind::TypeError(format!("not a number: {}", self)).into()),
         }
     }
@@ -546,46 +557,16 @@ impl Expression {
     pub fn truncate_quotient(&self, other: &Self) -> Result<Self> {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a / b)),
-            (Integer(a), Float(b)) => {
-                if other.is_integer() {
-                    Ok(Float(*a as f64 / b))
-                } else {
-                    Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
-                }
-            }
-            (Float(a), Integer(b)) => {
-                if self.is_integer() {
-                    Ok(Float(a / *b as f64))
-                } else {
-                    Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
-                }
-            }
-            (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a / b)),
-            (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
+            (Number(a), Number(b)) => a.truncate_quotient(b).map(Number),
+            (a, b) => Err(ErrorKind::TypeError(format!("not a number: {}, {}", a, b)).into()),
         }
     }
 
     pub fn truncate_remainder(&self, other: &Self) -> Result<Self> {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a % b)),
-            (Integer(a), Float(b)) => {
-                if other.is_integer() {
-                    Ok(Float(*a as f64 % b))
-                } else {
-                    Err(ErrorKind::TypeError(format!("not an integer: {}", b)).into())
-                }
-            }
-            (Float(a), Integer(b)) => {
-                if self.is_integer() {
-                    Ok(Float(a % *b as f64))
-                } else {
-                    Err(ErrorKind::TypeError(format!("not an integer: {}", a)).into())
-                }
-            }
-            (Float(a), Float(b)) if self.is_integer() && other.is_integer() => Ok(Float(a % b)),
-            (a, b) => Err(ErrorKind::TypeError(format!("not integers: {}, {}", a, b)).into()),
+            (Number(a), Number(b)) => a.truncate_remainder(b).map(Number),
+            (a, b) => Err(ErrorKind::TypeError(format!("not a number: {}, {}", a, b)).into()),
         }
     }
 
@@ -596,8 +577,7 @@ impl Expression {
             Expression::Symbol(s) => format!("{}", s),
             Expression::Special(s) => format!("<{}>", s),
             Expression::String(s) => format!("{:?}", s),
-            Expression::Integer(i) => format!("{}", i),
-            Expression::Float(i) => format!("{}", i),
+            Expression::Number(n) => format!("{}", n),
             Expression::Char(ch) => format!("{:?}", ch),
             Expression::True => "#t".into(),
             Expression::False => "#f".into(),
@@ -640,13 +620,6 @@ impl Expression {
     }
 }
 
-// This function exists to make clippy stop complaining about exact floating point comparison.
-// I think it accepts this because of the name...
-#[inline(always)]
-fn float_eq(a: f64, b: f64) -> bool {
-    a == b
-}
-
 impl std::fmt::Debug for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -655,8 +628,7 @@ impl std::fmt::Debug for Expression {
             Expression::Symbol(s) => write!(f, "{:?}", s),
             Expression::Special(s) => write!(f, "<{:?}>", s),
             Expression::String(s) => write!(f, "{:?}", s),
-            Expression::Integer(i) => write!(f, "{}", i),
-            Expression::Float(i) => write!(f, "{}", i),
+            Expression::Number(n) => write!(f, "{}", n),
             Expression::Char(ch) => write!(f, "{:?}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
@@ -702,8 +674,7 @@ impl std::fmt::Display for Expression {
             Expression::Symbol(s) => write!(f, "{}", s.name()),
             Expression::String(s) => write!(f, "{}", s),
             Expression::Special(s) => write!(f, "<{}>", s),
-            Expression::Integer(i) => write!(f, "{}", i),
-            Expression::Float(i) => write!(f, "{}", i),
+            Expression::Number(n) => write!(f, "{}", n),
             Expression::Char(ch) => write!(f, "{}", ch),
             Expression::True => write!(f, "#t"),
             Expression::False => write!(f, "#f"),
@@ -770,13 +741,13 @@ impl From<String> for Expression {
 
 impl From<i64> for Expression {
     fn from(i: i64) -> Self {
-        Expression::Integer(i)
+        Expression::int(i)
     }
 }
 
 impl From<f64> for Expression {
     fn from(f: f64) -> Self {
-        Expression::Float(f)
+        Expression::number(f)
     }
 }
 
@@ -821,14 +792,14 @@ impl std::convert::TryFrom<&Expression> for Symbol {
     }
 }
 
-impl std::convert::TryFrom<&Expression> for i64 {
+impl TryFrom<&Expression> for Int {
     type Error = crate::errors::Error;
 
-    fn try_from(x: &Expression) -> Result<i64> {
-        match x {
-            Expression::Integer(i) => Ok(*i),
-            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
-        }
+    fn try_from(x: &Expression) -> Result<Int> {
+        x.try_as_number().and_then(|n| {
+            n.to_integer()
+                .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
+        })
     }
 }
 
@@ -836,10 +807,10 @@ impl std::convert::TryFrom<&Expression> for f64 {
     type Error = crate::errors::Error;
 
     fn try_from(x: &Expression) -> Result<f64> {
-        match x {
-            Expression::Float(f) => Ok(*f),
-            _ => Err(ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into()),
-        }
+        x.try_as_number().and_then(|n| {
+            n.to_f64()
+                .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
+        })
     }
 }
 
@@ -847,10 +818,10 @@ impl std::convert::TryFrom<&Expression> for usize {
     type Error = crate::errors::Error;
 
     fn try_from(x: &Expression) -> Result<usize> {
-        match x {
-            Expression::Integer(i) if *i >= 0 => Ok(*i as usize),
-            _ => Err(ErrorKind::TypeError(format!("Expected positive integer: {:?}", x)).into()),
-        }
+        x.try_as_number().and_then(|n| {
+            n.to_usize()
+                .ok_or_else(|| ErrorKind::TypeError(format!("Expected integer: {:?}", x)).into())
+        })
     }
 }
 
@@ -885,15 +856,38 @@ impl std::convert::TryFrom<&Expression> for Expression {
     }
 }
 
+impl FromPrimitive for Expression {
+    fn from_i64(n: i64) -> Option<Self> {
+        Number::from_i64(n).map(Expression::Number)
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        Number::from_u64(n).map(Expression::Number)
+    }
+
+    fn from_i128(n: i128) -> Option<Self> {
+        Number::from_i128(n).map(Expression::Number)
+    }
+
+    fn from_u128(n: u128) -> Option<Self> {
+        Number::from_u128(n).map(Expression::Number)
+    }
+
+    fn from_f32(n: f32) -> Option<Self> {
+        Number::from_f32(n).map(Expression::Number)
+    }
+
+    fn from_f64(n: f64) -> Option<Self> {
+        Number::from_f64(n).map(Expression::Number)
+    }
+}
+
 impl std::ops::Add for Expression {
     type Output = Result<Expression>;
     fn add(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a + b)),
-            (Integer(a), Float(b)) => Ok(Float(a as f64 + b)),
-            (Float(a), Integer(b)) => Ok(Float(a + b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a + b)),
+            (Number(a), Number(b)) => Ok(Number(a + b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot add {} + {}", a, b)).into()),
         }
     }
@@ -904,10 +898,7 @@ impl std::ops::Mul for Expression {
     fn mul(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a * b)),
-            (Integer(a), Float(b)) => Ok(Float(a as f64 * b)),
-            (Float(a), Integer(b)) => Ok(Float(a * b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a * b)),
+            (Number(a), Number(b)) => Ok(Number(a * b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot multiply {} * {}", a, b)).into()),
         }
     }
@@ -918,10 +909,7 @@ impl std::ops::Sub for Expression {
     fn sub(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a - b)),
-            (Integer(a), Float(b)) => Ok(Float(a as f64 - b)),
-            (Float(a), Integer(b)) => Ok(Float(a - b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a - b)),
+            (Number(a), Number(b)) => Ok(Number(a - b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot subtract {} - {}", a, b)).into()),
         }
     }
@@ -932,10 +920,7 @@ impl std::ops::Div for Expression {
     fn div(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Float(a as f64 / b as f64)),
-            (Integer(a), Float(b)) => Ok(Float(a as f64 / b)),
-            (Float(a), Integer(b)) => Ok(Float(a / b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a / b)),
+            (Number(a), Number(b)) => Ok(Number(a / b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
         }
     }
@@ -946,10 +931,7 @@ impl std::ops::Rem for Expression {
     fn rem(self, other: Self) -> Self::Output {
         use Expression::*;
         match (self, other) {
-            (Integer(a), Integer(b)) => Ok(Integer(a % b)),
-            (Integer(a), Float(b)) => Ok(Float(a as f64 % b)),
-            (Float(a), Integer(b)) => Ok(Float(a % b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a % b)),
+            (Number(a), Number(b)) => Ok(Number(a % b)),
             (a, b) => Err(ErrorKind::TypeError(format!("Cannot divide {} / {}", a, b)).into()),
         }
     }
@@ -959,10 +941,7 @@ impl std::cmp::PartialOrd for Expression {
     fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
         use Expression::*;
         match (self, rhs) {
-            (Integer(a), Integer(b)) => a.partial_cmp(b),
-            (Integer(a), Float(b)) => (*a as f64).partial_cmp(b),
-            (Float(a), Integer(b)) => a.partial_cmp(&(*b as f64)),
-            (Float(a), Float(b)) => a.partial_cmp(b),
+            (Number(a), Number(b)) => a.partial_cmp(b),
             (String(a), String(b)) => a.partial_cmp(b),
             (Symbol(a), Symbol(b)) => a.partial_cmp(b),
             _ => None,
@@ -974,10 +953,7 @@ impl std::cmp::PartialEq for Expression {
     fn eq(&self, rhs: &Self) -> bool {
         use Expression::*;
         match (self, rhs) {
-            (Integer(a), Integer(b)) => a == b,
-            (Integer(a), Float(b)) => (*a as f64) == *b,
-            (Float(a), Integer(b)) => *a == (*b as f64),
-            (Float(a), Float(b)) => a == b,
+            (Number(a), Number(b)) => a == b,
             (String(a), String(b)) => a == b,
             (Symbol(a), Symbol(b)) => a == b,
             (Special(a), Special(b)) => a == b,
@@ -1387,25 +1363,4 @@ pub fn define_method(
     let class = unsafe { &mut *(&*class as *const Class as *mut Class) };
 
     class.add_method(name, the_method);
-}
-
-pub struct NativeClosure {
-    function: fn(Args, &[Box<dyn Any + Send + Sync>]) -> Result<Return>,
-    variables: Vec<Box<dyn Any + Send + Sync>>,
-}
-
-impl NativeClosure {
-    pub fn new(
-        variables: Vec<Box<dyn Any + Send + Sync>>,
-        function: fn(Args, &[Box<dyn Any + Send + Sync>]) -> Result<Return>,
-    ) -> Self {
-        NativeClosure {
-            function,
-            variables,
-        }
-    }
-
-    pub fn invoke(&self, args: Args) -> Result<Return> {
-        (self.function)(args, &self.variables)
-    }
 }

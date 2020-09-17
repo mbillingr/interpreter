@@ -7,7 +7,7 @@ fn normal_let() {
     let env = default_env();
 
     assert_eq!(
-        Expression::Integer(12),
+        Expression::int(12),
         run_in_env(
             "
 (let ((n 10) (x 2))
@@ -24,7 +24,7 @@ fn named_let() {
     let env = default_env();
 
     assert_eq!(
-        Expression::Integer(2048),
+        Expression::int(2048),
         run_in_env(
             "
 (let loop ((n 10) (x 2))

@@ -15,7 +15,7 @@ fn apply() {
     });
 
     assert_eq!(
-        Expression::Integer(7),
+        Expression::int(7),
         run_in_env("(apply +  (list 3 4))", &env).unwrap()
     );
 
@@ -25,7 +25,7 @@ fn apply() {
     )
     .unwrap();
     assert_eq!(
-        Expression::Float(30.0),
+        Expression::number(30.0),
         run_in_env("((compose sqrt *) 12 75)", &env).unwrap()
     );
 }

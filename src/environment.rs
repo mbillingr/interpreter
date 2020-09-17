@@ -5,12 +5,13 @@ use crate::debugger_imgui_frontend;
 pub use crate::envref::{EnvRef, EnvWeak};
 use crate::errors::*;
 use crate::expression::{
-    define_class, define_method, Args, Class, Expression, Instance, NativeClosure, NativeFn,
-    Procedure, Ref,
+    define_class, define_method, Args, Class, Expression, Instance, NativeFn, Procedure, Ref,
 };
 use crate::interpreter::{apply, prepare_apply, Return};
 use crate::io::{LineReader, ReplInput};
 use crate::lexer::Lexer;
+use crate::native_closure::NativeClosure;
+use crate::number::Number;
 use crate::parser::{parse_file, read_lex};
 use crate::symbol::{self, Symbol};
 use crate::syntax::{
@@ -18,7 +19,7 @@ use crate::syntax::{
     expand_if, expand_include, expand_lambda, expand_let, expand_lets, expand_or,
     expand_quasiquote, expand_setvar,
 };
-use rand::Rng;
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
@@ -710,8 +711,7 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("number->string", |args| {
             let s = match args.car()? {
-                Expression::Integer(i) => format!("{}", i),
-                Expression::Float(f) => format!("{}", f),
+                Expression::Number(n) => format!("{}", n),
                 x => Err(ErrorKind::TypeError(format!("Expected number: {:?}", x)))?,
             };
             Ok(s.into())
@@ -881,15 +881,14 @@ pub fn default_env() -> EnvRef {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_micros();
-            Ok(Expression::Integer(t as i64).into())
+            Ok(Expression::from_u128(t)
+                .expect("System time out of representable range")
+                .into())
         });
 
         env.insert_native("random", |args| match car(&args)? {
-            Expression::Integer(n) => {
-                Ok(Expression::Integer(rand::thread_rng().gen_range(0, n)).into())
-            }
-            Expression::Float(n) => {
-                Ok(Expression::Float(rand::thread_rng().gen_range(0.0, n)).into())
+            Expression::Number(n) => {
+                Ok(Expression::Number(Number::rand_range(&Number::zero(), n)).into())
             }
             x => {
                 Err(ErrorKind::TypeError(format!("Invalid upper limit for random: {:?}", x)).into())
@@ -924,14 +923,20 @@ pub fn default_env() -> EnvRef {
                 match input.peek() {
                     Some('v') => {
                         input.next();
-                        next_arg(args).try_as_integer().ok()
+                        next_arg(args)
+                            .try_as_integer()
+                            .map(|i| i.to_usize().unwrap())
+                            .ok()
+                        //.map(|x| x.to_u32_digits())
+                        //.filter(|(sign, _)| *sign == Sign::Plus)
+                        //.map(|(_, digits)| digits[0])
                     }
                     Some(ch) if ch.is_ascii_digit() => {
-                        let mut i = 0;
+                        let mut i: usize = 0;
                         while input.peek().unwrap_or(&'x').is_ascii_digit() {
-                            i = i * 10 + input.next().unwrap().to_digit(10).unwrap();
+                            i = i * 10 + input.next().unwrap().to_digit(10).unwrap() as usize;
                         }
-                        Some(i as i64)
+                        Some(i)
                     }
                     _ => None,
                 }
