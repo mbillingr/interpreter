@@ -58,10 +58,7 @@ jobs:
           override: true
 
       - name: Build NoDefault
-        run: cargo build --all --release --no-default-features
-
-      - name: Rename NoDefault
-        run: move target/release/interpreter.exe target/release/interpreter_small.exe
+        run: cargo build --all --release --no-default-features && move target/release/interpreter.exe target/release/interpreter_small.exe
 
       - name: Build Default
         run: cargo build --all --release
