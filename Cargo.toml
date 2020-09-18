@@ -1,6 +1,6 @@
 [package]
 name = "interpreter"
-version = "0.2.0"
+version = "0.2.1-dev"
 authors = ["Martin Billinger <flkazemakase@gmail.com>"]
 license = "GPL-3.0"
 license-file = "LICENSE"
