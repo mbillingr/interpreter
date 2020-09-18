@@ -28,7 +28,8 @@ imgui-gfx-renderer = { optional = true, version = "0.0.23" }
 imgui-winit-support = { optional = true, version = "0.0.23" }
 lazy_static = "1"
 num-bigint = { optional = true, version = "0.3", features = ["rand"] }
-num-rational = { version = "0.3" }
+num-complex = "0.3"
+num-rational = "0.3"
 num-traits = "0.2"
 rand = "0.7"
 rustyline = "5"

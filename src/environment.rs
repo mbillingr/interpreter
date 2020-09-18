@@ -580,6 +580,18 @@ pub fn default_env() -> EnvRef {
         env.insert_native("char?", |args| {
             car(&args).map(Expression::is_char).map(Into::into)
         });
+        env.insert_native("complex?", |args| {
+            car(&args)
+                .and_then(Expression::try_as_number)
+                .map(Number::is_complex)
+                .map(Into::into)
+        });
+        env.insert_native("integer?", |args| {
+            car(&args)
+                .and_then(Expression::try_as_number)
+                .map(Number::is_integer)
+                .map(Into::into)
+        });
         env.insert_native("null?", |args| {
             car(&args).map(Expression::is_nil).map(Into::into)
         });
@@ -591,6 +603,18 @@ pub fn default_env() -> EnvRef {
         });
         env.insert_native("procedure?", |args| {
             car(&args).map(Expression::is_procedure).map(Into::into)
+        });
+        env.insert_native("real?", |args| {
+            car(&args)
+                .and_then(Expression::try_as_number)
+                .map(Number::is_real)
+                .map(Into::into)
+        });
+        env.insert_native("rational?", |args| {
+            car(&args)
+                .and_then(Expression::try_as_number)
+                .map(Number::is_rational)
+                .map(Into::into)
         });
         env.insert_native("string?", |args| {
             car(&args).map(Expression::is_string).map(Into::into)
@@ -638,10 +662,17 @@ pub fn default_env() -> EnvRef {
 
         env.insert_native("list", |args| Ok(Return::Value(args)));
 
+        // numerical constructors
+
+        env.insert_native("complex", |args| {
+            let re = car(&args)?.try_as_number()?.to_f64().unwrap();
+            let im = car(cdr(&args)?)?.try_as_number()?.to_f64().unwrap();
+            Ok(Number::complex(re, im).into())
+        });
+
         // numerical operations
 
         env.insert_native("exact?", |args| Ok(car(&args)?.is_exact().into()));
-        env.insert_native("integer?", |args| Ok(car(&args)?.is_integer().into()));
         env.insert_native("+", |args| native_fold(args, X::zero(), X::add));
         env.insert_native("*", |args| native_fold(args, X::one(), X::mul));
         env.insert_native("-", |args| native_unifold(args, X::zero(), X::sub));
