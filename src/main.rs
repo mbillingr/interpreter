@@ -36,6 +36,7 @@ use crate::io::LineReader;
 use crate::libraries::import_library;
 use crate::parser::parse_file;
 use crate::syntax::expand;
+use clap::Clap;
 use environment::EnvRef;
 use errors::*;
 use expression::Expression;
@@ -107,13 +108,41 @@ fn run_program(
     eval(&prog, env.clone())
 }
 
+/// This is an interpreter for a language very similar to the Scheme dialect of Lisps.
+/// For more information visit https://github.com/mbillingr/interpreter.
+#[derive(Clap)]
+#[clap(version = env!("CARGO_PKG_VERSION"), author = env!("CARGO_PKG_AUTHORS"))]
+struct Opts {
+    /// Scripts to execute before running the REPL.
+    scripts: Vec<String>,
+
+    /// Don't enter the interactive REPL but exit immediately after running any scripts.
+    #[clap(short, long)]
+    non_interactive: bool,
+
+    /// Don't print the greeting before entering the REPL.
+    #[clap(short, long)]
+    quiet: bool,
+
+    /// Print the license and exit.
+    #[clap(long)]
+    license: bool,
+}
+
 fn main() {
+    let opts: Opts = Opts::parse();
+
+    if opts.license {
+        println!(include_str!(concat!("../", env!("CARGO_PKG_LICENSE_FILE"))));
+        return;
+    }
+
     let global: EnvRef = Environment::new(None).into();
 
     // make the core library available to the repl
     import_library(&scheme! {((builtin, core))}, &global).unwrap();
 
-    for arg in env::args().skip(1) {
+    for arg in opts.scripts {
         match arg {
             _ => {
                 if let Err(e) = run_file(&arg, &global) {
@@ -122,6 +151,29 @@ fn main() {
                 }
             }
         }
+    }
+
+    if opts.non_interactive {
+        return;
+    }
+
+    if !opts.quiet {
+        println!(
+            "Scheme-like interpreter {}, by {}",
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_AUTHORS")
+        );
+        println!("For more information visit https://github.com/mbillingr/interpreter.");
+        println!("Built with Features:");
+        #[cfg(feature = "debugging")]
+        println!("  debugging");
+        #[cfg(feature = "thread-safe")]
+        println!("  thread-safe");
+        #[cfg(feature = "source-tracking")]
+        println!("  source-tracking");
+        #[cfg(feature = "bigint")]
+        println!("  bigint");
+        println!("Welcome to the REPL.")
     }
 
     let mut input = io::ReplInput::new(LINE_PROMPT);
