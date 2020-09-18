@@ -32,13 +32,17 @@ jobs:
           default: true
           override: true
 
-      - name: Build
-        run: cargo build --all --release && strip target/release/interpreter && mv target/release/$PROJECT_NAME target/release/interpreter_amd64
+      - name: Build Default
+        run: cargo build --all --release && strip target/release/interpreter && mv target/release/interpreter target/release/interpreter_amd64
+
+      - name: Build NoDefault
+        run: cargo build --all --release --no-default-features && strip target/release/interpreter && mv target/release/interpreter target/release/interpreter_small_amd64
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             target/release/interpreter_amd64
+            target/release/interpreter_small_amd64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
