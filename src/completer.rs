@@ -1,7 +1,8 @@
 use crate::environment::EnvWeak;
 use crate::lexer::{Lexer, Token};
 use rustyline::{
-    self, completion::Completer, highlight::Highlighter, hint::Hinter, Context, Helper,
+    self, completion::Completer, highlight::Highlighter, hint::Hinter, validate::Validator,
+    Context, Helper,
 };
 
 pub struct EnvHelper(EnvWeak);
@@ -19,6 +20,8 @@ impl Hinter for EnvHelper {
         None
     }
 }
+
+impl Validator for EnvHelper {}
 
 impl Completer for EnvHelper {
     type Candidate = String;
