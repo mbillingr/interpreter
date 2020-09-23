@@ -137,10 +137,13 @@ fn main() {
         return;
     }
 
-    let global: EnvRef = Environment::new(None).into();
+    let builtin: EnvRef = Environment::new(None).with_name("builtins").into();
+    let global: EnvRef = Environment::new(Some(builtin.clone()))
+        .with_name("globals")
+        .into();
 
     // make the core library available to the repl
-    import_library(&scheme! {((builtin, core))}, &global).unwrap();
+    import_library(&scheme! {((builtin, core))}, &builtin).unwrap();
 
     for arg in opts.scripts {
         match arg {

@@ -49,6 +49,7 @@ pub struct Environment {
     map: HashMap<Symbol, Entry>,
     parent: Option<EnvRef>,
     current_procedure: Procedure<EnvWeak>,
+    name: Option<String>,
 }
 
 impl Environment {
@@ -57,6 +58,7 @@ impl Environment {
             map: Default::default(),
             parent,
             current_procedure: Default::default(),
+            name: None,
         }
     }
 
@@ -65,6 +67,7 @@ impl Environment {
             map: Default::default(),
             parent: Some(parent),
             current_procedure: proc.into(),
+            name: None,
         }
     }
 
@@ -76,8 +79,16 @@ impl Environment {
         &self.current_procedure
     }
 
-    pub fn name(&self) -> Symbol {
-        self.current_procedure.name()
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    pub fn name(&self) -> &str {
+        self.name
+            .as_ref()
+            .map(String::as_str)
+            .unwrap_or(self.current_procedure.name().name())
     }
 
     pub fn lookup(&self, key: &Symbol) -> Option<Expression> {
@@ -196,6 +207,7 @@ impl Environment {
                 .collect::<Result<_>>()?,
             parent: self.parent.clone(),
             current_procedure: self.current_procedure.clone(),
+            name: self.name.clone(),
         })
     }
 
@@ -220,7 +232,10 @@ impl Environment {
             println!("{}+{}", indent, footer);
             depth
         } else {
-            println!("<global>");
+            println!(
+                "<{}>",
+                self.name.as_ref().map(String::as_str).unwrap_or("-?-")
+            );
             0
         }
     }

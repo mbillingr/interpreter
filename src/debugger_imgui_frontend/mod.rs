@@ -117,7 +117,7 @@ fn env_window(ui: &Ui, env: &EnvRef) {
 }
 
 fn env_header(ui: &Ui, env: &Environment) {
-    let env_name: ImString = env.name().into();
+    let env_name: ImString = env.name().to_owned().into();
     if let Some(parent) = env.parent() {
         env_header(ui, &*parent.borrow());
     }
