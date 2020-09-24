@@ -137,9 +137,9 @@ fn main() {
         return;
     }
 
-    let builtin: EnvRef = Environment::new(None).with_name("builtins").into();
+    let builtin: EnvRef = Environment::new(None).with_name("builtin").into();
     let global: EnvRef = Environment::new(Some(builtin.clone()))
-        .with_name("globals")
+        .with_name("global")
         .into();
 
     // make the core library available to the repl

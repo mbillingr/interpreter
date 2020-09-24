@@ -172,3 +172,9 @@ impl std::cmp::PartialOrd for Symbol {
         self.name.partial_cmp(rhs.name)
     }
 }
+
+impl std::cmp::Ord for Symbol {
+    fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
+        self.name.cmp(rhs.name)
+    }
+}
