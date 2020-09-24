@@ -212,32 +212,93 @@ impl Environment {
     }
 
     pub fn print(&self) -> usize {
-        if let Some(parent) = &self.parent {
-            let depth = parent.borrow().print() + 4;
-            let indent: String = (0..depth).map(|_| ' ').collect();
-            let header = format!("----------<{}>----------", self.name());
-            println!("{}+{}", indent, header);
-            for (k, v) in &self.map {
-                println!(
-                    "{}| {}: {}",
-                    indent,
-                    k,
-                    match v {
-                        Entry::Procedure(p) => p.name().to_string(),
-                        Entry::Value(v) => v.short_repr(),
-                    }
-                );
-            }
-            let footer: String = (0..header.len()).map(|_| '-').collect();
-            println!("{}+{}", indent, footer);
-            depth
+        let depth = if let Some(parent) = &self.parent {
+            parent.borrow().print() + 4
         } else {
-            println!(
-                "<{}>",
-                self.name.as_ref().map(String::as_str).unwrap_or("-?-")
-            );
             0
+        };
+        let indent: String = (0..depth).map(|_| ' ').collect();
+        let fb = self.formatted_bindings();
+        let rowlen = fb.iter().map(String::len).max().unwrap_or(0);
+        println!("{}+-{:-<rl$}-+", indent, self.name(), rl = rowlen);
+        for row in fb {
+            println!("{}| {} |", indent, row);
         }
+        println!("{}+-{:-<rl$}-+", indent, "", rl = rowlen);
+        depth
+    }
+
+    pub fn print_bindings(&self, name: &str) {
+        if name != self.name() {
+            match &self.parent {
+                Some(p) => p.borrow().print_bindings(name),
+                None => println!("Unknown environment: {}", name),
+            }
+        } else {
+            for row in self.formatted_bindings() {
+                println!("{}", row);
+            }
+        }
+    }
+
+    pub fn formatted_bindings(&self) -> Vec<String> {
+        let mut identifiers: Vec<_> = self.map.keys().copied().collect();
+        identifiers.sort();
+
+        let items: Vec<_> = identifiers
+            .into_iter()
+            .map(|i| match &self.map[&i] {
+                Entry::Value(x) if x.is_procedure() => (
+                    format!("({} . args)", i),
+                    x.type_description().to_string(),
+                    String::new(),
+                ),
+                Entry::Value(x) => (
+                    i.name().to_owned(),
+                    x.type_description().to_string(),
+                    format!("{:?}", x),
+                ),
+                Entry::Procedure(p) => (
+                    format!("{:?}", Expression::cons(i, p.params_ex().clone())),
+                    "Procedure".to_string(),
+                    String::new(),
+                ),
+            })
+            .collect();
+
+        let left_width = items
+            .iter()
+            .map(|(left, _, _)| left)
+            .map(String::len)
+            .max()
+            .unwrap_or(0);
+        let middle_width = items
+            .iter()
+            .map(|(_, middle, _)| middle)
+            .map(String::len)
+            .max()
+            .unwrap_or(0);
+        let right_width = items
+            .iter()
+            .map(|(_, _, right)| right)
+            .map(String::len)
+            .max()
+            .unwrap_or(0);
+
+        items
+            .into_iter()
+            .map(|(left, middle, right)| {
+                format!(
+                    "{:l$} | {:m$} | {:r$}",
+                    left,
+                    middle,
+                    right,
+                    l = left_width,
+                    m = middle_width,
+                    r = right_width
+                )
+            })
+            .collect()
     }
 }
 
@@ -1061,6 +1122,15 @@ pub fn default_env() -> EnvRef {
             "print-env",
             Expression::NativeIntrusive(|_, env| {
                 env.borrow().print();
+                Ok(Return::Value(Expression::Undefined))
+            }),
+        );
+
+        env.insert(
+            "print-bindings",
+            Expression::NativeIntrusive(|args, env| {
+                let (name,): (Symbol,) = destructure!(args => auto)?;
+                env.borrow().print_bindings(name.name());
                 Ok(Return::Value(Expression::Undefined))
             }),
         );

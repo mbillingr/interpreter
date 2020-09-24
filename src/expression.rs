@@ -362,6 +362,7 @@ impl Expression {
             Expression::Procedure(_) => true,
             Expression::Native(_) => true,
             Expression::NativeIntrusive(_) => true,
+            Expression::NativeClosure(_) => true,
             _ => false,
         }
     }
@@ -618,6 +619,30 @@ impl Expression {
             //Expression::Error(_) => "<ERROR>".into(),
             Expression::Class(cls) => format!("<class {}>", cls.name),
             Expression::Instance(obj) => format!("<instance of {} {:p}>", obj.base.name, &**obj),
+        }
+    }
+
+    pub fn type_description(&self) -> &str {
+        match self {
+            Expression::Undefined => "#<unspecified>",
+            Expression::Nil => "()",
+            Expression::Symbol(_) => "Symbol",
+            Expression::Special(_) => "Special-Symbol",
+            Expression::String(_) => "String",
+            Expression::Number(_) => "Number",
+            Expression::Char(_) => "Char",
+            Expression::True | Expression::False => "Boolean",
+            Expression::Pair(_) => "Pair",
+            Expression::Procedure(_) => "Procedure",
+            Expression::Macro(_) => "Syntax",
+            Expression::NativeMacro(_) => "<native syntax>",
+            Expression::Native(_)
+            | Expression::NativeIntrusive(_)
+            | Expression::NativeClosure(_) => "<native>".into(),
+            Expression::Vector(_) | Expression::OpaqueVector(_) => "Vector",
+            Expression::File(_) => "File",
+            Expression::Class(_) => "Class",
+            Expression::Instance(_) => "Object",
         }
     }
 }
