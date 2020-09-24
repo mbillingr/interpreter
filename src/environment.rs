@@ -1149,6 +1149,11 @@ pub fn default_env() -> EnvRef {
                 Ok(Return::Value(Expression::Undefined))
             }),
         );
+
+        env.insert_native("help", |_| {
+            println!("{}", include_str!("../HELP.md"));
+            Ok(Return::Value(Expression::Undefined))
+        });
     }
 
     defenv

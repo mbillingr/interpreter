@@ -176,6 +176,7 @@ fn main() {
         println!("  source-tracking");
         #[cfg(feature = "bigint")]
         println!("  bigint");
+        println!("Type (help) to find out what you can do here...");
         println!("Welcome to the REPL.")
     }
 
