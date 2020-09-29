@@ -1154,6 +1154,26 @@ pub fn default_env() -> EnvRef {
             println!("{}", include_str!("../HELP.md"));
             Ok(Return::Value(Expression::Undefined))
         });
+
+        env.insert_native("exit", |args| {
+            use std::process::exit;
+            use std::thread::sleep;
+            use std::time::Duration;
+
+            if args.is_nil() {
+                println!("Bye.");
+                sleep(Duration::from_millis(1500));
+                exit(0)
+            }
+
+            let code = match args.car() {
+                Ok(Expression::False) => -1,
+                Ok(Expression::Number(n)) => n.to_i32().unwrap_or(0),
+                _ => 0,
+            };
+
+            exit(code)
+        })
     }
 
     defenv
