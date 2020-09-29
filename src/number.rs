@@ -22,7 +22,7 @@ impl std::fmt::Display for Number {
         match self {
             Number::Integer(i) => write!(f, "{}", i),
             Number::Rational(r) => write!(f, "{}", r),
-            Number::Float(x) => write!(f, "{}", x),
+            Number::Float(x) => write!(f, "{:?}", x),
             Number::Complex(c) => write!(f, "{}", c),
         }
     }
