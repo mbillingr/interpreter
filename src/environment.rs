@@ -740,7 +740,15 @@ pub fn default_env() -> EnvRef {
 
         // numerical constructors
 
+        /// deprecated since 0.2.2
         env.insert_native("complex", |args| {
+            eprintln!("Warning: (complex re im) is deprecated and will be removed in a future release. Use (make-rectangular re im) instead.");
+            let re = car(&args)?.try_as_number()?.to_f64().unwrap();
+            let im = car(cdr(&args)?)?.try_as_number()?.to_f64().unwrap();
+            Ok(Number::complex(re, im).into())
+        });
+
+        env.insert_native("make-rectangular", |args| {
             let re = car(&args)?.try_as_number()?.to_f64().unwrap();
             let im = car(cdr(&args)?)?.try_as_number()?.to_f64().unwrap();
             Ok(Number::complex(re, im).into())
@@ -760,6 +768,20 @@ pub fn default_env() -> EnvRef {
             native_binary(args, X::truncate_remainder)
         });
         env.insert_native("quotient", |args| native_binary(args, X::truncate_quotient));
+        env.insert_native("real-part", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(match number {
+                Number::Complex(c) => c.re.into(),
+                n => n.clone().into(),
+            })
+        });
+        env.insert_native("imag-part", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(match number {
+                Number::Complex(c) => c.im.into(),
+                n => Number::zero().into(),
+            })
+        });
 
         // logical operations
 
