@@ -754,6 +754,14 @@ pub fn default_env() -> EnvRef {
             Ok(Number::complex(re, im).into())
         });
 
+        env.insert_native("make-polar", |args| {
+            let radius = car(&args)?.try_as_number()?.to_f64().unwrap();
+            let angle = car(cdr(&args)?)?.try_as_number()?.to_f64().unwrap();
+            let re = radius * angle.cos();
+            let im = radius * angle.sin();
+            Ok(Number::complex(re, im).into())
+        });
+
         // numerical operations
 
         env.insert_native("exact?", |args| Ok(car(&args)?.is_exact().into()));
@@ -779,8 +787,16 @@ pub fn default_env() -> EnvRef {
             let number = car(&args)?.try_as_number()?;
             Ok(match number {
                 Number::Complex(c) => c.im.into(),
-                n => Number::zero().into(),
+                _ => Number::zero().into(),
             })
+        });
+        env.insert_native("magnitude", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(number.abs().into())
+        });
+        env.insert_native("angle", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(number.angle().into())
         });
 
         // logical operations

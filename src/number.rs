@@ -5,7 +5,7 @@ use num_complex::Complex64;
 use num_rational::BigRational as Ratio;
 #[cfg(not(feature = "bigint"))]
 use num_rational::Rational64 as Ratio;
-use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
 use rand::{thread_rng, Rng};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
@@ -331,6 +331,22 @@ impl Number {
 
             (Integer(a), _) => Self::rand_range(&Float(a.to_f64().unwrap()), hi),
             (_, Integer(b)) => Self::rand_range(lo, &Float(b.to_f64().unwrap())),
+        }
+    }
+
+    pub fn abs(&self) -> Self {
+        match self {
+            Number::Integer(i) => Number::Integer(i.abs()),
+            Number::Rational(r) => Number::Rational(r.abs()),
+            Number::Float(f) => Number::Float(f.abs()),
+            Number::Complex(c) => Number::Float(c.norm()),
+        }
+    }
+
+    pub fn angle(&self) -> Self {
+        match self {
+            Number::Integer(_) | Number::Rational(_) | Number::Float(_) => Number::zero(),
+            Number::Complex(c) => Number::Float(c.arg()),
         }
     }
 }
