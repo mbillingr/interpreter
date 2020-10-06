@@ -483,6 +483,7 @@ impl FromStr for Number {
         s.parse::<Int>()
             .map(Number::Integer)
             .or_else(|_| s.parse::<f64>().map(Number::Float))
+            .or_else(|_| s.parse::<Ratio>().map(Number::Rational))
             .map_err(|_| ())
     }
 }
