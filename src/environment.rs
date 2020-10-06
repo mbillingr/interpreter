@@ -795,8 +795,16 @@ pub fn default_env() -> EnvRef {
             let number = car(&args)?.try_as_number()?;
             Ok(match number {
                 Number::Complex(c) => c.im.into(),
-                n => Number::zero().into(),
+                _ => Number::zero().into(),
             })
+        });
+        env.insert_native("magnitude", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(number.abs().into())
+        });
+        env.insert_native("angle", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(number.angle().into())
         });
 
         // logical operations
