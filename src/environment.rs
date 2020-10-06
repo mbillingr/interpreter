@@ -784,6 +784,20 @@ pub fn default_env() -> EnvRef {
             native_binary(args, X::truncate_remainder)
         });
         env.insert_native("quotient", |args| native_binary(args, X::truncate_quotient));
+        env.insert_native("real-part", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(match number {
+                Number::Complex(c) => c.re.into(),
+                n => n.clone().into(),
+            })
+        });
+        env.insert_native("imag-part", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(match number {
+                Number::Complex(c) => c.im.into(),
+                n => Number::zero().into(),
+            })
+        });
 
         // logical operations
 
