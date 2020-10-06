@@ -480,6 +480,14 @@ impl std::cmp::PartialEq for Number {
 impl FromStr for Number {
     type Err = ();
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "+inf.0" => return Ok(Number::Float(f64::INFINITY)),
+            "-inf.0" => return Ok(Number::Float(f64::NEG_INFINITY)),
+            "+nan.0" | "-nan.0" => return Ok(Number::Float(f64::NAN)),
+            // reject some strings that the numeric parsers below would accept
+            "inf" | "+inf" | "-inf" | "i" => return Err(()),
+            _ => {}
+        }
         s.parse::<Int>()
             .map(Number::Integer)
             .or_else(|_| s.parse::<f64>().map(Number::Float))
