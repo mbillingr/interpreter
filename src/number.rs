@@ -484,6 +484,7 @@ impl FromStr for Number {
             .map(Number::Integer)
             .or_else(|_| s.parse::<f64>().map(Number::Float))
             .or_else(|_| s.parse::<Ratio>().map(Number::Rational))
+            .or_else(|_| s.parse::<Complex64>().map(Number::Complex))
             .map_err(|_| ())
     }
 }
