@@ -120,12 +120,8 @@ impl Expression {
             _ => {}
         }
 
-        if let Ok(i) = s.as_ref().parse::<Int>() {
-            return Expression::Number(i.into());
-        }
-
-        if let Ok(f) = s.as_ref().parse::<f64>() {
-            return Expression::Number(f.into());
+        if let Ok(n) = s.as_ref().parse::<Number>() {
+            return Expression::Number(n);
         }
 
         Expression::Symbol(Symbol::new(s))

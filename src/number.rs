@@ -8,6 +8,7 @@ use num_rational::Rational64 as Ratio;
 use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
 use rand::{thread_rng, Rng};
 use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::str::FromStr;
 
 #[derive(Clone, Debug)]
 pub enum Number {
@@ -473,6 +474,16 @@ impl std::cmp::PartialEq for Number {
             (a @ Rational(_), b) => b.to_rational().map(|b| a.eq(&b)).unwrap_or(false),
             (a, b @ Rational(_)) => a.to_rational().map(|a| a.eq(b)).unwrap_or(false),
         }
+    }
+}
+
+impl FromStr for Number {
+    type Err = ();
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        s.parse::<Int>()
+            .map(Number::Integer)
+            .or_else(|_| s.parse::<f64>().map(Number::Float))
+            .map_err(|_| ())
     }
 }
 
