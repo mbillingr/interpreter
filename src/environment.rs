@@ -657,10 +657,13 @@ pub fn default_env() -> EnvRef {
             car(&args).map(Expression::is_char).map(Into::into)
         });
         env.insert_native("complex?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_complex)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_complex)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("integer?", |args| {
             car(&args)

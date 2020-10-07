@@ -497,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "interpreter"
-version = "0.2.1-dev"
+version = "0.2.4-dev"
 dependencies = [
  "clap 3.0.0-beta.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "gfx 0.18.2 (registry+https://github.com/rust-lang/crates.io-index)",
