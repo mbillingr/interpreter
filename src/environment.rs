@@ -696,10 +696,13 @@ pub fn default_env() -> EnvRef {
             .into())
         });
         env.insert_native("rational?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_rational)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_rational)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("string?", |args| {
             car(&args).map(Expression::is_string).map(Into::into)
