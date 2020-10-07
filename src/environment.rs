@@ -657,16 +657,22 @@ pub fn default_env() -> EnvRef {
             car(&args).map(Expression::is_char).map(Into::into)
         });
         env.insert_native("complex?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_complex)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_complex)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("integer?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_integer)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_integer)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("null?", |args| {
             car(&args).map(Expression::is_nil).map(Into::into)
@@ -681,16 +687,22 @@ pub fn default_env() -> EnvRef {
             car(&args).map(Expression::is_procedure).map(Into::into)
         });
         env.insert_native("real?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_real)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_real)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("rational?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_rational)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_rational)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("string?", |args| {
             car(&args).map(Expression::is_string).map(Into::into)
