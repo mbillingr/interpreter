@@ -687,10 +687,13 @@ pub fn default_env() -> EnvRef {
             car(&args).map(Expression::is_procedure).map(Into::into)
         });
         env.insert_native("real?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_real)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_real)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("rational?", |args| {
             car(&args)
