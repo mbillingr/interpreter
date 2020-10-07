@@ -666,10 +666,13 @@ pub fn default_env() -> EnvRef {
             .into())
         });
         env.insert_native("integer?", |args| {
-            car(&args)
-                .and_then(Expression::try_as_number)
-                .map(Number::is_integer)
-                .map(Into::into)
+            Ok(Expression::from(
+                car(&args)?
+                    .try_as_number()
+                    .map(Number::is_integer)
+                    .unwrap_or(false),
+            )
+            .into())
         });
         env.insert_native("null?", |args| {
             car(&args).map(Expression::is_nil).map(Into::into)
