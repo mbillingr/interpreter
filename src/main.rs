@@ -46,9 +46,13 @@ use lexer::Lexer;
 use parser::parse;
 use std::env;
 use std::path::{Path, PathBuf};
+use bdwgc_alloc::Allocator;
 
 const LINE_PROMPT: &str = ">> ";
 const MULTI_PROMPT: &str = " ... ";
+
+#[global_allocator]
+static GLOBAL_ALLOCATOR: Allocator = Allocator;
 
 fn repl(input: &mut impl LineReader, env: &EnvRef) -> Result<()> {
     let mut source = String::new();
@@ -131,6 +135,10 @@ struct Opts {
 }
 
 fn main() {
+    unsafe {
+        Allocator::initialize()
+    }
+
     let opts: Opts = Opts::parse();
 
     if opts.license {

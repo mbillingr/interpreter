@@ -83,6 +83,15 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "bdwgc-alloc"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cmake 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.77 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -162,6 +171,14 @@ version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cc 1.0.60 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -499,6 +516,7 @@ dependencies = [
 name = "interpreter"
 version = "0.2.4-dev"
 dependencies = [
+ "bdwgc-alloc 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 3.0.0-beta.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "gfx 0.18.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "gfx_window_glutin 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1217,6 +1235,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum autocfg 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 "checksum backtrace 0.3.50 (registry+https://github.com/rust-lang/crates.io-index)" = "46254cf2fdcdf1badb5934448c1bcbe046a56537b3987d96c51a7afc5d03f293"
 "checksum base64 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
+"checksum bdwgc-alloc 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8fbb86b064658e9f28cb5cc122fd33a1637c4d28ab796cc28e7cc8e255355852"
 "checksum bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 "checksum blake2b_simd 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)" = "d8fb2d74254a3a0b5cac33ac9f8ed0e44aa50378d9dbb2e5d83bd21ed1dc2c8a"
 "checksum block 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
@@ -1227,6 +1246,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum clap 3.0.0-beta.2 (registry+https://github.com/rust-lang/crates.io-index)" = "4bd1061998a501ee7d4b6d449020df3266ca3124b941ec56cf2005c3779ca142"
 "checksum clap_derive 3.0.0-beta.2 (registry+https://github.com/rust-lang/crates.io-index)" = "370f715b81112975b1b69db93e0b56ea4cd4e5002ac43b2da8474106a54096a1"
 "checksum cloudabi 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
+"checksum cmake 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)" = "0e56268c17a6248366d66d4a47a3381369d068cce8409bb1716ed77ea32163bb"
 "checksum cocoa 0.18.5 (registry+https://github.com/rust-lang/crates.io-index)" = "1706996401131526e36b3b49f0c4d912639ce110996f3ca144d78946727bce54"
 "checksum constant_time_eq 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 "checksum core-foundation 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "25b9e03f145fd4f2bf705e07b900cd41fc636598fe5dc452fd0db1441c3f496d"
