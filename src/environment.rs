@@ -818,6 +818,20 @@ pub fn default_env() -> EnvRef {
             let number = car(&args)?.try_as_number()?;
             Ok(number.angle().into())
         });
+        env.insert_native("numerator", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(match number {
+                Number::Rational(r) => Number::Integer(r.numer().clone()),
+                n => n.clone(),
+            }.into())
+        });
+        env.insert_native("denominator", |args| {
+            let number = car(&args)?.try_as_number()?;
+            Ok(match number {
+                Number::Rational(r) => Number::Integer(r.denom().clone()),
+                n => n.clone(),
+            }.into())
+        });
 
         // logical operations
 
