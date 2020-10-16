@@ -3,6 +3,7 @@ use crate::errors::*;
 pub use crate::integer::Int;
 use crate::interpreter::{apply, Return};
 use crate::macros::Macro;
+pub use crate::memory::{Ref, Weak};
 use crate::native_closure::NativeClosure;
 use crate::sourcecode::SourceView;
 use crate::symbol::{self, Symbol};
@@ -10,23 +11,18 @@ use crate::syntax;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
 
-#[cfg(feature = "thread-safe")]
-pub use std::sync::{Arc as Ref, Weak};
-
 use crate::number::Number;
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
-#[cfg(not(feature = "thread-safe"))]
-pub use std::rc::{Rc as Ref, Weak};
 
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
 pub type NativeIntrusiveFn = fn(Args, &EnvRef) -> Result<Return>;
 pub type MacroFn = fn(&Expression, &EnvRef, &syntax::State) -> Result<Expression>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pair {
     pub car: Expression,
     pub cdr: Expression,

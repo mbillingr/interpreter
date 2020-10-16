@@ -24,6 +24,7 @@ mod io;
 mod lexer;
 mod libraries;
 mod macros;
+mod memory;
 mod native_closure;
 mod number;
 mod parser;
@@ -130,6 +131,11 @@ struct Opts {
 }
 
 fn main() {
+    #[cfg(feature = "bdwgc-alloc")]
+    unsafe {
+        bdwgc_alloc::Allocator::initialize()
+    }
+
     let opts: Opts = Opts::parse();
 
     if opts.license {

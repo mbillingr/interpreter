@@ -17,10 +17,13 @@ debugging = [
 
 bigint = ["num-bigint", "num-rational/num-bigint-std"]
 
+leaking = ["bdwgc-alloc"]
+
 thread-safe = []
 source-tracking = []
 
 [dependencies]
+bdwgc-alloc = {optional = true, version = "0.5", features = ["cmake"], default-features = false}
 clap = "3.0.0-beta.1"
 gfx = { optional = true, version = "0.18.1" }
 gfx_window_glutin = { optional = true, version = "0.31" }
