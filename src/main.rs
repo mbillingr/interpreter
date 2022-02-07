@@ -37,7 +37,7 @@ use crate::io::LineReader;
 use crate::libraries::import_library;
 use crate::parser::parse_file;
 use crate::syntax::expand;
-use clap::Clap;
+use clap::Parser;
 use environment::EnvRef;
 use errors::*;
 use expression::Expression;
@@ -111,7 +111,7 @@ fn run_program(
 
 /// This is an interpreter for a language very similar to the Scheme dialect of Lisps.
 /// For more information visit https://github.com/mbillingr/interpreter.
-#[derive(Clap)]
+#[derive(Parser, Debug)]
 #[clap(version = env!("CARGO_PKG_VERSION"), author = env!("CARGO_PKG_AUTHORS"))]
 struct Opts {
     /// Scripts to execute before running the REPL.
