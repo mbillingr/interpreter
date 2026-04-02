@@ -16,6 +16,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::iter::FromIterator;
+use std::sync::Arc;
 
 pub type Args = Expression;
 pub type NativeFn = fn(Args) -> Result<Return>;
@@ -187,8 +188,8 @@ impl Expression {
             Expression::Pair(pair) => {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 unsafe {
-                    let car = &pair.car as *const _ as *mut Expression;
-                    *car = x;
+                    let pair = &mut *(Ref::as_ptr(&pair) as *mut Pair);
+                    pair.car = x;
                 }
             }
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
@@ -201,8 +202,8 @@ impl Expression {
             Expression::Pair(pair) => {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
                 unsafe {
-                    let cdr = &pair.cdr as *const _ as *mut Expression;
-                    *cdr = x;
+                    let pair = &mut *(Ref::as_ptr(&pair) as *mut Pair);
+                    pair.cdr = x;
                 }
             }
             _ => Err(ErrorKind::TypeError(format!("not a pair: {}", self)))?,
@@ -394,7 +395,7 @@ impl Expression {
         match self {
             Expression::OpaqueVector(v) | Expression::Vector(v) => unsafe {
                 // mutating shared data is unsafe in Rust but expected behavior in Scheme.
-                let v = &mut *(&**v as *const _ as *mut Vec<_>);
+                let v = &mut *(Arc::as_ptr(v) as *mut Vec<_>);
                 Some(v.as_mut_slice())
             },
             _ => None,
@@ -1366,7 +1367,7 @@ pub fn define_class(env: &mut Environment, class: Ref<Class>) {
                         ErrorKind::TypeError(format!("Expected instance of {}", cls.name)),
                     )?;
 
-                    let obj = unsafe { &mut *(&**obj as *const Instance as *mut Instance) };
+                    let obj = unsafe { &mut *(Ref::as_ptr(obj) as *mut Instance) };
 
                     obj.field_values[idx] = value.clone();
 
@@ -1386,7 +1387,7 @@ pub fn define_method(
 ) {
     let the_method = Expression::Procedure(Procedure::new(Ref::new(params), Ref::new(body), env));
 
-    let class = unsafe { &mut *(&*class as *const Class as *mut Class) };
+    let class = unsafe { &mut *(Ref::as_ptr(&class) as *mut Class) };
 
     class.add_method(name, the_method);
 }

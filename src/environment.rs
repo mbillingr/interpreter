@@ -25,6 +25,7 @@ use std::convert::TryInto;
 use std::fs::File;
 use std::io::Write;
 use std::ops::{Add, Div, Mul, Sub};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
 
@@ -579,7 +580,7 @@ pub fn default_env() -> EnvRef {
                 destructure!(args => auto, auto, auto)?;
 
             if let Some(o) = obj.try_as_instance() {
-                let o = unsafe { &mut *(&**o as *const Instance as *mut Instance) };
+                let o = unsafe { &mut *(Ref::as_ptr(o) as *mut Instance) };
                 o.set_field_value(field.try_as_symbol()?, value)
                     .ok_or_else(|| ErrorKind::ArgumentError)?;
                 Ok(Expression::Undefined.into())
@@ -618,7 +619,7 @@ pub fn default_env() -> EnvRef {
         env.insert_native("file-close!", |args| {
             let (f,): (Expression,) = destructure!(args => auto)?;
             if let Expression::File(inner) = f {
-                let handler: &mut Option<File> = unsafe { &mut *(&*inner as *const _ as *mut _) };
+                let handler: &mut Option<File> = unsafe { &mut *(Ref::as_ptr(&inner) as *mut _) };
                 *handler = None;
             }
             Ok(Expression::Undefined.into())
@@ -627,8 +628,9 @@ pub fn default_env() -> EnvRef {
         env.insert_native("fdisplay", |args| {
             let (f, (obj,)): (Expression, (Expression,)) = destructure!(args => auto, auto)?;
             if let Expression::File(fref) = f {
-                if let Some(fh) = &*fref {
-                    let fh: &mut File = unsafe { &mut *(fh as *const _ as *mut _) };
+                let ptr = Arc::as_ptr(&fref);
+                let fref = unsafe { &mut *(ptr as *mut Option<File>)};
+                if let Some(fh) = fref {
                     write!(fh, "{}", obj)?;
                     return Ok(Expression::Undefined.into());
                 }
@@ -639,8 +641,9 @@ pub fn default_env() -> EnvRef {
         env.insert_native("fwrite", |args| {
             let (f, (obj,)): (Expression, (Expression,)) = destructure!(args => auto, auto)?;
             if let Expression::File(fref) = f {
-                if let Some(fh) = &*fref {
-                    let fh: &mut File = unsafe { &mut *(fh as *const _ as *mut _) };
+                let ptr = Arc::as_ptr(&fref);
+                let fref = unsafe { &mut *(ptr as *mut Option<File>)};
+                if let Some(fh) = fref {
                     write!(fh, "{}", obj.short_repr())?;
                     return Ok(Expression::Undefined.into());
                 }
@@ -823,14 +826,16 @@ pub fn default_env() -> EnvRef {
             Ok(match number {
                 Number::Rational(r) => Number::Integer(r.numer().clone()),
                 n => n.clone(),
-            }.into())
+            }
+            .into())
         });
         env.insert_native("denominator", |args| {
             let number = car(&args)?.try_as_number()?;
             Ok(match number {
                 Number::Rational(r) => Number::Integer(r.denom().clone()),
                 n => n.clone(),
-            }.into())
+            }
+            .into())
         });
 
         // logical operations

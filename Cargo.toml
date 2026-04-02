@@ -2,7 +2,7 @@
 name = "interpreter"
 version = "0.2.5-dev"
 authors = ["Martin Billinger <flkazemakase@gmail.com>"]
-license = "GPL-3.0"
+#license = "GPL-3.0"
 license-file = "LICENSE"
 edition = "2018"
 
@@ -24,7 +24,7 @@ source-tracking = []
 
 [dependencies]
 bdwgc-alloc = {optional = true, version = "0.5", features = ["cmake"], default-features = false}
-clap = "3.0.0-beta.1"
+clap = { version = "4.6", features = ["derive"] }
 gfx = { optional = true, version = "0.18.1" }
 gfx_window_glutin = { optional = true, version = "0.31" }
 glutin = { optional = true, version = "0.21" }
